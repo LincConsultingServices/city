@@ -1,0 +1,8 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" rx="20" fill="#2b3a55"/>
+  <!-- A small isometric "city" glyph: two diamond tiles + a block. -->
+  <polygon points="64,74 100,92 64,110 28,92" fill="#4a6fa5"/>
+  <polygon points="64,54 100,72 64,90 28,72" fill="#6b8cbe"/>
+  <polygon points="52,44 76,44 76,66 64,72 52,66" fill="#f2c14e"/>
+  <polygon points="52,44 64,38 76,44 64,50" fill="#ffd97a"/>
+</svg>

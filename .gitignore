@@ -1,0 +1,18 @@
+# Godot 4.x
+.godot/
+/android/
+/build/
+export.cfg
+
+# Web export output (built by CI / release pipeline, never committed)
+/dist/
+/web-build/
+
+# Local, machine-specific runtime config — carries the Firebase web API key and
+# the deployed backend URL. Ship values via CI/hosting, not the repo.
+config/app_config.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.tmp

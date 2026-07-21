@@ -1,0 +1,18 @@
+# Godot text resources are text — keep them diffable and normalize line endings.
+# .tscn files merge terribly (PRD §17): the mitigation is STRUCTURAL ownership
+# (no two owners edit the same scene), not merge tooling. These attributes just
+# keep line endings sane across the win32/linux team.
+*.gd    text eol=lf
+*.tscn  text eol=lf
+*.tres  text eol=lf
+*.godot text eol=lf
+*.cfg   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+
+# Binary assets
+*.png   binary
+*.webp  binary
+*.ogg   binary
+*.wav   binary
+*.ttf   binary

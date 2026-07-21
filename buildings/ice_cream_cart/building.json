@@ -1,0 +1,15 @@
+{
+  "id": "ice_cream_cart",
+  "displayName": "Ice Cream Cart",
+  "district": "market_street",
+  "exterior": {
+    "sprite": null,
+    "footprintTiles": [[10, 8], [11, 8]],
+    "entranceTile": [11, 9]
+  },
+  "interiorScene": null,
+  "hostedActivities": ["C4-BEG-01", "C4-BEG-09", "C4-BEG-11"],
+  "owner": "framework-f0",
+  "enabled": true,
+  "_note": "F0 placeholder venue (PRD §19). Named for F1's real starter venue (PRD §7.4). interiorScene is null → the framework runs it in overlay mode. hostedActivities use real seeded C4-BEGINNER ids; the live activity list + player land in F1. sprite is null → gray-box exterior until the §14 art pass."
+}

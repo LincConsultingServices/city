@@ -1,0 +1,78 @@
+name: CI
+
+# Mirrors the academy-backend CI philosophy (PRD §17, §18): what actually stops
+# a broken PR from merging once several people open PRs in parallel. gdformat +
+# gdlint keep GDScript uniform; the headless test gates pure logic; the web
+# export build is informational until hosting/export templates are wired (same
+# pattern as the backend's "strict launch gate — informational until ready").
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  GODOT_VERSION: "4.3"
+
+jobs:
+  format-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install gdtoolkit
+        run: pip install "gdtoolkit==4.*"
+      - name: gdformat (check only)
+        run: gdformat --check --line-length 120 $(git ls-files '*.gd')
+      - name: gdlint
+        run: gdlint $(git ls-files '*.gd')
+
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Godot ${{ env.GODOT_VERSION }}
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: false
+          include-templates: true
+
+      - name: Import resources (headless, first pass generates .godot)
+        run: godot --headless --import --quit || true
+
+      - name: Headless unit tests
+        run: godot --headless --script res://tests/run_tests.gd
+
+      # Informational until Firebase Hosting + export templates are confirmed in
+      # CI (PRD §13, §19 F4 launch checklist). Flip off continue-on-error to make
+      # the web build a hard gate once staging deploys are green.
+      - name: Web export (informational)
+        continue-on-error: true
+        run: |
+          mkdir -p dist
+          godot --headless --export-release "Web" dist/index.html
+
+  # CODEOWNERS-based boundary check (PRD §7.3 hard rule): a building PR touches
+  # only its own buildings/<id>/ folder. Informational scaffold for F0 — becomes
+  # enforcing once real building folders + owners exist (F3 handoff).
+  ownership-boundary:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Warn if a buildings/<id>/ PR reaches outside its folder
+        continue-on-error: true
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          changed=$(git diff --name-only "$base"...HEAD)
+          echo "Changed files:"; echo "$changed"
+          building_dirs=$(echo "$changed" | grep '^buildings/' | cut -d/ -f1-2 | sort -u || true)
+          if [ "$(echo "$building_dirs" | grep -c . )" -gt 1 ]; then
+            echo "::warning::PR touches more than one buildings/<id>/ folder — check the ownership boundary (PRD §17).";
+          fi
