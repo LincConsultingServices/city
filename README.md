@@ -18,8 +18,8 @@ Requires **Godot 4.3+** (GDScript; the GL Compatibility renderer is used for a
 robust web export).
 
 ```bash
-cp config/app_config.example.json config/app_config.json
-# edit app_config.json: set firebaseApiKey (WarRoom web key) + apiBaseUrl
+cp .env.example .env
+# edit .env: set FIREBASE_API_KEY (WarRoom web key) + API_BASE_URL
 ```
 
 Open in Godot 4.3+ and press Play (main scene: `main/boot.tscn`). Or headless:
@@ -44,7 +44,7 @@ godot --headless --script res://tests/run_tests.gd   # unit tests
 
 ```
 project.godot            Godot 4.3 · autoloads · input map · GL Compatibility
-config/                  AppConfig (static) + app_config.json (gitignored, per-build)
+config/                  AppConfig (static loader); values from .env (gitignored)
 autoload/                the 7 shared singletons — the entire shared runtime surface
   event_bus  api_client  session  player_state  economy  scene_router  audio_manager
 core/                    static helpers: iso.gd, building_manifest.gd, api_result.gd

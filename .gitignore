@@ -10,7 +10,8 @@ export.cfg
 
 # Local, machine-specific runtime config — carries the Firebase web API key and
 # the deployed backend URL. Ship values via CI/hosting, not the repo.
-config/app_config.json
+# Copy .env.example → .env and fill in real values.
+.env
 
 # OS / editor cruft
 .DS_Store

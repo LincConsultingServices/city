@@ -33,11 +33,15 @@ not a blocker. File these as backend issues per the additive-only extension flow
 Seeded content today: **C4-BEGINNER only** (per backend README). The placeholder
 venue's `hostedActivities` use real `C4-BEG-*` ids so F1 can bind to live data.
 
-Config you must supply before login works (see `config/app_config.example.json`):
-- `firebaseApiKey` — the WarRoom **web** API key (client key, from the main
+Config you must supply before login works (copy `.env.example` → `.env`):
+- `FIREBASE_API_KEY` — the WarRoom **web** API key (client key, from the main
   frontend's build config; not a secret but not guessable — left blank on purpose).
-- `apiBaseUrl` — `http://localhost:8080` for local dev, or the deployed Cloud Run
+- `API_BASE_URL` — `http://localhost:8080` for local dev, or the deployed Cloud Run
   URL (the openapi shows `…-uc.a.run.app` with the hash redacted).
+
+Resolution order (last wins): baked defaults → `res://.env` → real OS env vars
+(the CI path) → `window.CITY_CONFIG` (web hosting-time injection). Format matches
+the backend's godotenv `.env` so ops knowledge transfers 1:1.
 
 ---
 
@@ -94,9 +98,8 @@ frozen framework docs (F3), interiors/FTUE/audio/a11y/perf passes (F4).
 
 ## 4. How to smoke-test F0 (needs Godot 4.3+)
 
-1. `cp config/app_config.example.json config/app_config.json` and fill
-   `firebaseApiKey` + `apiBaseUrl` (point at a running backend, or the live
-   Cloud Run URL).
+1. `cp .env.example .env` and fill `FIREBASE_API_KEY` + `API_BASE_URL` (point at
+   a running backend, or the live Cloud Run URL).
 2. Open the project in **Godot 4.3+** and press Play (main scene = `main/boot.tscn`).
 3. **Login gate:** sign in with a real WarRoom account → you spawn in the gray
    city. Sign in with an unknown email → the register interstitial appears
@@ -115,7 +118,7 @@ godot --headless --script res://tests/run_tests.gd   # unit tests, exits non-zer
 ```
 
 ## 5. F0 exit checklist
-- [ ] `config/app_config.json` created with a valid web API key + backend URL.
+- [ ] `.env` created (from `.env.example`) with a valid web API key + backend URL.
 - [ ] Smoke-test steps 1–6 pass on the reference laptop profile (PRD §12.3).
 - [ ] Backend gaps in §1 filed as issues on `academy-backend` (PRD §11.3).
 - [ ] Base art pack license logged in `assets/ASSETS_LICENSES.md` (PRD §14/§20).

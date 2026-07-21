@@ -24,7 +24,7 @@ func _ready() -> void:
 	_build_card()
 	_build_interstitial()
 	if not AppConfig.is_configured():
-		_show_error("Set the Firebase web API key in config/app_config.json to enable sign-in.")
+		_show_error("Set FIREBASE_API_KEY in .env (copy .env.example) to enable sign-in.")
 
 
 # ── Actions ──────────────────────────────────────────────────────────────────

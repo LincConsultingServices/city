@@ -1,7 +1,0 @@
-{
-  "_comment": "Copy to app_config.json (gitignored) and fill in. The Firebase web API key is a CLIENT key (ships in the web bundle), copy it from the main WarRoom frontend's build config (PRD §10). apiBaseUrl is the deployed Cloud Run URL for staging/prod, or http://localhost:8080 for local dev against the backend.",
-  "firebaseApiKey": "AIza-REPLACE-ME-with-warroom-web-api-key",
-  "firebaseProjectId": "warroom-498513",
-  "apiBaseUrl": "http://localhost:8080",
-  "registerUrl": "https://warroom.humanfirstbykk.com/register"
-}

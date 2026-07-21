@@ -130,7 +130,7 @@ func _outcome_for_firebase(code: String) -> Dictionary:
 		"CONFIG_MISSING":
 			return {
 				"status": "config_missing",
-				"message": "The city isn't configured yet (missing Firebase key). See config/app_config.example.json."
+				"message": "The city isn't configured yet (missing Firebase key). Copy .env.example to .env and set FIREBASE_API_KEY."
 			}
 		"NETWORK":
 			return {"status": "network", "message": "Couldn't reach sign-in. Check your connection."}
