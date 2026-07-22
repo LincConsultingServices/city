@@ -1,0 +1,15 @@
+# Ownership = folders (PRD §17). Replace the placeholder @handles with real
+# GitHub usernames/teams before enabling branch protection.
+
+# Shared core — maintainer-reviewed. Two building teams never edit these.
+/src/framework/    @maintainers
+/src/world/        @maintainers
+/src/activities/   @maintainers
+/src/ui/           @maintainers
+/src/lib/          @maintainers
+/src/config/       @maintainers
+/.github/          @maintainers
+/scripts/          @maintainers
+
+# Buildings — exactly one owner per venue folder.
+/src/buildings/ice_cream_cart/   @santhosh

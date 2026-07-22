@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <title>The City</title>
+    <script>
+      // Hosting-time config override (PRD §13, carry-over of the F0 CITY_CONFIG
+      // idea): set fields here at deploy time to change the Firebase web key or
+      // API base URL without a rebuild. Highest precedence in AppConfig.
+      // window.__CITY_CONFIG__ = {
+      //   firebaseApiKey: '',
+      //   firebaseProjectId: 'warroom-498513',
+      //   apiBaseUrl: 'https://…-uc.a.run.app',
+      //   registerUrl: 'https://warroom.humanfirstbykk.com/register',
+      // };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
