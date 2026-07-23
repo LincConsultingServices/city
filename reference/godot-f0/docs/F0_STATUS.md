@@ -26,12 +26,21 @@ not a blocker. File these as backend issues per the additive-only extension flow
 | `GET /api/v1/me` bootstrap (HUD + starter grants) | **No `/me` route exists.** | `Session.bootstrap()` calls `GET /api/v1/registry/modules` (the first authed call that exists — returns modules + earned badges). One-line swap to `/me` when it lands. |
 | Economy live server-side: `/wallet`, `/shop`, `/inventory`, `/avatar`, coins on submit | **None of those routes exist**; `SubmitResponse` has no `coinsEarned`/`coinBalance`; `AcademyUser` has no coin field. | Not needed for F0 (economy is F2). `Economy` autoload is a wired-but-unfed seam holding **no fake data**; it starts feeding the instant those fields appear. |
 | Backend returns `403 NOT_REGISTERED` + `redirectUrl` → register | **Middleware auto-provisions** any valid Firebase token into a user row. No such 403, no `redirectUrl`, ever. | The real "unregistered" signal is at the **Firebase login layer** (`EMAIL_NOT_FOUND`). The interstitial fires there; the register URL is a client const (`AppConfig.register_url`). |
-| Structured error envelope `{"error":{code,message,redirectUrl}}` (PRD §8.3) | **Flat** `{"error":"message"}` everywhere. | `ApiClient._parse_error` normalizes **both** shapes into one `ApiError` (unit-tested). Callers are written once. |
+| Structured error envelope `{"error":{code,message,redirectUrl}}` (PRD §8.3) | **The LIVE Cloud Run backend already returns structured** `{"error":{"code":"UNAUTHENTICATED","message":"Missing or malformed token"}}` — ahead of the local source snapshot (which is flat `{"error":"message"}`). Note the 401 auth code is `UNAUTHENTICATED`, **not** `INVALID_TOKEN`. | `ErrorEnvelope.parse` normalizes **both** shapes; and treats auth as **status-driven** — ANY 401 → internal `INVALID_TOKEN`, whatever the body label — so the single silent-refresh path fires even against the live `UNAUTHENTICATED`. Regression-tested (`live 401 …` checks). |
 | openapi **v0.3.0** | `api/openapi.yaml` is **v0.2.0**, and is itself behind the handler (missing badges/profile/hub too). | Built against the handler (source of truth), not the openapi. Flag the openapi as stale. |
-| Firebase `EMAIL_NOT_FOUND` cleanly identifies unknown users | Projects with **email-enumeration protection** collapse this into `INVALID_LOGIN_CREDENTIALS` (can't distinguish unknown-email from wrong-password). | Interstitial still fires on `EMAIL_NOT_FOUND`; **and** a persistent "New to WarRoom? Register" link is always visible so the register path is reachable regardless. |
+| Firebase `EMAIL_NOT_FOUND` cleanly identifies unknown users | **CONFIRMED live:** the project has **email-enumeration protection**, so sign-in returns `INVALID_LOGIN_CREDENTIALS` (can't distinguish unknown-email from wrong-password). | Interstitial still fires on `EMAIL_NOT_FOUND`; **and** a persistent "New to WarRoom? Register" link is always visible so the register path is reachable regardless. |
+| Base URL is the service origin | The main frontend's `NEXT_PUBLIC_API_URL` ends in **`/api`**, but the academy routes live at `/api/v1` off the root — so a naive base would double to `/api/api/v1`. | `AppConfig._normalize_base_url` strips a trailing `/api`. It also accepts the main frontend's `NEXT_PUBLIC_*` var names as aliases, so that `.env` drops in verbatim. Verified live: a no-token call returns **401, not 404**. |
 
 Seeded content today: **C4-BEGINNER only** (per backend README). The placeholder
 venue's `hostedActivities` use real `C4-BEG-*` ids so F1 can bind to live data.
+
+**Verified live (2026-07-22)** against the deployed Cloud Run backend + Firebase,
+using the real web API key, via a headless connectivity probe:
+- Firebase web API key is valid (dummy sign-in → `INVALID_LOGIN_CREDENTIALS`, i.e.
+  the key + project resolve; a bad key returns `API_KEY_INVALID`).
+- `GET /api/v1/registry/modules` with no token → `401` with structured body
+  `{"error":{"code":"UNAUTHENTICATED",...}}`, normalized by the client to
+  `INVALID_TOKEN`. Correct path (not `404`), so the base-URL handling is right.
 
 Config you must supply before login works (copy `.env.example` → `.env`):
 - `FIREBASE_API_KEY` — the WarRoom **web** API key (client key, from the main

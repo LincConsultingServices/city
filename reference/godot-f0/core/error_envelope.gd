@@ -24,6 +24,14 @@ static func parse(status: int, parsed: Variant) -> ApiResult.ApiError:
 				message = String(errfield["message"])
 			if errfield.has("redirectUrl"):
 				redirect = String(errfield["redirectUrl"])
+	# Auth is status-driven: ANY 401 means "authenticate again", whatever label the
+	# body carries. The LIVE backend sends structured
+	# {"error":{"code":"UNAUTHENTICATED","message":"Missing or malformed token"}};
+	# older/local builds send a flat string. Both normalize to our internal
+	# INVALID_TOKEN so the single silent-refresh path (PRD §8.3, §10) fires
+	# uniformly — otherwise a real expired token would skip the refresh entirely.
+	if status == 401:
+		code = "INVALID_TOKEN"
 	return ApiResult.ApiError.new(code, message, status, redirect)
 
 

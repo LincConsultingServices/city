@@ -106,3 +106,13 @@ func _test_envelope() -> void:
 	)
 	_check(structured.code == "NOT_REGISTERED", "structured envelope code overrides status")
 	_check(structured.redirect_url == "https://reg", "structured envelope redirectUrl is captured")
+
+	# LIVE backend shape (verified against Cloud Run): a 401 carries a structured
+	# error whose code is UNAUTHENTICATED, NOT INVALID_TOKEN. Auth is status-driven,
+	# so any 401 must still normalize to INVALID_TOKEN or silent-refresh never fires.
+	var live401 = EnvelopeS.parse(
+		401, {"error": {"code": "UNAUTHENTICATED", "message": "Missing or malformed token"}}
+	)
+	_check(live401.code == "INVALID_TOKEN", "live 401 (UNAUTHENTICATED) → INVALID_TOKEN")
+	_check(live401.message == "Missing or malformed token", "live 401 message is preserved")
+	_check(live401.is_auth_error(), "live 401 is treated as an auth error")

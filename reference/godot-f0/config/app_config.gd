@@ -9,7 +9,9 @@
 ##   4. window.CITY_CONFIG on the web  (hosting-time injection, no rebuild).
 ##
 ## The .env format matches the backend's godotenv convention (KEY=VALUE, '#'
-## comments, optional surrounding quotes) so operational knowledge transfers 1:1.
+## comments, optional surrounding quotes). Each field accepts its own canonical
+## name AND the main WarRoom frontend's NEXT_PUBLIC_* name (first in the list
+## wins), so the existing frontend .env can be dropped in verbatim (PRD §10).
 ##
 ## SECURITY NOTE: the Firebase *web* API key is a client identifier, not a
 ## secret (it ships in every web bundle) — but we still never hardcode a value
@@ -33,12 +35,13 @@ const FIREBASE_REFRESH_URL := "https://securetoken.googleapis.com/v1/token"
 
 const ENV_PATH := "res://.env"
 
-# .env / OS-env variable names → the fields they populate.
-const ENV_KEYS := {
-	"FIREBASE_API_KEY": "firebase_api_key",
-	"FIREBASE_PROJECT_ID": "firebase_project_id",
-	"API_BASE_URL": "api_base_url",
-	"REGISTER_URL": "register_url",
+# field → accepted env-var names, in priority order (first present wins). The
+# NEXT_PUBLIC_* aliases let the main frontend's .env be reused as-is.
+const FIELD_ENV_NAMES := {
+	"firebase_api_key": ["FIREBASE_API_KEY", "NEXT_PUBLIC_FIREBASE_API_KEY"],
+	"firebase_project_id": ["FIREBASE_PROJECT_ID", "NEXT_PUBLIC_FIREBASE_PROJECT_ID"],
+	"api_base_url": ["API_BASE_URL", "NEXT_PUBLIC_API_URL"],
+	"register_url": ["REGISTER_URL", "NEXT_PUBLIC_REGISTER_URL"],
 }
 
 static var _loaded := false
@@ -53,14 +56,14 @@ static func ensure_loaded() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	_load_env_file()
-	_load_os_env()
-	_load_web_overrides()
+	_resolve(_parse_env_file())  # .env layer
+	_resolve(_os_env_vars())  # OS env overrides the file (CI path)
+	_load_web_overrides()  # web hosting-time injection wins
 	if firebase_api_key.is_empty():
 		push_warning(
 			(
-				"AppConfig: FIREBASE_API_KEY is empty — set it in .env (copy .env.example). "
-				+ "Login is disabled until then."
+				"AppConfig: no Firebase API key found — set FIREBASE_API_KEY (or "
+				+ "NEXT_PUBLIC_FIREBASE_API_KEY) in .env. Login is disabled until then."
 			)
 		)
 
@@ -73,11 +76,22 @@ static func is_configured() -> bool:
 # ── Loaders ──────────────────────────────────────────────────────────────────
 
 
-## Parse res://.env into the config fields. Missing file is not an error —
-## values simply come from OS env or web overrides instead.
-static func _load_env_file() -> void:
+## Assign each field from the first present, non-empty candidate name in `vars`.
+static func _resolve(vars: Dictionary) -> void:
+	for field: String in FIELD_ENV_NAMES:
+		for name: String in FIELD_ENV_NAMES[field]:
+			if vars.has(name):
+				var value: String = String(vars[name]).strip_edges()
+				if not value.is_empty():
+					_set_field(field, value)
+					break
+
+
+## Parse res://.env into a {KEY: value} dictionary. Missing file → empty dict.
+static func _parse_env_file() -> Dictionary:
+	var out := {}
 	if not FileAccess.file_exists(ENV_PATH):
-		return
+		return out
 	var text := FileAccess.get_file_as_string(ENV_PATH)
 	for raw_line in text.split("\n"):
 		var line := raw_line.strip_edges()
@@ -89,19 +103,18 @@ static func _load_env_file() -> void:
 		if eq < 0:
 			continue
 		var key := line.substr(0, eq).strip_edges()
-		var value := _unquote(line.substr(eq + 1).strip_edges())
-		if ENV_KEYS.has(key) and not value.is_empty():
-			_set_field(ENV_KEYS[key], key, value)
+		out[key] = _unquote(line.substr(eq + 1).strip_edges())
+	return out
 
 
-## Real process environment variables override the .env file (the CI path).
-static func _load_os_env() -> void:
-	for key: String in ENV_KEYS:
-		if not OS.has_environment(key):
-			continue
-		var value := OS.get_environment(key).strip_edges()
-		if not value.is_empty():
-			_set_field(ENV_KEYS[key], key, value)
+## Real process environment variables for every candidate name we recognise.
+static func _os_env_vars() -> Dictionary:
+	var out := {}
+	for field: String in FIELD_ENV_NAMES:
+		for name: String in FIELD_ENV_NAMES[field]:
+			if OS.has_environment(name):
+				out[name] = OS.get_environment(name)
+	return out
 
 
 static func _load_web_overrides() -> void:
@@ -122,7 +135,7 @@ static func _load_web_overrides() -> void:
 	if cfg.firebaseProjectId != null:
 		firebase_project_id = String(cfg.firebaseProjectId)
 	if cfg.apiBaseUrl != null:
-		api_base_url = _strip_trailing_slash(String(cfg.apiBaseUrl))
+		api_base_url = _normalize_base_url(String(cfg.apiBaseUrl))
 	if cfg.registerUrl != null:
 		register_url = String(cfg.registerUrl)
 
@@ -131,18 +144,18 @@ static func _load_web_overrides() -> void:
 
 
 ## Assign one resolved value to its static field, normalising as needed.
-static func _set_field(field: String, key: String, value: String) -> void:
+static func _set_field(field: String, value: String) -> void:
 	match field:
 		"firebase_api_key":
 			firebase_api_key = value
 		"firebase_project_id":
 			firebase_project_id = value
 		"api_base_url":
-			api_base_url = _strip_trailing_slash(value)
+			api_base_url = _normalize_base_url(value)
 		"register_url":
 			register_url = value
 		_:
-			push_warning("AppConfig: unmapped env key %s" % key)
+			push_warning("AppConfig: unmapped field %s" % field)
 
 
 ## Strip one layer of matching surrounding single/double quotes.
@@ -153,5 +166,21 @@ static func _unquote(s: String) -> String:
 	return s
 
 
-static func _strip_trailing_slash(s: String) -> String:
-	return s.substr(0, s.length() - 1) if s.ends_with("/") else s
+## Normalise a backend base URL to the service ORIGIN that the client's hardcoded
+## "/api/v1/..." paths expect. The main frontend's NEXT_PUBLIC_API_URL ends in
+## "/api" (its own convention); the academy backend routes live at "/api/v1" off
+## the root (see backend main.go), so a trailing "/api" here would double up.
+## Strip trailing slashes, then one trailing "/api", then any slashes again.
+static func _normalize_base_url(s: String) -> String:
+	var u := s.strip_edges()
+	u = _rstrip_slashes(u)
+	if u.ends_with("/api"):
+		u = u.substr(0, u.length() - 4)
+	return _rstrip_slashes(u)
+
+
+static func _rstrip_slashes(s: String) -> String:
+	var u := s
+	while u.ends_with("/"):
+		u = u.substr(0, u.length() - 1)
+	return u
