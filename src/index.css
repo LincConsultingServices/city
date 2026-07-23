@@ -1,0 +1,31 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Outfit:wght@300;400;500;600;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Design tokens — "R G B" triples consumed by rgb(var(--token) / <alpha>). */
+    --c-ink: 15 18 26;
+    --c-surface: 26 30 42;
+    --c-surface-2: 34 40 54;
+    --c-line: 52 60 78;
+    --c-muted: 140 150 170;
+    --c-text: 226 232 240;
+    --c-gold: 226 190 120;
+    --c-coin: 240 200 90;
+    --c-accent: 90 150 230;
+    --c-success: 90 200 140;
+    --c-danger: 230 110 110;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-ink text-text font-body antialiased;
+  }
+}

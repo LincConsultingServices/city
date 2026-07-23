@@ -1,19 +1,22 @@
-# Godot 4.x
-.godot/
-/android/
-/build/
-export.cfg
-
-# Web export output (built by CI / release pipeline, never committed)
-/dist/
-/web-build/
+# Dependencies / build output
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.local
 
 # Local, machine-specific runtime config — carries the Firebase web API key and
-# the deployed backend URL. Ship values via CI/hosting, not the repo.
-# Copy .env.example → .env and fill in real values.
+# the backend URL. Copy .env.example → .env and fill in real values.
 .env
+.env.*.local
 
-# OS / editor cruft
+# Archived Godot editor cache (regenerable) under reference/godot-f0/
+.godot/
+
+# Editor / OS cruft
+.vscode/*
+!.vscode/extensions.json
+.idea/
 .DS_Store
 Thumbs.db
-*.tmp
+*.log
