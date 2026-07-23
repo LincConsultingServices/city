@@ -11,9 +11,53 @@ export interface McqContent {
   options: { id: string; label: string }[];
 }
 
-export type ActivityContent = SimContent | McqContent;
+// DRAG_MATCH → objective. Items are tapped into zones; item `key` and zone `id`
+// must match the server's hidden answer keys so submissions score correctly.
+export interface DragMatchContent {
+  kind: "drag_match";
+  prompt: string;
+  zones: { id: string; label: string }[];
+  items: { key: string; label: string; emoji?: string }[];
+}
+
+// SORT_ORDER → order. The user arranges items; `key` matches the server order-key.
+export interface SortOrderContent {
+  kind: "sort_order";
+  prompt: string;
+  items: { key: string; label: string; emoji?: string }[];
+}
+
+export type ActivityContent = SimContent | McqContent | DragMatchContent | SortOrderContent;
 
 export const ACTIVITY_CONTENT: Record<string, ActivityContent> = {
+  // C4-BEG-01 — "Needs vs Wants" (DRAG_MATCH → objective). Placeholder keys.
+  "C4-BEG-01": {
+    kind: "drag_match",
+    prompt: "Sort each thing into Needs (you must have it) or Wants (nice to have).",
+    zones: [
+      { id: "need", label: "Need" },
+      { id: "want", label: "Want" },
+    ],
+    items: [
+      { key: "rent", label: "This month's rent", emoji: "🏠" },
+      { key: "groceries", label: "Groceries for the week", emoji: "🥦" },
+      { key: "phone", label: "The newest phone", emoji: "📱" },
+      { key: "sneakers", label: "Limited-edition sneakers", emoji: "👟" },
+      { key: "bus", label: "Bus fare to work", emoji: "🚌" },
+    ],
+  },
+  // C4-BEG-05 — "Money In, Money Out" (SORT_ORDER → order). Placeholder order.
+  "C4-BEG-05": {
+    kind: "sort_order",
+    prompt: "Put the cash-flow steps in the order a disciplined stand-owner follows.",
+    items: [
+      { key: "earn", label: "Take the day's sales", emoji: "💰" },
+      { key: "costs", label: "Pay for supplies used", emoji: "🧾" },
+      { key: "debt", label: "Make the loan payment", emoji: "🏦" },
+      { key: "save", label: "Set aside savings", emoji: "🐖" },
+      { key: "keep", label: "Keep what's left as profit", emoji: "✅" },
+    ],
+  },
   // C4-BEG-09 — "Three Days at the Lemonade Stand": learn profit = revenue − costs.
   "C4-BEG-09": {
     kind: "sim",

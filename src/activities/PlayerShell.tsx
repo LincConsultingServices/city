@@ -7,6 +7,8 @@ import type { LevelActivity, ResultPayload, SubmitResponse } from "@/framework/a
 import { ACTIVITY_CONTENT } from "./content";
 import { McqRenderer } from "./renderers/McqRenderer";
 import { MiniSimRenderer } from "./renderers/MiniSimRenderer";
+import { DragMatchRenderer } from "./renderers/DragMatchRenderer";
+import { SortOrderRenderer } from "./renderers/SortOrderRenderer";
 
 // Player shell (PRD §8) — header + one renderer + server-driven result. F1 wires the
 // objective loop (start → play → submit → server result/celebration) end-to-end.
@@ -61,10 +63,15 @@ export function PlayerShell({
     if (content?.kind === "sim")
       return <MiniSimRenderer content={content} activityId={activity.id} onChange={setResult} />;
     if (content?.kind === "mcq") return <McqRenderer content={content} onChange={setResult} />;
+    if (content?.kind === "drag_match")
+      return <DragMatchRenderer content={content} onChange={setResult} />;
+    if (content?.kind === "sort_order")
+      return <SortOrderRenderer content={content} onChange={setResult} />;
     return (
       <p className="text-muted">
         No client content authored for <code className="text-gold">{activity.id}</code> yet — its{" "}
-        <code className="text-gold">{activity.activityType}</code> renderer/content lands next in F1.
+        <code className="text-gold">{activity.activityType}</code> renderer/content lands next in
+        F1.
       </p>
     );
   }, [response, content, activity, onClose]);
