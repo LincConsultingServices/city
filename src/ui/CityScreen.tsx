@@ -63,14 +63,22 @@ export function CityScreen() {
       )}
 
       {openVenue && !playing && openVenue.kind === "competency" && (
-        <ActivityListPanel venue={openVenue} onClose={() => setOpenVenue(null)} onPlay={(a) => setPlaying(a)} />
+        <ActivityListPanel
+          venue={openVenue}
+          onClose={() => setOpenVenue(null)}
+          onPlay={(a) => setPlaying(a)}
+        />
       )}
       {openVenue && !playing && openVenue.kind !== "competency" && (
         <InfoPanel venue={openVenue} onClose={() => setOpenVenue(null)} />
       )}
 
       {playing && openVenue && (
-        <PlayerShell activity={playing} venueName={openVenue.displayName} onClose={() => setPlaying(null)} />
+        <PlayerShell
+          activity={playing}
+          venueName={openVenue.displayName}
+          onClose={() => setPlaying(null)}
+        />
       )}
     </div>
   );
@@ -78,18 +86,39 @@ export function CityScreen() {
 
 function InfoPanel({ venue, onClose }: { venue: CityBuilding; onClose: () => void }) {
   const copy: Record<string, { title: string; body: string }> = {
-    shop: { title: "The Shop", body: "Spend your coins on cosmetics here. Opens once the economy endpoints land (a later phase)." },
-    trophy: { title: "Trophy Hall", body: "Your earned badges will stand on these shelves. Coming in a later phase." },
-    locked: { title: "Custom venue", body: "A client-configurable venue — ships disabled until a client is set up." },
-    cafe: { title: "Café", body: "A dedicated venue, scaffolded and ready — wire up its activities, theme and competency draw whenever you're ready." },
+    shop: {
+      title: "The Shop",
+      body: "Spend your coins on cosmetics here. Opens once the economy endpoints land (a later phase).",
+    },
+    trophy: {
+      title: "Trophy Hall",
+      body: "Your earned badges will stand on these shelves. Coming in a later phase.",
+    },
+    locked: {
+      title: "Custom venue",
+      body: "A client-configurable venue — ships disabled until a client is set up.",
+    },
+    cafe: {
+      title: "Café",
+      body: "A dedicated venue, scaffolded and ready — wire up its activities, theme and competency draw whenever you're ready.",
+    },
   };
   const c = copy[venue.kind] ?? { title: venue.displayName, body: "Coming soon." };
   return (
-    <div className="absolute inset-0 z-20 grid place-items-center bg-ink/70 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 text-center" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="absolute inset-0 z-20 grid place-items-center bg-ink/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 text-center"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="font-display text-2xl font-semibold text-gold">{c.title}</h2>
         <p className="mt-3 text-sm text-muted">{c.body}</p>
-        <button onClick={onClose} className="mt-5 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110">
+        <button
+          onClick={onClose}
+          className="mt-5 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110"
+        >
           Got it
         </button>
       </div>

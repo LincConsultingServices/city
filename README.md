@@ -21,12 +21,14 @@ npm run dev                # http://localhost:5173
 The main WarRoom frontend's `NEXT_PUBLIC_*` env names are accepted verbatim.
 
 ## Scripts
+
 - `npm run dev` — Vite dev server (HMR)
 - `npm run build` — typecheck (`tsc`) + production build
 - `npm test` — Vitest unit suite
 - `npm run typecheck` — `tsc --noEmit`
 
 ## How it works (PRD §10)
+
 1. Sign in with a **WarRoom account** (Firebase, project `warroom-498513`). No
    in-game sign-up — an unknown account routes to `warroom.humanfirstbykk.com/register`.
 2. Every backend call sends `Authorization: Bearer <idToken>`; the backend
@@ -36,6 +38,7 @@ The main WarRoom frontend's `NEXT_PUBLIC_*` env names are accepted verbatim.
    and renders what the server returns.
 
 ## Layout (PRD §12.1)
+
 ```
 src/
   framework/     shared runtime: api (client + Zod schemas + errors), auth,
@@ -47,6 +50,7 @@ src/
 ```
 
 ## Status
+
 - **F0 (skeleton):** ✅ login → gray-box Pixi iso city, click-to-move, one venue
   with proximity prompt; typed ApiClient (auth + envelope + base-URL, ported and
   unit-tested from the Godot F0). 23 unit tests green.

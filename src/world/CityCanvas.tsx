@@ -128,11 +128,15 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       });
       for (const p of PROPS) {
         const key: AssetKey =
-          p.kind === "fountain" ? "ground_fountain"
-          : p.kind === "lamp" ? "prop_lamp"
-          : p.kind === "conifer" ? "conifer_tall"
-          : p.kind === "tree_short" ? "tree_short"
-          : "tree_tall";
+          p.kind === "fountain"
+            ? "ground_fountain"
+            : p.kind === "lamp"
+              ? "prop_lamp"
+              : p.kind === "conifer"
+                ? "conifer_tall"
+                : p.kind === "tree_short"
+                  ? "tree_short"
+                  : "tree_tall";
         const s = new Sprite(tex(key));
         s.anchor.set(0.5, 1);
         const c = mapToWorld(p.cell.x, p.cell.y);
@@ -153,10 +157,34 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
 
       // Ambient vehicles on closed road loops (PRD §6.4: well under the ≤6 budget).
       const cars: CarState[] = [
-        { kind: "taxi", route: [c2(11, 11), c2(33, 11), c2(33, 33), c2(11, 33)], leg: 0, t: 0, sprite: new Sprite() },
-        { kind: "police", route: [c2(0, 0), c2(44, 0), c2(44, 44), c2(0, 44)], leg: 0, t: 0.5, sprite: new Sprite() },
-        { kind: "amb", route: [c2(22, 11), c2(33, 11), c2(33, 22), c2(22, 22)], leg: 2, t: 0, sprite: new Sprite() },
-        { kind: "taxi", route: [c2(0, 22), c2(22, 22), c2(22, 44), c2(0, 44)], leg: 1, t: 0.3, sprite: new Sprite() },
+        {
+          kind: "taxi",
+          route: [c2(11, 11), c2(33, 11), c2(33, 33), c2(11, 33)],
+          leg: 0,
+          t: 0,
+          sprite: new Sprite(),
+        },
+        {
+          kind: "police",
+          route: [c2(0, 0), c2(44, 0), c2(44, 44), c2(0, 44)],
+          leg: 0,
+          t: 0.5,
+          sprite: new Sprite(),
+        },
+        {
+          kind: "amb",
+          route: [c2(22, 11), c2(33, 11), c2(33, 22), c2(22, 22)],
+          leg: 2,
+          t: 0,
+          sprite: new Sprite(),
+        },
+        {
+          kind: "taxi",
+          route: [c2(0, 22), c2(22, 22), c2(22, 44), c2(0, 44)],
+          leg: 1,
+          t: 0.3,
+          sprite: new Sprite(),
+        },
       ];
       for (const car of cars) {
         car.sprite.anchor.set(0.5, 1);
@@ -336,8 +364,12 @@ function makeBuilding(v: CityBuilding): Container {
   const ent = mapToWorld(v.entranceTile.x, v.entranceTile.y);
   const front = frontVertex(v.footprintTiles);
   const marker = new Graphics();
-  marker.circle(ent.x - front.x, ent.y - front.y, 5).fill({ color: 0xe2be78, alpha: v.interactable ? 0.95 : 0.4 });
-  marker.circle(ent.x - front.x, ent.y - front.y, 8).stroke({ color: 0xe2be78, alpha: 0.5, width: 2 });
+  marker
+    .circle(ent.x - front.x, ent.y - front.y, 5)
+    .fill({ color: 0xe2be78, alpha: v.interactable ? 0.95 : 0.4 });
+  marker
+    .circle(ent.x - front.x, ent.y - front.y, 8)
+    .stroke({ color: 0xe2be78, alpha: 0.5, width: 2 });
   c.addChild(marker);
 
   return c;
@@ -345,7 +377,11 @@ function makeBuilding(v: CityBuilding): Container {
 
 /** Compose a building visual scaled to its footprint, positioned at the footprint's
  * front (screen-bottom) vertex, zIndexed for the y-sort. `tint` grays out locked venues. */
-function makeBuildingVisual(visual: VenueVisual, footprint: Cell[], tint: number | null): Container {
+function makeBuildingVisual(
+  visual: VenueVisual,
+  footprint: Cell[],
+  tint: number | null,
+): Container {
   const container = new Container();
   const front = frontVertex(footprint);
   container.position.set(front.x, front.y);

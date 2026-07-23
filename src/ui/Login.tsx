@@ -9,7 +9,9 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(isConfigured() ? "" : "Set FIREBASE_API_KEY in .env to enable sign-in.");
+  const [error, setError] = useState(
+    isConfigured() ? "" : "Set FIREBASE_API_KEY in .env to enable sign-in.",
+  );
   const [showRegister, setShowRegister] = useState(false);
 
   async function onSubmit(e: FormEvent) {
@@ -63,7 +65,11 @@ export function Login() {
         />
 
         <label className="mt-4 flex items-center gap-2 text-sm text-muted">
-          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+          />
           Remember me on this device
         </label>
 

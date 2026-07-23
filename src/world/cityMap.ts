@@ -57,7 +57,12 @@ export interface CityBuilding {
 }
 
 /** Rect footprint helper: w×h tiles anchored at (fx,fy); entrance centered below. */
-function rect(fx: number, fy: number, w: number, h: number): { footprintTiles: Cell[]; entranceTile: Cell } {
+function rect(
+  fx: number,
+  fy: number,
+  w: number,
+  h: number,
+): { footprintTiles: Cell[]; entranceTile: Cell } {
   const footprintTiles: Cell[] = [];
   for (let dy = 0; dy < h; dy++)
     for (let dx = 0; dx < w; dx++) footprintTiles.push({ x: fx + dx, y: fy + dy });
@@ -95,25 +100,46 @@ function venue(
 export const VENUES: CityBuilding[] = [
   // Downtown (blocks 0,0 / 1,0 / 0,1)
   venue("bank", "Bank", "downtown", 0, 0, 2, 2, 3, 2, { competency: "C4", level: "BEGINNER" }),
-  venue("stock_exchange", "Stock Exchange", "downtown", 1, 0, 2, 2, 3, 2, { competency: "C4", level: "BEGINNER" }),
-  venue("venture_capitalist", "Venture Capitalist", "downtown", 0, 1, 2, 2, 2, 2, { competency: "C3", level: "BEGINNER" }),
+  venue("stock_exchange", "Stock Exchange", "downtown", 1, 0, 2, 2, 3, 2, {
+    competency: "C4",
+    level: "BEGINNER",
+  }),
+  venue("venture_capitalist", "Venture Capitalist", "downtown", 0, 1, 2, 2, 2, 2, {
+    competency: "C3",
+    level: "BEGINNER",
+  }),
   // Market Street (blocks 2,0 / 3,0 / 3,1)
   venue("ice_cream_cart", "Ice Cream Cart", "market", 2, 0, 3, 2, 2, 2, {
     competency: "C4",
     level: "BEGINNER",
     hostedActivities: ["C4-BEG-09", "C4-BEG-11"],
   }),
-  venue("fashion_brand", "Fashion Brand", "market", 3, 0, 2, 2, 2, 2, { competency: "C8", level: "BEGINNER" }),
+  venue("fashion_brand", "Fashion Brand", "market", 3, 0, 2, 2, 2, 2, {
+    competency: "C8",
+    level: "BEGINNER",
+  }),
   venue("cafe", "Café", "market", 2, 0, 0, 5, 2, 2, { kind: "cafe" }), // dedicated stub — build out later
   venue("the_shop", "The Shop", "market", 3, 1, 3, 3, 2, 2, { kind: "shop" }),
   // Campus Quarter (blocks 0,2 / 0,3 / 1,3)
-  venue("school", "School / College", "campus", 0, 2, 2, 2, 3, 2, { competency: "C2", level: "BEGINNER" }),
+  venue("school", "School / College", "campus", 0, 2, 2, 2, 3, 2, {
+    competency: "C2",
+    level: "BEGINNER",
+  }),
   venue("gym", "Gym", "campus", 1, 3, 2, 2, 2, 2, { competency: "C9", level: "BEGINNER" }),
   // Tech Park (blocks 2,3 / 3,3)
-  venue("ai_it", "AI IT Company", "tech", 2, 3, 2, 2, 3, 2, { competency: "C2", level: "BEGINNER" }),
-  venue("social_media", "Social Media Studio", "tech", 3, 3, 2, 2, 2, 2, { competency: "C8", level: "BEGINNER" }),
+  venue("ai_it", "AI IT Company", "tech", 2, 3, 2, 2, 3, 2, {
+    competency: "C2",
+    level: "BEGINNER",
+  }),
+  venue("social_media", "Social Media Studio", "tech", 3, 3, 2, 2, 2, 2, {
+    competency: "C8",
+    level: "BEGINNER",
+  }),
   // Industrial Edge (blocks 2,2 / 3,2)
-  venue("race_car", "Race Car Mfg", "industrial", 2, 2, 2, 2, 3, 2, { competency: "C5", level: "BEGINNER" }),
+  venue("race_car", "Race Car Mfg", "industrial", 2, 2, 2, 2, 3, 2, {
+    competency: "C5",
+    level: "BEGINNER",
+  }),
   venue("custom", "Custom (client)", "industrial", 3, 2, 3, 2, 2, 2, { kind: "locked" }),
   // Civic Center (block 1,1; block 2,1 + 1,2 stay open as the park/plaza)
   venue("trophy_hall", "Trophy Hall", "civic", 1, 1, 2, 2, 2, 2, { kind: "trophy" }),
@@ -126,7 +152,15 @@ export interface FillerBuilding {
   visualIndex: number; // → FILLER_VISUALS
 }
 
-function filler(bc: number, br: number, dx: number, dy: number, w: number, h: number, visualIndex: number): FillerBuilding {
+function filler(
+  bc: number,
+  br: number,
+  dx: number,
+  dy: number,
+  w: number,
+  h: number,
+  visualIndex: number,
+): FillerBuilding {
   const { ox, oy } = blockOrigin(bc, br);
   return { footprintTiles: rect(ox + dx, oy + dy, w, h).footprintTiles, visualIndex };
 }
@@ -156,7 +190,12 @@ export interface CityProp {
   blocking: boolean;
 }
 
-function treesInBlock(bc: number, br: number, spots: Array<[number, number]>, kind: PropKind = "tree_tall"): CityProp[] {
+function treesInBlock(
+  bc: number,
+  br: number,
+  spots: Array<[number, number]>,
+  kind: PropKind = "tree_tall",
+): CityProp[] {
   const { ox, oy } = blockOrigin(bc, br);
   return spots.map(([dx, dy]) => ({ kind, cell: { x: ox + dx, y: oy + dy }, blocking: true }));
 }
@@ -164,11 +203,47 @@ function treesInBlock(bc: number, br: number, spots: Array<[number, number]>, ki
 export const PROPS: CityProp[] = [
   // Civic park (block 2,1 and 1,2 are open green): fountain + tree ring
   { kind: "fountain", cell: { x: 27, y: 17 }, blocking: false },
-  ...treesInBlock(2, 1, [[2, 2], [7, 2], [2, 7], [7, 7]], "tree_tall"),
-  ...treesInBlock(1, 2, [[2, 2], [7, 3], [3, 7], [7, 7]], "conifer"),
+  ...treesInBlock(
+    2,
+    1,
+    [
+      [2, 2],
+      [7, 2],
+      [2, 7],
+      [7, 7],
+    ],
+    "tree_tall",
+  ),
+  ...treesInBlock(
+    1,
+    2,
+    [
+      [2, 2],
+      [7, 3],
+      [3, 7],
+      [7, 7],
+    ],
+    "conifer",
+  ),
   // Campus greenery
-  ...treesInBlock(0, 2, [[7, 2], [2, 6]], "tree_short"),
-  ...treesInBlock(0, 3, [[2, 2], [8, 3]], "tree_tall"),
+  ...treesInBlock(
+    0,
+    2,
+    [
+      [7, 2],
+      [2, 6],
+    ],
+    "tree_short",
+  ),
+  ...treesInBlock(
+    0,
+    3,
+    [
+      [2, 2],
+      [8, 3],
+    ],
+    "tree_tall",
+  ),
   ...treesInBlock(1, 3, [[7, 2]], "conifer"),
   // Street lamps at block corners near the civic crossroads (non-blocking)
   { kind: "lamp", cell: { x: 12, y: 12 }, blocking: false },

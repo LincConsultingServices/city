@@ -33,13 +33,7 @@ export const ResultPayload = z.union([
 ]);
 export type ResultPayload = z.infer<typeof ResultPayload>;
 export type ResultKind =
-  | "objective"
-  | "order"
-  | "trace"
-  | "metrics"
-  | "slots"
-  | "text"
-  | "transcript";
+  "objective" | "order" | "trace" | "metrics" | "slots" | "text" | "transcript";
 
 export const SubmitRequest = z.object({
   clientVersion: z.string(),

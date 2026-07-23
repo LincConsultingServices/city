@@ -93,6 +93,8 @@ function StatusChip({ status, best }: { status: string; best: number | null }) {
       </span>
     );
   if (status === "IN_PROGRESS")
-    return <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">resume</span>;
+    return (
+      <span className="rounded-full bg-accent/15 px-2 py-0.5 text-xs text-accent">resume</span>
+    );
   return <span className="rounded-full bg-line/40 px-2 py-0.5 text-xs text-muted">new</span>;
 }

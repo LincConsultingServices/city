@@ -40,7 +40,13 @@ export function MiniSimRenderer({
 
   function sellDay() {
     const weatherMultiplier = 0.7 + rng.current() * 0.65; // 0.70 – 1.35
-    const outcome = computeRound(content, round, { price, stock: clampedStock }, cash, weatherMultiplier);
+    const outcome = computeRound(
+      content,
+      round,
+      { price, stock: clampedStock },
+      cash,
+      weatherMultiplier,
+    );
     const nextOutcomes = [...outcomes, outcome];
     setOutcomes(nextOutcomes);
     setCash(outcome.cashAfter);
@@ -64,7 +70,8 @@ export function MiniSimRenderer({
       <div className="rounded-xl border border-line bg-surface-2 p-4 text-center">
         <p className="text-sm text-muted">The stand is closed. Here's how you did:</p>
         <p className="mt-2 text-2xl font-semibold text-text">
-          {cur(s.values.finalCash)} <span className="text-sm font-normal text-muted">in the till</span>
+          {cur(s.values.finalCash)}{" "}
+          <span className="text-sm font-normal text-muted">in the till</span>
         </p>
         <p className={"mt-1 text-sm " + (s.values.profit >= 0 ? "text-success" : "text-danger")}>
           {s.values.profit >= 0 ? "+" : ""}
@@ -82,18 +89,23 @@ export function MiniSimRenderer({
 
       {/* Meters */}
       <div className="mt-4 flex items-center justify-between rounded-xl border border-line bg-surface-2 px-4 py-3">
-        <Meter label={content.roundLabel} value={`${Math.min(round, content.rounds)} / ${content.rounds}`} />
+        <Meter
+          label={content.roundLabel}
+          value={`${Math.min(round, content.rounds)} / ${content.rounds}`}
+        />
         <Meter label="Till" value={cur(cash)} accent={cash <= 0 ? "danger" : "coin"} />
         <div className="text-right">
           <p className="text-[11px] uppercase tracking-wide text-muted">Weather</p>
-          <p className="text-sm text-text">{content.weather[(round - 1) % content.weather.length]}</p>
+          <p className="text-sm text-text">
+            {content.weather[(round - 1) % content.weather.length]}
+          </p>
         </div>
       </div>
 
       {lastOutcome && (
         <p className="mt-2 text-center text-xs text-muted">
-          {content.roundLabel} {lastOutcome.round}: sold {lastOutcome.sales} of {lastOutcome.stock} at{" "}
-          {cur(lastOutcome.price)} → {lastOutcome.profit >= 0 ? "+" : ""}
+          {content.roundLabel} {lastOutcome.round}: sold {lastOutcome.sales} of {lastOutcome.stock}{" "}
+          at {cur(lastOutcome.price)} → {lastOutcome.profit >= 0 ? "+" : ""}
           {cur(lastOutcome.profit)}
         </p>
       )}
@@ -133,7 +145,15 @@ export function MiniSimRenderer({
   );
 }
 
-function Meter({ label, value, accent }: { label: string; value: string; accent?: "coin" | "danger" }) {
+function Meter({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: "coin" | "danger";
+}) {
   const color = accent === "danger" ? "text-danger" : accent === "coin" ? "text-coin" : "text-text";
   return (
     <div>

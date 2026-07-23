@@ -44,11 +44,23 @@ export const tokenProvider: TokenProvider = {
 
 export type SignInOutcome =
   | { ok: true }
-  | { ok: false; status: "unregistered" | "wrong_password" | "network" | "config" | "error"; message: string };
+  | {
+      ok: false;
+      status: "unregistered" | "wrong_password" | "network" | "config" | "error";
+      message: string;
+    };
 
-export async function signIn(email: string, password: string, remember: boolean): Promise<SignInOutcome> {
+export async function signIn(
+  email: string,
+  password: string,
+  remember: boolean,
+): Promise<SignInOutcome> {
   if (!isConfigured()) {
-    return { ok: false, status: "config", message: "The city isn't configured yet (missing Firebase key)." };
+    return {
+      ok: false,
+      status: "config",
+      message: "The city isn't configured yet (missing Firebase key).",
+    };
   }
   try {
     await setPersistence(auth(), remember ? browserLocalPersistence : inMemoryPersistence);
@@ -88,7 +100,11 @@ function mapAuthError(e: unknown): Exclude<SignInOutcome, { ok: true }> {
     case "auth/too-many-requests":
       return { ok: false, status: "error", message: "Too many attempts — take a short break." };
     case "auth/network-request-failed":
-      return { ok: false, status: "network", message: "Couldn't reach sign-in. Check your connection." };
+      return {
+        ok: false,
+        status: "network",
+        message: "Couldn't reach sign-in. Check your connection.",
+      };
     case "auth/invalid-api-key":
       return { ok: false, status: "config", message: "The city's Firebase key is invalid." };
     default:

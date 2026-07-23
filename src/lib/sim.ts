@@ -94,7 +94,9 @@ export interface SimSummary {
 
 /** Roll the finished rounds up into the `metrics` payload the server scores. */
 export function summarize(content: SimContent, outcomes: RoundOutcome[]): SimSummary {
-  const finalCash = outcomes.length ? outcomes[outcomes.length - 1].cashAfter : content.startingCash;
+  const finalCash = outcomes.length
+    ? outcomes[outcomes.length - 1].cashAfter
+    : content.startingCash;
   const unitsSold = outcomes.reduce((s, o) => s + o.sales, 0);
   const revenue = outcomes.reduce((s, o) => s + o.revenue, 0);
   return {

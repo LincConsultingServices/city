@@ -21,26 +21,83 @@ const BASE = "/assets/city";
 // Every curated sprite: key → file (all under public/assets/city/).
 const KEYS = [
   // ground / roads
-  "ground_plaza", "ground_plaza2", "ground_pave_tree", "ground_lawn", "ground_fountain",
-  "ground_lamp", "ground_bench", "ground_pool", "ground_asphalt",
-  "road_ew", "road_ns", "road_cross", "road_cw_ew", "road_cw_ns",
-  "ground_grass", "ground_grass2", "ground_dirt",
+  "ground_plaza",
+  "ground_plaza2",
+  "ground_pave_tree",
+  "ground_lawn",
+  "ground_fountain",
+  "ground_lamp",
+  "ground_bench",
+  "ground_pool",
+  "ground_asphalt",
+  "road_ew",
+  "road_ns",
+  "road_cross",
+  "road_cw_ew",
+  "road_cw_ns",
+  "ground_grass",
+  "ground_grass2",
+  "ground_dirt",
   // props
-  "prop_lamp", "prop_lamp2", "prop_billboard", "prop_tree", "tree_tall", "tree_short", "conifer_tall",
+  "prop_lamp",
+  "prop_lamp2",
+  "prop_billboard",
+  "prop_tree",
+  "tree_tall",
+  "tree_short",
+  "conifer_tall",
   // building grounds (132-wide, complete single stories)
-  "g_awn_green", "g_awn_green2", "g_awn_orange", "g_awn_shop", "g_brown_door", "g_cream_arch",
-  "g_cream_win", "g_plain", "g_red_arch", "g_shop_red", "g_shopfront", "g_stand",
+  "g_awn_green",
+  "g_awn_green2",
+  "g_awn_orange",
+  "g_awn_shop",
+  "g_brown_door",
+  "g_cream_arch",
+  "g_cream_win",
+  "g_plain",
+  "g_red_arch",
+  "g_shop_red",
+  "g_shopfront",
+  "g_stand",
   // building grounds/floors (99-wide stackable family)
-  "g_brown_arch", "g_glass_band", "g_glass_big", "g_glass_brown", "g_glass_store",
-  "g_red_windows", "g_windows_wide", "g_windows_wide2",
-  "f_blue_win", "f_cream", "f_cream_arch", "f_plain", "f_red_arch", "f_yellow",
+  "g_brown_arch",
+  "g_glass_band",
+  "g_glass_big",
+  "g_glass_brown",
+  "g_glass_store",
+  "g_red_windows",
+  "g_windows_wide",
+  "g_windows_wide2",
+  "f_blue_win",
+  "f_cream",
+  "f_cream_arch",
+  "f_plain",
+  "f_red_arch",
+  "f_yellow",
   // roofs (99-wide)
-  "r_flat", "r_flat2", "r_flat_ac", "r_flat_ac2",
-  "r_slope_beige", "r_slope_gray", "r_slope_orange", "r_slope_red", "r_round_gray", "r_round_red",
+  "r_flat",
+  "r_flat2",
+  "r_flat_ac",
+  "r_flat_ac2",
+  "r_slope_beige",
+  "r_slope_gray",
+  "r_slope_orange",
+  "r_slope_red",
+  "r_round_gray",
+  "r_round_red",
   // vehicles (cardinal directions)
-  "car_taxi_E", "car_taxi_N", "car_taxi_S", "car_taxi_W",
-  "car_police_E", "car_police_N", "car_police_S", "car_police_W",
-  "car_amb_E", "car_amb_N", "car_amb_S", "car_amb_W",
+  "car_taxi_E",
+  "car_taxi_N",
+  "car_taxi_S",
+  "car_taxi_W",
+  "car_police_E",
+  "car_police_N",
+  "car_police_S",
+  "car_police_W",
+  "car_amb_E",
+  "car_amb_N",
+  "car_amb_S",
+  "car_amb_W",
 ] as const;
 
 export type AssetKey = (typeof KEYS)[number];
@@ -79,11 +136,63 @@ export const DISTRICT_GROUND: Record<District, AssetKey> = {
 
 /** Deterministic variety tiles per district (index = a stable cell hash % list length; null = base). */
 export const DISTRICT_VARIETY: Record<District, (AssetKey | null)[]> = {
-  downtown: [null, null, null, null, null, null, "ground_pave_tree", null, "ground_lawn", null, null, "ground_bench"],
-  market: [null, null, null, null, null, "ground_bench", null, null, null, "ground_pave_tree", null, null],
+  downtown: [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    "ground_pave_tree",
+    null,
+    "ground_lawn",
+    null,
+    null,
+    "ground_bench",
+  ],
+  market: [
+    null,
+    null,
+    null,
+    null,
+    null,
+    "ground_bench",
+    null,
+    null,
+    null,
+    "ground_pave_tree",
+    null,
+    null,
+  ],
   campus: [null, null, null, null, null, null, null, null, null, null, null, null], // trees are props here
-  tech: [null, null, null, "ground_lawn", null, null, null, "ground_pave_tree", null, null, null, "ground_pool"],
-  industrial: [null, null, null, null, null, null, null, null, "ground_asphalt", null, "ground_asphalt", null],
+  tech: [
+    null,
+    null,
+    null,
+    "ground_lawn",
+    null,
+    null,
+    null,
+    "ground_pave_tree",
+    null,
+    null,
+    null,
+    "ground_pool",
+  ],
+  industrial: [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    "ground_asphalt",
+    null,
+    "ground_asphalt",
+    null,
+  ],
   civic: [null, null, null, null, null, null, null, null, null, null, null, null], // fountain/trees placed explicitly
 };
 
@@ -110,24 +219,54 @@ export type VenueVisual =
 /** Per-venue building look (PRD §7.4 themes, from the curated Kenney pieces). */
 export const VENUE_VISUAL: Record<string, VenueVisual> = {
   // Downtown — stately/glassy towers
-  bank: { type: "stack", ground: "g_brown_arch", floors: ["f_cream_arch", "f_cream_arch"], roof: "r_flat_ac" },
-  stock_exchange: { type: "stack", ground: "g_glass_brown", floors: ["f_blue_win", "f_blue_win"], roof: "r_flat2" },
-  venture_capitalist: { type: "stack", ground: "g_glass_store", floors: ["f_red_arch"], roof: "r_flat_ac2" },
+  bank: {
+    type: "stack",
+    ground: "g_brown_arch",
+    floors: ["f_cream_arch", "f_cream_arch"],
+    roof: "r_flat_ac",
+  },
+  stock_exchange: {
+    type: "stack",
+    ground: "g_glass_brown",
+    floors: ["f_blue_win", "f_blue_win"],
+    roof: "r_flat2",
+  },
+  venture_capitalist: {
+    type: "stack",
+    ground: "g_glass_store",
+    floors: ["f_red_arch"],
+    roof: "r_flat_ac2",
+  },
   // Market Street — warm storefronts
   ice_cream_cart: { type: "single", key: "g_stand" },
-  fashion_brand: { type: "stack", ground: "g_red_windows", floors: ["f_cream"], roof: "r_slope_red" },
+  fashion_brand: {
+    type: "stack",
+    ground: "g_red_windows",
+    floors: ["f_cream"],
+    roof: "r_slope_red",
+  },
   the_shop: { type: "single", key: "g_awn_shop" },
   // Campus Quarter
   school: { type: "stack", ground: "g_windows_wide", floors: ["f_yellow"], roof: "r_slope_beige" },
   gym: { type: "stack", ground: "g_windows_wide2", floors: [], roof: "r_round_gray" },
   // Tech Park — tallest glass
-  ai_it: { type: "stack", ground: "g_glass_big", floors: ["f_blue_win", "f_plain", "f_blue_win"], roof: "r_flat_ac" },
+  ai_it: {
+    type: "stack",
+    ground: "g_glass_big",
+    floors: ["f_blue_win", "f_plain", "f_blue_win"],
+    roof: "r_flat_ac",
+  },
   social_media: { type: "stack", ground: "g_glass_band", floors: ["f_plain"], roof: "r_flat" },
   // Industrial Edge
   race_car: { type: "stack", ground: "g_windows_wide2", floors: [], roof: "r_round_red" },
   custom: { type: "stack", ground: "g_red_windows", floors: ["f_plain"], roof: "r_slope_gray" },
   // Civic Center
-  trophy_hall: { type: "stack", ground: "g_brown_arch", floors: ["f_cream_arch"], roof: "r_slope_orange" },
+  trophy_hall: {
+    type: "stack",
+    ground: "g_brown_arch",
+    floors: ["f_cream_arch"],
+    roof: "r_slope_orange",
+  },
   // Café — dedicated venue (stub; warm orange-awning storefront)
   cafe: { type: "single", key: "g_awn_orange" },
 };
@@ -148,4 +287,5 @@ export const FILLER_VISUALS: VenueVisual[] = [
 export type CarKind = "taxi" | "police" | "amb";
 export type Cardinal = "N" | "E" | "S" | "W";
 
-export const carTexture = (kind: CarKind, dir: Cardinal): Texture => tex(`car_${kind}_${dir}` as AssetKey);
+export const carTexture = (kind: CarKind, dir: Cardinal): Texture =>
+  tex(`car_${kind}_${dir}` as AssetKey);

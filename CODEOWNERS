@@ -1,32 +1,22 @@
-# CODEOWNERS — ownership = folders (PRD §17), mirroring the academy-backend
-# c1..c9.json model applied to Godot scenes. The rule is STRUCTURAL: no two
-# owners ever edit the same .tscn/.gd, because .tscn files merge terribly. GitHub
-# auto-requests the right reviewer from the paths below.
+# CODEOWNERS — ownership = folders (PRD §17). GitHub auto-requests the right
+# reviewer from the paths below.
 #
-# NOTE: like the backend CODEOWNERS, these use placeholder handles. GitHub
-# silently skips any line whose handle isn't a real collaborator, so this file
-# is inert-but-harmless until real usernames are swapped in.
+# NOTE: placeholder handles. GitHub silently skips any line whose handle isn't a
+# real collaborator, so this file is inert-but-harmless until real usernames are
+# swapped in. Update before enabling branch protection.
 
 # ── Shared core — maintainer-reviewed. A building PR should NEVER touch these. ─
-/autoload/                 @TODO-maintainer
-/core/                     @TODO-maintainer
-/city/                     @TODO-maintainer
-/ui/                       @TODO-maintainer
-/activities/               @TODO-maintainer
-/config/                   @TODO-maintainer
-/main/                     @TODO-maintainer
-/tests/                    @TODO-maintainer
+/src/framework/            @TODO-maintainer
+/src/world/                @TODO-maintainer
+/src/activities/           @TODO-maintainer
+/src/ui/                   @TODO-maintainer
+/src/app/                  @TODO-maintainer
+/src/lib/                  @TODO-maintainer
 /.github/                  @TODO-maintainer
-/project.godot             @TODO-maintainer
-/export_presets.cfg        @TODO-maintainer
-/firebase.json             @TODO-maintainer
-/CODEOWNERS                @TODO-maintainer
-
-# ── Per-building folders — one owner each (assigned as scaffolds are planned). ─
-# Example once real venues land:
-#   /buildings/bank/          @TODO-santhosh
-#   /buildings/ice_cream_cart/ @TODO-santhosh
-/buildings/ice_cream_cart/ @TODO-maintainer
+/scripts/                  @TODO-maintainer
 
 # Shared asset pipeline + license log — maintainer-reviewed (PRD §14).
-/assets/                   @TODO-maintainer
+/public/assets/            @TODO-maintainer
+
+# ── Per-building folders — one owner each (arrive at F3). Example: ─
+#   /src/buildings/ice_cream_cart/   @TODO-santhosh

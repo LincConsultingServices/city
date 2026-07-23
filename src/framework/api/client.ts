@@ -5,7 +5,13 @@
 import type { z } from "zod";
 import { appConfig, CLIENT_VERSION } from "@/framework/config/appConfig";
 import { ApiError, parseEnvelope } from "./errors";
-import { RegistryModules, LevelResponse, ActivityPublic, SubmitResponse, type SubmitRequest } from "./schemas";
+import {
+  RegistryModules,
+  LevelResponse,
+  ActivityPublic,
+  SubmitResponse,
+  type SubmitRequest,
+} from "./schemas";
 
 /** Supplies a Firebase ID token; injected so the client stays testable/decoupled. */
 export interface TokenProvider {
