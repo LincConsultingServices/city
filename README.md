@@ -1,69 +1,55 @@
-# The City — Godot 2.5D isometric frontend
+# The City — WarRoom Academy frontend
 
-One Godot web game: a 2.5D isometric, tycoon-style city whose buildings are
-business **venues**. Entering a venue launches training activities drawn from the
-9 competencies. The city is the presentation layer; the live
-[`academy-backend`](../academy-backend) remains the single source of truth for
-identity, activities, scoring, badges, and coins — **the client never computes
-proficiency, grants badges, or credits coins** (PRD §1).
+A 2.5D isometric, tycoon-style training city. Buildings are business **venues**;
+entering one launches training activities scored by the live `academy-backend`.
+Web-native stack per **ADR-004** (React + TypeScript + Vite + PixiJS) — see the
+master PRD: [docs/PRD_City_Frontend.md](docs/PRD_City_Frontend.md).
 
-> Full spec: the master PRD (*The City · Godot 2.5D Isometric Frontend*).
-> **Current phase: F0 — Skeleton.** Start with [`docs/F0_STATUS.md`](docs/F0_STATUS.md):
-> it records what's built, how F0 diverges from the PRD to match the *real*
-> backend, and how to smoke-test.
+> The prior Godot 4.x implementation is archived, reference-only, under
+> [`reference/godot-f0/`](reference/godot-f0/) (superseded by ADR-004).
 
 ## Quick start
 
-Requires **Godot 4.3+** (GDScript; the GL Compatibility renderer is used for a
-robust web export).
+Requires **Node 20+** (built on Node 22).
 
 ```bash
-cp .env.example .env
-# edit .env: set FIREBASE_API_KEY (WarRoom web key) + API_BASE_URL
+cp .env.example .env       # set VITE_FIREBASE_API_KEY + VITE_API_BASE_URL
+npm install
+npm run dev                # http://localhost:5173
 ```
 
-Open in Godot 4.3+ and press Play (main scene: `main/boot.tscn`). Or headless:
+The main WarRoom frontend's `NEXT_PUBLIC_*` env names are accepted verbatim.
 
-```bash
-godot --headless --import --quit
-godot --headless --script res://tests/run_tests.gd   # unit tests
-```
+## Scripts
+- `npm run dev` — Vite dev server (HMR)
+- `npm run build` — typecheck (`tsc`) + production build
+- `npm test` — Vitest unit suite
+- `npm run typecheck` — `tsc --noEmit`
 
-## How auth works (PRD §10, and see F0_STATUS §1)
-
-1. Sign in with Firebase (project `warroom-498513`, same as the main app) →
-   `idToken`.
+## How it works (PRD §10)
+1. Sign in with a **WarRoom account** (Firebase, project `warroom-498513`). No
+   in-game sign-up — an unknown account routes to `warroom.humanfirstbykk.com/register`.
 2. Every backend call sends `Authorization: Bearer <idToken>`; the backend
-   **auto-provisions** the academy user on first sight (there is no sign-up here
-   and no `/auth/sync`).
-3. Bootstrap is `GET /api/v1/registry/modules` (no `/me` route exists yet).
-4. Sign-up never happens in-game: an unknown WarRoom account is caught at the
-   Firebase layer and routed to `warroom.humanfirstbykk.com/register`.
+   auto-provisions the academy user. Bootstrap is `GET /api/v1/registry/modules`
+   (no `/me` route exists yet — see PRD §21).
+3. The client never computes scores/coins/badges — it submits structured results
+   and renders what the server returns.
 
 ## Layout (PRD §12.1)
-
 ```
-project.godot            Godot 4.3 · autoloads · input map · GL Compatibility
-config/                  AppConfig (static loader); values from .env (gitignored)
-autoload/                the 7 shared singletons — the entire shared runtime surface
-  event_bus  api_client  session  player_state  economy  scene_router  audio_manager
-core/                    static helpers: iso.gd, building_manifest.gd, api_result.gd
-main/                    boot scene (login vs city)
-ui/                      login · hud · venue overlay
-city/                    world scene, ground, character, camera, building framework
-buildings/<id>/          ★ one folder per venue — the ownership boundary (PRD §7, §17)
-  ice_cream_cart/          F0 placeholder venue (manifest only)
-activities/              (F1) player shell + 13 renderers + content
-assets/                  art/audio + ASSETS_LICENSES.md (mandatory, CI-checked)
-docs/                    F0_STATUS · STYLE_SHEET · BUILDING_GUIDE
-tests/                   headless unit tests (no GUT dependency)
-firebase.json .firebaserc  Firebase Hosting with mandatory COOP/COEP headers (PRD §13)
+src/
+  framework/     shared runtime: api (client + Zod schemas + errors), auth,
+                 economy, events, building, config
+  world/         PixiJS: CityCanvas, iso city, camera, click-to-move (A*)
+  activities/    PlayerShell, renderers/, content/
+  ui/            Login, Hud, CityScreen, design system
+  lib/           pure/testable: iso math, pathfinding
 ```
 
-## The one rule for building teams
-
-A building PR touches **only** `buildings/<its-id>/` + its own manifest (PRD §7.3,
-§17). Buildings never call HTTP, never edit shared scenes, never reimplement the
-activity player. If you need something the framework doesn't provide, that's a
-framework issue → maintainer PR → everyone benefits. See
-[`docs/BUILDING_GUIDE.md`](docs/BUILDING_GUIDE.md).
+## Status
+- **F0 (skeleton):** ✅ login → gray-box Pixi iso city, click-to-move, one venue
+  with proximity prompt; typed ApiClient (auth + envelope + base-URL, ported and
+  unit-tested from the Godot F0). 23 unit tests green.
+- **F1 (vertical slice):** 🚧 activity-list bound to the live registry + player
+  shell + MCQ renderer + submit loop are in; remaining renderers and real
+  per-activity content are next.
