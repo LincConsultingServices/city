@@ -14,6 +14,7 @@ import {
   destroyTextures,
   PLAYER_PALETTE,
 } from "./characterArt";
+import { createAmbient, type Ambient } from "./ambient";
 import {
   GRID_W,
   GRID_H,
@@ -43,25 +44,14 @@ import {
   GROUND_PROPS,
   PROP_SCALE,
   STORY_H,
-  carTexture,
   type VenueVisual,
-  type CarKind,
   type Cardinal,
 } from "./assets";
 import { useWorldStore } from "./worldStore";
 
 const WALK_SPEED = 175; // px/sec (≈1.3 tiles/sec on the 132px grid)
-const CAR_SPEED_CELLS = 1.6; // cells/sec
 const STEP_S = 0.18; // seconds per walk-cycle frame
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
-
-interface CarState {
-  kind: CarKind;
-  route: Cell[]; // closed loop of road cells (corners)
-  leg: number;
-  t: number; // 0..1 along current leg
-  sprite: Sprite;
-}
 
 export function CityCanvas({ onReady }: { onReady?: () => void }) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -69,6 +59,7 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
   useEffect(() => {
     let destroyed = false;
     let app: Application | null = null;
+    let ambient: Ambient | null = null;
     let bakedTextures: Texture[] = [];
     const reduced = prefersReducedMotion();
     const mount = mountRef.current;
@@ -135,7 +126,20 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       actors.sortableChildren = true;
       world.addChild(actors);
 
-      for (const v of VENUES) actors.addChild(makeBuilding(v));
+      // Collect world points for the ambient smoke/steam emitters as we build.
+      const smokeStacks: Array<{ x: number; y: number }> = [];
+      const steamVents: Array<{ x: number; y: number }> = [];
+      for (const v of VENUES) {
+        const b = makeBuilding(v);
+        actors.addChild(b);
+        if (v.id === "race_car" || v.id === "custom") {
+          const bounds = b.getLocalBounds();
+          smokeStacks.push({ x: b.position.x + 16, y: b.position.y + bounds.minY + 26 });
+        } else if (v.id === "cafe") {
+          const bounds = b.getLocalBounds();
+          steamVents.push({ x: b.position.x - 8, y: b.position.y + bounds.minY + 28 });
+        }
+      }
       FILLERS.forEach((f) => {
         const visual = FILLER_VISUALS[f.visualIndex % FILLER_VISUALS.length];
         const t0 = f.footprintTiles[0];
@@ -160,44 +164,24 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       actors.addChild(char);
       let facing: Cardinal = "S";
       let stepClock = 0;
+      let lastStepFrame = 0;
       let elapsed = 0;
 
-      // Ambient vehicles on closed road loops (PRD §6.4: well under the ≤6 budget).
-      const cars: CarState[] = [
-        {
-          kind: "taxi",
-          route: [c2(11, 11), c2(33, 11), c2(33, 33), c2(11, 33)],
-          leg: 0,
-          t: 0,
-          sprite: new Sprite(),
-        },
-        {
-          kind: "police",
-          route: [c2(0, 0), c2(44, 0), c2(44, 44), c2(0, 44)],
-          leg: 0,
-          t: 0.5,
-          sprite: new Sprite(),
-        },
-        {
-          kind: "amb",
-          route: [c2(22, 11), c2(33, 11), c2(33, 22), c2(22, 22)],
-          leg: 2,
-          t: 0,
-          sprite: new Sprite(),
-        },
-        {
-          kind: "taxi",
-          route: [c2(0, 22), c2(22, 22), c2(22, 44), c2(0, 44)],
-          leg: 1,
-          t: 0.3,
-          sprite: new Sprite(),
-        },
-      ];
-      for (const car of cars) {
-        car.sprite.anchor.set(0.5, 1);
-        car.sprite.scale.set(1.45);
-        actors.addChild(car.sprite);
-      }
+      // FX overlay (particles, glows, birds) draws above the y-sorted actors.
+      const fx = new Container();
+      world.addChild(fx);
+
+      // Ambient life: NPCs, vehicles, particles, emitters, pigeons (PRD §6.4).
+      const amb = createAmbient({
+        renderer: application.renderer,
+        actors,
+        fx,
+        reduced,
+        smokeStacks,
+        steamVents,
+      });
+      ambient = amb;
+      const view = { left: 0, top: 0, right: 0, bottom: 0 };
 
       // ── Input: click-to-move ──────────────────────────────────────────────
       const pathLine = new Graphics();
@@ -268,7 +252,12 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
           const mdy = movedY / TILE_H - movedX / TILE_W;
           facing = Math.abs(mdx) >= Math.abs(mdy) ? (mdx > 0 ? "E" : "W") : mdy > 0 ? "S" : "N";
           stepClock += dt;
-          charBody.texture = playerTex.walk[facing][Math.floor(stepClock / STEP_S) % 2];
+          const stepFrame = Math.floor(stepClock / STEP_S) % 2;
+          if (stepFrame !== lastStepFrame) {
+            lastStepFrame = stepFrame;
+            amb.spawnDust(charPixel.x, charPixel.y + 1); // footstep puff
+          }
+          charBody.texture = playerTex.walk[facing][stepFrame];
           charBody.position.y = reduced
             ? 0
             : -Math.abs(Math.sin((stepClock * Math.PI) / STEP_S)) * 2.5;
@@ -289,25 +278,12 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
           store.setCharCell(curCell);
         }
 
-        // Vehicles: advance along their loops (cell-space lerp → world).
-        for (const car of cars) {
-          const a = car.route[car.leg];
-          const b = car.route[(car.leg + 1) % car.route.length];
-          const legLen = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
-          car.t += (CAR_SPEED_CELLS * dt) / Math.max(1, legLen);
-          if (car.t >= 1) {
-            car.t -= 1;
-            car.leg = (car.leg + 1) % car.route.length;
-          }
-          const aa = car.route[car.leg];
-          const bb = car.route[(car.leg + 1) % car.route.length];
-          const cx = aa.x + (bb.x - aa.x) * car.t;
-          const cy = aa.y + (bb.y - aa.y) * car.t;
-          const w = mapToWorld(cx, cy);
-          car.sprite.texture = carTexture(car.kind, legDir(aa, bb));
-          car.sprite.position.set(w.x, w.y + 14);
-          car.sprite.zIndex = cx + cy + 0.3;
-        }
+        // Ambient life: NPCs, vehicles, particles, pigeons — one call, culled to view.
+        view.left = -world.position.x;
+        view.top = -world.position.y;
+        view.right = view.left + application.screen.width;
+        view.bottom = view.top + application.screen.height;
+        amb.update(dt, elapsed, view, curCell);
 
         // Camera: soft-lag follow, centered on the character.
         const txx = application.screen.width / 2 - charPixel.x;
@@ -331,6 +307,8 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       store.setNearVenue(null);
+      ambient?.dispose(); // detaches + frees its sprites/textures before the app teardown
+      ambient = null;
       if (app) app.destroy(true, { children: true });
       destroyTextures(bakedTextures); // baked RenderTextures aren't freed by app.destroy
       bakedTextures = [];
@@ -361,15 +339,6 @@ function skirtFor(x: number, y: number): number {
   const variety = DISTRICT_VARIETY[d];
   const pick = variety[(x * 7 + y * 13) % variety.length];
   return groundSkirt(pick ?? DISTRICT_GROUND[d]);
-}
-
-const c2 = (x: number, y: number): Cell => ({ x, y });
-
-function legDir(a: Cell, b: Cell): Cardinal {
-  if (b.x > a.x) return "E";
-  if (b.x < a.x) return "W";
-  if (b.y > a.y) return "S";
-  return "N";
 }
 
 // ── Buildings ─────────────────────────────────────────────────────────────────
