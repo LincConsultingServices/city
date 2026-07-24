@@ -4,15 +4,7 @@
 // Kenney-sprite city: district ground + street tiles, stacked venue buildings,
 // filler blocks, props (trees/lamps/fountain) and ambient vehicles on road loops.
 import { useEffect, useRef } from "react";
-import {
-  Application,
-  Container,
-  Graphics,
-  Sprite,
-  Text,
-  type Renderer,
-  type Texture,
-} from "pixi.js";
+import { Application, Container, Graphics, Sprite, Text, Texture, type Renderer } from "pixi.js";
 import { mapToWorld, worldToMap, roundCell, TILE_W, TILE_H } from "@/lib/iso";
 import { findPath, type Cell } from "@/lib/pathfinding";
 import { prefersReducedMotion } from "@/lib/motion";
@@ -208,6 +200,14 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       let stepClock = 0;
       let lastStepFrame = 0;
       let elapsed = 0;
+
+      // Night tint: a multiply-blend quad tracking the viewport in world space,
+      // above ground/actors but below fx so lamp glows stay warm. Applied as an
+      // explicit overlay because Container.tint propagation proved unreliable
+      // on this pixi build (verified: children rendered untinted at night).
+      const nightOverlay = new Sprite(Texture.WHITE);
+      nightOverlay.blendMode = "multiply";
+      world.addChild(nightOverlay);
 
       // FX overlay (particles, glows, birds) draws above the y-sorted actors.
       const fx = new Container();
@@ -442,8 +442,10 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
         sky.height = application.screen.height;
         if (!reduced) {
           const phase = dayPhase(elapsed + BOOT_PHASE_OFFSET_S);
-          ground.tint = phase.ambient;
-          actors.tint = phase.ambient;
+          nightOverlay.tint = phase.ambient;
+          nightOverlay.position.set(view.left, view.top);
+          nightOverlay.width = application.screen.width;
+          nightOverlay.height = application.screen.height;
           sky.tint = phase.ambient;
           amb.setNight(phase.nightness);
           for (let i = 0; i < windowLights.length; i++) {
@@ -526,6 +528,13 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
 
       store.setCharCell(curCell);
       offBus.push(offVenueOpened, offKonami);
+      if (import.meta.env.DEV) {
+        // Dev-only QA hook: jump the world clock (day/night) from the console
+        // or Playwright. Dead-code-eliminated from production builds.
+        (window as unknown as { __cityTime?: (s: number) => void }).__cityTime = (s) => {
+          elapsed = s;
+        };
+      }
       onReady?.();
     })();
 
