@@ -190,8 +190,8 @@ export const FILLERS: FillerBuilding[] = [
   // Downtown (0,1) — venture capital block
   filler(0, 1, 6, 6, 2, 2, 2),
   filler(0, 1, 7, 2, 2, 2, 8),
-  // Civic (1,1) — city-hall annex beside the Trophy Hall
-  filler(1, 1, 6, 6, 2, 2, 11, 0xf4e8d8),
+  // Civic (1,1) stays building-free beyond the Trophy Hall: it's the spawn
+  // plaza, and anything SE of spawn draws over the player at boot.
   // Market (3,1) — the Shop block
   filler(3, 1, 7, 7, 2, 2, 6),
   filler(3, 1, 6, 2, 3, 2, 13),
