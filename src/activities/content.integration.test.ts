@@ -20,7 +20,10 @@ const RESULT_KIND: Record<string, string> = {
 };
 
 describe.skipIf(!havePack)("content ⇄ backend rubric alignment (dev cross-check)", () => {
-  const pack = JSON.parse(readFileSync(packPath, "utf8"));
+  // skipIf still runs this collector body, so the read itself must also guard.
+  const pack = havePack
+    ? JSON.parse(readFileSync(packPath, "utf8"))
+    : { levels: { BEGINNER: { activities: [] } } };
   const byId: Record<string, { type: string; rubric: Record<string, unknown> }> =
     Object.fromEntries(pack.levels.BEGINNER.activities.map((a: { id: string }) => [a.id, a]));
 
