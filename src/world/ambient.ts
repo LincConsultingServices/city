@@ -6,9 +6,11 @@
 // run to run. Owned by CityCanvas; never touches React or the DOM.
 import { Container, Graphics, Sprite, Texture, type Renderer } from "pixi.js";
 import { mapToWorld, TILE_H, TILE_W } from "@/lib/iso";
-import type { Cell } from "@/lib/pathfinding";
+import { findPath, type Cell } from "@/lib/pathfinding";
 import { mulberry32, seedFromString } from "@/lib/rng";
-import { PROPS } from "./cityMap";
+import { events } from "@/framework/events";
+import { useEggStore } from "@/framework/eggStore";
+import { PROPS, cityGrid } from "./cityMap";
 import { carTexture, type CarKind, type Cardinal } from "./assets";
 import { npcRoutes, type NpcRoute } from "./routes";
 import {
@@ -62,6 +64,8 @@ export interface Ambient {
   splash(x: number, y: number, count: number): void;
   /** Send the plaza pigeons scattering (fountain-side click). */
   scatterPigeons(): void;
+  /** Colorful confetti-ish burst at a world position (celebrations). */
+  celebrate(x: number, y: number, count: number): void;
   /** NPC step-rate multiplier — the konami block party cranks it. */
   setTempo(multiplier: number): void;
   /** Tint every car (block party gold); null restores. */
@@ -174,7 +178,14 @@ export function createAmbient(ctx: AmbientContext): Ambient {
     vx: number,
     vy: number,
     life: number,
-    opts: { gravity?: number; scaleRate?: number; alpha?: number; sway?: number; scale?: number },
+    opts: {
+      gravity?: number;
+      scaleRate?: number;
+      alpha?: number;
+      sway?: number;
+      scale?: number;
+      tint?: number;
+    },
   ): void {
     if (reduced) return; // decorative only — reduced motion kills all particles
     const p = free.pop();
@@ -191,10 +202,23 @@ export function createAmbient(ctx: AmbientContext): Ambient {
     p.startAlpha = opts.alpha ?? 1;
     p.sway = opts.sway ?? 0;
     p.sprite.texture = particleTex[kind];
+    p.sprite.tint = opts.tint ?? 0xffffff;
     p.sprite.visible = true;
     p.sprite.alpha = p.startAlpha;
     p.sprite.scale.set(opts.scale ?? 1);
     p.sprite.position.set(x, y);
+  }
+
+  const CONFETTI = [0xe2be78, 0x5fae6f, 0x4aa3c7, 0xd987b5, 0xf0954f, 0x8a6fd1];
+  function celebrate(x: number, y: number, count: number): void {
+    for (let i = 0; i < count; i++) {
+      spawn("droplet", x, y - 20, (rand() - 0.5) * 220, -120 - rand() * 120, 1.1, {
+        gravity: 260,
+        alpha: 1,
+        scale: 1.4,
+        tint: CONFETTI[i % CONFETTI.length],
+      });
+    }
   }
 
   // ── Pedestrians ─────────────────────────────────────────────────────────────
@@ -357,6 +381,92 @@ export function createAmbient(ctx: AmbientContext): Ambient {
     }
   }
 
+  // ── The Golden Fare: now and then a taxi gleams for a while — catch it ──────
+  const goldenTaxi = cars.find((c) => c.kind === "taxi") ?? null;
+  let goldenState: "waiting" | "golden" = "waiting";
+  let goldenAt = 150 + rand() * 150;
+  let goldenUntil = 0;
+  let sparkleClock = 0;
+  let nowClock = 0;
+  if (goldenTaxi) {
+    goldenTaxi.sprite.on("pointerdown", (e) => {
+      if (goldenState !== "golden") return;
+      e.stopPropagation();
+      goldenState = "waiting";
+      goldenAt = nowClock + 150 + rand() * 150;
+      goldenTaxi.sprite.eventMode = "passive";
+      goldenTaxi.sprite.cursor = "default";
+      celebrate(goldenTaxi.sprite.position.x, goldenTaxi.sprite.position.y - 10, 18);
+      useEggStore.getState().markFound("golden_taxi");
+    });
+  }
+
+  // ── The campus cat: wanders the quad; click it and it walks with you ────────
+  const catFrame = (tailUp: boolean): Graphics => {
+    const g = new Graphics();
+    g.ellipse(0, -3, 6, 3.2).fill(0x33303b); // body
+    g.circle(5, -6, 2.6).fill(0x33303b); // head
+    g.poly([3.6, -8, 4.6, -10.6, 5.6, -8]).fill(0x33303b); // ears
+    g.poly([4.6, -8, 5.6, -10.4, 6.6, -8]).fill(0x33303b);
+    if (tailUp) {
+      g.moveTo(-5.5, -4).quadraticCurveTo(-9, -7, -8, -11).stroke({ color: 0x33303b, width: 1.6 });
+    } else {
+      g.moveTo(-5.5, -3)
+        .quadraticCurveTo(-9.5, -3, -10.5, -6)
+        .stroke({ color: 0x33303b, width: 1.6 });
+    }
+    g.circle(5.8, -6.4, 0.5).fill(0x9fe08a); // one green eye catches the light
+    return g;
+  };
+  const catTex: [Texture, Texture] = [bake(catFrame(true)), bake(catFrame(false))];
+  const CAMPUS_BLOCKS: Array<[number, number]> = [
+    [0, 2],
+    [0, 3],
+    [1, 3],
+  ];
+  const randomCampusCell = (): Cell => {
+    for (let tries = 0; tries < 40; tries++) {
+      const [bc, br] = CAMPUS_BLOCKS[Math.floor(rand() * CAMPUS_BLOCKS.length)];
+      const c = {
+        x: bc * 11 + 1 + Math.floor(rand() * 10),
+        y: br * 11 + 1 + Math.floor(rand() * 10),
+      };
+      if (cityGrid.isWalkable(c.x, c.y)) return c;
+    }
+    return { x: 6, y: 40 }; // campus quad fallback
+  };
+  const catSprite = new Sprite(catTex[0]);
+  catSprite.anchor.set(0.5, 1);
+  catSprite.eventMode = "static";
+  catSprite.cursor = "pointer";
+  actors.addChild(catSprite);
+  const cat = {
+    cell: randomCampusCell(),
+    px: { x: 0, y: 0 },
+    path: [] as Cell[],
+    wait: 1,
+    mode: "wander" as "wander" | "follow",
+    followUntil: 0,
+    step: 0,
+    dirX: 1,
+  };
+  {
+    const w = mapToWorld(cat.cell.x, cat.cell.y);
+    cat.px.x = w.x;
+    cat.px.y = w.y + TILE_H / 2 - 2;
+  }
+  catSprite.on("pointerdown", (e) => {
+    e.stopPropagation();
+    if (cat.mode !== "follow") {
+      events.emit("toast", { message: "The cat pads along behind you.", kind: "info" });
+    }
+    cat.mode = "follow";
+    cat.followUntil = nowClock + 30;
+    cat.path = [];
+    cat.wait = 0;
+    useEggStore.getState().markFound("cat_friend");
+  });
+
   let tempo = 1;
 
   // ── The one per-tick update ─────────────────────────────────────────────────
@@ -423,6 +533,84 @@ export function createAmbient(ctx: AmbientContext): Ambient {
       car.sprite.tint = carTint ?? 0xffffff;
       car.sprite.renderable = w.x >= l && w.x <= r && w.y >= tp && w.y <= bt;
     }
+
+    // Golden taxi window (overrides the fleet tint while it lasts)
+    nowClock = nowS;
+    if (goldenTaxi) {
+      if (goldenState === "waiting" && nowS >= goldenAt) {
+        goldenState = "golden";
+        goldenUntil = nowS + 45; // roughly one loop of its route
+        goldenTaxi.sprite.eventMode = "static";
+        goldenTaxi.sprite.cursor = "pointer";
+      } else if (goldenState === "golden") {
+        if (nowS >= goldenUntil) {
+          goldenState = "waiting";
+          goldenAt = nowS + 150 + rand() * 150;
+          goldenTaxi.sprite.eventMode = "passive";
+          goldenTaxi.sprite.cursor = "default";
+        } else {
+          goldenTaxi.sprite.tint = 0xffd75e;
+          sparkleClock += dtS;
+          while (sparkleClock >= 0.12) {
+            sparkleClock -= 0.12;
+            spawn(
+              "dust",
+              goldenTaxi.sprite.position.x + (rand() - 0.5) * 24,
+              goldenTaxi.sprite.position.y - 6,
+              (rand() - 0.5) * 18,
+              -14,
+              0.6,
+              { alpha: 0.9, tint: 0xffd75e, scale: 0.9 },
+            );
+          }
+        }
+      }
+    }
+
+    // Campus cat: wander the quad, or shadow the player when befriended
+    if (cat.mode === "follow" && nowS >= cat.followUntil) {
+      cat.mode = "wander";
+      cat.path = [];
+      cat.wait = 1.5;
+    }
+    if (cat.wait > 0) {
+      cat.wait -= dtS;
+    } else if (cat.path.length === 0) {
+      const target =
+        cat.mode === "follow" ? { x: playerCell.x, y: playerCell.y } : randomCampusCell();
+      const path = findPath(cityGrid, cat.cell, target);
+      if (path.length > 1) {
+        cat.path = path.slice(1);
+        if (cat.mode === "follow" && cat.path.length > 0) cat.path.pop(); // stop one cell shy
+      }
+      cat.wait = cat.path.length === 0 ? (cat.mode === "follow" ? 0.4 : 1 + rand() * 2.5) : 0;
+    } else {
+      const next = cat.path[0];
+      const t = mapToWorld(next.x, next.y);
+      const ty = t.y + TILE_H / 2 - 2;
+      const ddx = t.x - cat.px.x;
+      const ddy = ty - cat.px.y;
+      const dist = Math.hypot(ddx, ddy);
+      const speed = cat.mode === "follow" ? 150 : 75;
+      const step = speed * dtS;
+      if (dist <= step) {
+        cat.px.x = t.x;
+        cat.px.y = ty;
+        cat.cell = next;
+        cat.path.shift();
+        if (cat.path.length === 0 && cat.mode === "wander") cat.wait = 1 + rand() * 2.5;
+      } else {
+        cat.px.x += (ddx / dist) * step;
+        cat.px.y += (ddy / dist) * step;
+        if (Math.abs(ddx) > 4) cat.dirX = ddx > 0 ? 1 : -1;
+      }
+      cat.step += dtS;
+    }
+    catSprite.texture = catTex[Math.floor(cat.step / 0.35) % 2];
+    catSprite.scale.x = cat.dirX;
+    catSprite.position.set(cat.px.x, cat.px.y);
+    catSprite.zIndex = cat.cell.x + cat.cell.y + 0.25;
+    catSprite.renderable = cat.px.x >= l && cat.px.x <= r && cat.px.y >= tp && cat.px.y <= bt;
 
     // Emitters (skipped entirely under reduced motion — spawn() no-ops anyway)
     if (!reduced) {
@@ -578,6 +766,7 @@ export function createAmbient(ctx: AmbientContext): Ambient {
       }
     },
     scatterPigeons,
+    celebrate,
     setTempo: (m) => {
       tempo = m;
     },
@@ -588,6 +777,7 @@ export function createAmbient(ctx: AmbientContext): Ambient {
     dispose: () => {
       for (const n of npcs) n.root.destroy({ children: true });
       for (const car of cars) car.sprite.destroy();
+      catSprite.destroy();
       for (const g of lampGlows) g.sprite.destroy();
       for (const b of birds) b.sprite.destroy();
       for (const p of pigeons) p.sprite.destroy();

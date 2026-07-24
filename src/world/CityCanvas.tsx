@@ -320,6 +320,21 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
         if (node && !reduced) venuePop = { node, t: 0 };
       });
 
+      // Konami block party: 12s of gold cabs, quick strides, rainbow markers.
+      let partyUntil = -1;
+      let partyActive = false;
+      const offKonami = events.on("konami", () => {
+        if (reduced) return;
+        partyUntil = elapsed + 12;
+        amb.setCarTint(0xffd75e);
+        amb.setTempo(1.6);
+        amb.celebrate(charPixel.x, charPixel.y, 24);
+      });
+
+      // Night owl: stay out through the deepest night with the tab in view.
+      let nightOwlClock = 0;
+      let nightOwlDone = useEggStore.getState().found.includes("night_owl");
+
       // ── Input: click-to-move ──────────────────────────────────────────────
       const pathLine = new Graphics();
       world.addChild(pathLine);
@@ -446,6 +461,35 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
             if (s.position.y > 3200) s.position.y = -400;
           }
           if (pathTargets.length > 0) pathLine.alpha = 0.75 + 0.25 * Math.sin(elapsed * 5);
+
+          if (!nightOwlDone) {
+            nightOwlClock =
+              phase.nightness >= 0.95 && document.visibilityState === "visible"
+                ? nightOwlClock + dt
+                : 0;
+            if (nightOwlClock >= 10) {
+              nightOwlDone = true;
+              useEggStore.getState().markFound("night_owl");
+            }
+          }
+        }
+
+        // Block party wind-down + rainbow markers while it lasts.
+        if (partyUntil > 0) {
+          if (elapsed < partyUntil) {
+            partyActive = true;
+            const pr = Math.round(150 + 105 * Math.sin(elapsed * 4));
+            const pg = Math.round(150 + 105 * Math.sin(elapsed * 4 + 2.09));
+            const pb = Math.round(150 + 105 * Math.sin(elapsed * 4 + 4.19));
+            const rainbow = (pr << 16) | (pg << 8) | pb;
+            for (const m of markers) m.tint = rainbow;
+          } else if (partyActive) {
+            partyActive = false;
+            partyUntil = -1;
+            amb.setCarTint(null);
+            amb.setTempo(1);
+            for (const m of markers) m.tint = 0xffffff;
+          }
         }
 
         // Wishmaker shimmer: the fountain glints gold for a few seconds.
@@ -481,7 +525,7 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       });
 
       store.setCharCell(curCell);
-      offBus.push(offVenueOpened);
+      offBus.push(offVenueOpened, offKonami);
       onReady?.();
     })();
 

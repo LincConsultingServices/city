@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CityCanvas } from "@/world/CityCanvas";
 import { VENUES, type CityBuilding } from "@/world/cityMap";
 import { useWorldStore } from "@/world/worldStore";
 import { events } from "@/framework/events";
 import { useEggStore } from "@/framework/eggStore";
-import { EGG_COUNT } from "@/lib/eggs";
+import { EGG_COUNT, KONAMI, konamiStep } from "@/lib/eggs";
 import { Hud } from "./Hud";
 import { TrophyHall } from "./TrophyHall";
 import { ActivityListPanel } from "@/activities/ActivityListPanel";
@@ -20,6 +20,7 @@ export function CityScreen() {
   const [playing, setPlaying] = useState<LevelActivity | null>(null);
   const [worldPanel, setWorldPanel] = useState<WorldPanel | null>(null);
   const [worldReady, setWorldReady] = useState(false);
+  const konamiRef = useRef(0);
 
   const nearVenue = nearVenueId ? (VENUES.find((v) => v.id === nearVenueId) ?? null) : null;
   const panelOpen = openVenue !== null || playing !== null || worldPanel !== null;
@@ -38,6 +39,15 @@ export function CityScreen() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // The code. Tracked only while roaming the streets — some codes never die.
+      if (!panelOpen) {
+        konamiRef.current = konamiStep(konamiRef.current, e.key.toLowerCase());
+        if (konamiRef.current === KONAMI.length) {
+          konamiRef.current = 0;
+          useEggStore.getState().markFound("konami");
+          events.emit("konami", null); // the world throws the block party
+        }
+      }
       if (e.key === "Escape") {
         if (playing) setPlaying(null);
         else if (openVenue) setOpenVenue(null);
