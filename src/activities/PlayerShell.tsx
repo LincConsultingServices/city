@@ -146,11 +146,11 @@ function ResultView({ response, onClose }: { response: SubmitResponse; onClose: 
 function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div
-      className="absolute inset-0 z-30 grid place-items-center bg-ink/70 p-4 backdrop-blur-sm"
+      className="absolute inset-0 z-30 grid animate-fade-in place-items-center bg-ink/70 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-2xl border border-line bg-surface p-6 shadow-2xl"
+        className="w-full max-w-lg animate-pop-in rounded-2xl border border-line bg-surface p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {children}

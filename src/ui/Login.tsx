@@ -124,16 +124,49 @@ function RegisterInterstitial({ onClose }: { onClose: () => void }) {
 }
 
 function Skyline() {
-  // Cheap parallax skyline backdrop (gray-box; real art in F4).
+  // A living skyline: three parallax silhouette layers sliding at different
+  // speeds (each loops by shifting exactly one gradient period), twinkling lit
+  // windows and drifting clouds. Pure CSS; reduced motion freezes it all.
   return (
-    <div className="pointer-events-none absolute inset-0 opacity-60">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-70">
+      {/* drifting clouds */}
+      <div className="absolute left-[8%] top-[12%] h-16 w-56 animate-drift-a rounded-full bg-text/5 blur-2xl" />
+      <div className="absolute left-[52%] top-[24%] h-12 w-44 animate-drift-b rounded-full bg-text/5 blur-2xl" />
+      {/* horizon glow */}
       <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-surface/60 to-transparent" />
+      {/* far → near silhouette layers, sliding at different speeds */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-40"
+        className="absolute bottom-0 left-0 right-0 h-56 animate-skyline-far"
         style={{
           backgroundImage:
-            "repeating-linear-gradient(90deg, rgb(34 40 54) 0 40px, transparent 40px 80px)",
-          maskImage: "linear-gradient(to top, black, transparent)",
+            "repeating-linear-gradient(90deg, rgb(26 30 42 / 0.55) 0 56px, transparent 56px 88px)",
+          maskImage: "linear-gradient(to top, black 55%, transparent)",
+        }}
+      />
+      <div
+        className="absolute bottom-0 left-0 right-0 h-44 animate-skyline-mid"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(90deg, rgb(34 40 54 / 0.85) 0 40px, transparent 40px 72px)",
+          maskImage: "linear-gradient(to top, black 50%, transparent)",
+        }}
+      />
+      <div
+        className="absolute bottom-0 left-0 right-0 h-32 animate-skyline-near"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(90deg, rgb(15 18 26) 0 34px, transparent 34px 60px)",
+          maskImage: "linear-gradient(to top, black 65%, transparent)",
+        }}
+      />
+      {/* lit windows, twinkling */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-40 animate-twinkle"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 21px 26px, rgb(226 190 120 / 0.9) 1px, transparent 1.8px), radial-gradient(circle at 64px 52px, rgb(240 200 90 / 0.7) 1px, transparent 1.8px), radial-gradient(circle at 44px 84px, rgb(226 190 120 / 0.55) 1px, transparent 1.8px)",
+          backgroundSize: "88px 112px",
+          maskImage: "linear-gradient(to top, black 60%, transparent)",
         }}
       />
     </div>

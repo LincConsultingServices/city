@@ -23,11 +23,11 @@ export function TrophyHall({ onClose }: { onClose: () => void }) {
 
   return (
     <div
-      className="absolute inset-0 z-20 grid place-items-center bg-ink/75 p-4 backdrop-blur-sm"
+      className="absolute inset-0 z-20 grid animate-fade-in place-items-center bg-ink/75 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-line bg-surface p-6 shadow-2xl"
+        className="max-h-[88vh] w-full max-w-2xl animate-pop-in overflow-y-auto rounded-2xl border border-line bg-surface p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">

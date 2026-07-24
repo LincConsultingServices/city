@@ -6,6 +6,8 @@ import { events } from "@/framework/events";
 import { useEggStore } from "@/framework/eggStore";
 import { EGG_COUNT, KONAMI, konamiStep } from "@/lib/eggs";
 import { Hud } from "./Hud";
+import { Toaster } from "./Toaster";
+import { Celebration } from "./Celebration";
 import { TrophyHall } from "./TrophyHall";
 import { ActivityListPanel } from "@/activities/ActivityListPanel";
 import { PlayerShell } from "@/activities/PlayerShell";
@@ -74,10 +76,12 @@ export function CityScreen() {
         </div>
       )}
       <Hud />
+      <Toaster />
+      <Celebration />
       <ControlsHint />
 
       {nearVenue && !panelOpen && (
-        <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2">
+        <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 animate-slide-up">
           <button
             onClick={() => enterVenue(nearVenue)}
             className="pointer-events-auto rounded-full border border-gold/60 bg-surface/90 px-5 py-2.5 text-sm text-text shadow-lg backdrop-blur"
@@ -132,11 +136,11 @@ function BillboardPanel({ onClose }: { onClose: () => void }) {
   const [idx, setIdx] = useState(() => Math.floor(Math.random() * CITY_TIPS.length));
   return (
     <div
-      className="absolute inset-0 z-20 grid place-items-center bg-ink/70 p-4 backdrop-blur-sm"
+      className="absolute inset-0 z-20 grid animate-fade-in place-items-center bg-ink/70 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 text-center"
+        className="w-full max-w-md animate-pop-in rounded-2xl border border-line bg-surface p-6 text-center"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-xs uppercase tracking-widest text-muted">City Billboard</p>
@@ -165,11 +169,11 @@ function FoundersPanel({ onClose }: { onClose: () => void }) {
   const found = useEggStore((s) => s.found);
   return (
     <div
-      className="absolute inset-0 z-20 grid place-items-center bg-ink/70 p-4 backdrop-blur-sm"
+      className="absolute inset-0 z-20 grid animate-fade-in place-items-center bg-ink/70 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-gold/40 bg-surface p-6 text-center"
+        className="w-full max-w-md animate-pop-in rounded-2xl border border-gold/40 bg-surface p-6 text-center"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-xs uppercase tracking-widest text-muted">Founders' Plaque</p>
@@ -217,11 +221,11 @@ function InfoPanel({ venue, onClose }: { venue: CityBuilding; onClose: () => voi
   const c = copy[venue.kind] ?? { title: venue.displayName, body: "Coming soon." };
   return (
     <div
-      className="absolute inset-0 z-20 grid place-items-center bg-ink/70 p-4 backdrop-blur-sm"
+      className="absolute inset-0 z-20 grid animate-fade-in place-items-center bg-ink/70 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-line bg-surface p-6 text-center"
+        className="w-full max-w-md animate-pop-in rounded-2xl border border-line bg-surface p-6 text-center"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="font-display text-2xl font-semibold text-gold">{c.title}</h2>

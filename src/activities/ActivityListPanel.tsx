@@ -32,11 +32,11 @@ export function ActivityListPanel({
 
   return (
     <div
-      className="absolute inset-0 z-20 grid place-items-center bg-ink/70 p-4 backdrop-blur-sm"
+      className="absolute inset-0 z-20 grid animate-fade-in place-items-center bg-ink/70 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-2xl border border-line bg-surface p-6 shadow-2xl"
+        className="w-full max-w-lg animate-pop-in rounded-2xl border border-line bg-surface p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

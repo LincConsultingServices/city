@@ -28,4 +28,29 @@
   body {
     @apply bg-ink text-text font-body antialiased;
   }
+
+  /* Confetti keyframes live here (pieces animate via inline styles, so the
+     Tailwind animation utility never references them). */
+  @keyframes confetti-fall {
+    0% {
+      opacity: 1;
+      transform: translateY(-12vh) rotate(0deg);
+    }
+    100% {
+      opacity: 0.85;
+      transform: translateY(112vh) rotate(720deg);
+    }
+  }
+
+  /* Decorative animation dies under reduced motion (PRD §16); functional
+     feedback still renders — it just stops moving. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
