@@ -4,11 +4,17 @@
 // retained for future objective activities.
 import type { SimContent } from "@/lib/sim";
 
+// MCQ_FEEDBACK → objective. The real C4 activities carry eight questions each.
+// `id` is the server itemId (q1..q8) and `value` the server choice ("a".."d") —
+// both must match the rubric's hidden answer key for scoring to work.
 export interface McqContent {
   kind: "mcq";
-  itemId: string;
-  question: string;
-  options: { id: string; label: string }[];
+  prompt?: string;
+  questions: {
+    id: string;
+    text: string;
+    options: { value: string; label: string }[];
+  }[];
 }
 
 // DRAG_MATCH → objective. Items are tapped into zones; item `key` and zone `id`
@@ -103,6 +109,354 @@ export const ACTIVITY_CONTENT: Record<string, ActivityContent> = {
       { key: "cookie_cutter", label: "A cookie cutter set", emoji: "🍪" },
       { key: "fairy_lights", label: "Fairy lights for the stall", emoji: "💡" },
       { key: "poster_paint", label: "Paint for a bigger sign", emoji: "🎨" },
+    ],
+  },
+  // C4-BEG-02 — "Can Sam Afford This?" (MCQ_FEEDBACK → objective, budgeting).
+  "C4-BEG-02": {
+    kind: "mcq",
+    prompt: "Sam is learning to plan his money. Help him decide.",
+    questions: [
+      {
+        id: "q1",
+        text: "Sam gets ₹200 pocket money. The game he wants costs ₹250. What's the smart move?",
+        options: [
+          { value: "a", label: "Buy it now and owe the shop ₹50" },
+          { value: "b", label: "Wait and save until he has ₹250" },
+          { value: "c", label: "Borrow ₹50 and forget about paying it back" },
+          { value: "d", label: "Give up on the game forever" },
+        ],
+      },
+      {
+        id: "q2",
+        text: "Sam has ₹200. Bus fare for the week is ₹60. How much is left for everything else?",
+        options: [
+          { value: "a", label: "₹140" },
+          { value: "b", label: "₹260" },
+          { value: "c", label: "₹60" },
+          { value: "d", label: "₹200" },
+        ],
+      },
+      {
+        id: "q3",
+        text: "Sam planned ₹100 food, ₹60 bus, ₹40 fun. Food actually cost ₹120. What must he do?",
+        options: [
+          { value: "a", label: "Nothing — a budget fixes itself" },
+          { value: "b", label: "Spend even more on fun to feel better" },
+          { value: "c", label: "Take the extra ₹20 out of fun or bus" },
+          { value: "d", label: "Ignore the budget from now on" },
+        ],
+      },
+      {
+        id: "q4",
+        text: "What goes into a budget FIRST?",
+        options: [
+          { value: "a", label: "Treats and snacks" },
+          { value: "b", label: "The things you must pay for" },
+          { value: "c", label: "Saving up for a phone" },
+          { value: "d", label: "Games" },
+        ],
+      },
+      {
+        id: "q5",
+        text: "Sam gets ₹300 a month and spends exactly ₹300. How much does he save?",
+        options: [
+          { value: "a", label: "₹300" },
+          { value: "b", label: "₹150" },
+          { value: "c", label: "₹30" },
+          { value: "d", label: "Nothing" },
+        ],
+      },
+      {
+        id: "q6",
+        text: "A budget is best described as…",
+        options: [
+          { value: "a", label: "A plan for money coming in and going out" },
+          { value: "b", label: "A list of things you want" },
+          { value: "c", label: "A kind of bank account" },
+          { value: "d", label: "A way to borrow money" },
+        ],
+      },
+      {
+        id: "q7",
+        text: "Sam wants a ₹600 cycle and can save ₹50 a week. How many weeks?",
+        options: [
+          { value: "a", label: "6 weeks" },
+          { value: "b", label: "10 weeks" },
+          { value: "c", label: "12 weeks" },
+          { value: "d", label: "30 weeks" },
+        ],
+      },
+      {
+        id: "q8",
+        text: "A friend wants Sam to spend his bus money on snacks. The disciplined choice is…",
+        options: [
+          { value: "a", label: "Spend it — he can walk home" },
+          { value: "b", label: "Keep it; that money is already promised to the bus" },
+          { value: "c", label: "Borrow from someone else for snacks" },
+          { value: "d", label: "Spend half of it" },
+        ],
+      },
+    ],
+  },
+  // C4-BEG-03 — "Did the Stand Make Money?" (MCQ_FEEDBACK → objective, profit_loss).
+  "C4-BEG-03": {
+    kind: "mcq",
+    prompt: "Work out whether the stand actually made money.",
+    questions: [
+      {
+        id: "q1",
+        text: "The stand took ₹500 in sales and spent ₹300 on supplies. What's the profit?",
+        options: [
+          { value: "a", label: "₹200" },
+          { value: "b", label: "₹800" },
+          { value: "c", label: "₹500" },
+          { value: "d", label: "₹300" },
+        ],
+      },
+      {
+        id: "q2",
+        text: "Profit means…",
+        options: [
+          { value: "a", label: "All the money customers handed over" },
+          { value: "b", label: "The money spent on supplies" },
+          { value: "c", label: "What's left after the costs are paid" },
+          { value: "d", label: "The cash in the till at the start" },
+        ],
+      },
+      {
+        id: "q3",
+        text: "Sales were ₹400 and costs were ₹450. What happened?",
+        options: [
+          { value: "a", label: "A ₹50 profit" },
+          { value: "b", label: "A ₹50 loss" },
+          { value: "c", label: "Broke even" },
+          { value: "d", label: "An ₹850 profit" },
+        ],
+      },
+      {
+        id: "q4",
+        text: "“Revenue” is…",
+        options: [
+          { value: "a", label: "What's left after costs" },
+          { value: "b", label: "All the money taken from sales" },
+          { value: "c", label: "The cost of the supplies" },
+          { value: "d", label: "Money you borrowed" },
+        ],
+      },
+      {
+        id: "q5",
+        text: "You sold 20 cups at ₹25 each. The cups and lemons cost ₹200 in total. Profit?",
+        options: [
+          { value: "a", label: "₹300" },
+          { value: "b", label: "₹500" },
+          { value: "c", label: "₹200" },
+          { value: "d", label: "₹700" },
+        ],
+      },
+      {
+        id: "q6",
+        text: "Stock you bought but didn't sell today is…",
+        options: [
+          { value: "a", label: "Free money" },
+          { value: "b", label: "Profit" },
+          { value: "c", label: "Revenue" },
+          { value: "d", label: "Money already spent that hasn't come back" },
+        ],
+      },
+      {
+        id: "q7",
+        text: "“Breaking even” means…",
+        options: [
+          { value: "a", label: "You made a big profit" },
+          { value: "b", label: "Money in equals money out" },
+          { value: "c", label: "You lost everything" },
+          { value: "d", label: "You sold out" },
+        ],
+      },
+      {
+        id: "q8",
+        text: "Your stand made a loss. Which move could turn it around?",
+        options: [
+          { value: "a", label: "Buy even more stock you can't sell" },
+          { value: "b", label: "Drop the price below what it costs you" },
+          { value: "c", label: "Cut your costs or sell more cups" },
+          { value: "d", label: "Stop counting the money" },
+        ],
+      },
+    ],
+  },
+  // C4-BEG-06 — "The Better Buy" (MCQ_FEEDBACK → objective, roi).
+  "C4-BEG-06": {
+    kind: "mcq",
+    prompt: "Which spend gives you more back? That's return on investment.",
+    questions: [
+      {
+        id: "q1",
+        text: "₹100 on a squeezer that earns ₹40 extra a week, or ₹100 on a poster that earns ₹5 a week?",
+        options: [
+          { value: "a", label: "The poster" },
+          { value: "b", label: "The squeezer" },
+          { value: "c", label: "Neither is worth it" },
+          { value: "d", label: "They're exactly the same" },
+        ],
+      },
+      {
+        id: "q2",
+        text: "“Return on investment” means…",
+        options: [
+          { value: "a", label: "The money you spend" },
+          { value: "b", label: "What you get back compared with what you put in" },
+          { value: "c", label: "The price on the tag" },
+          { value: "d", label: "Money you borrowed" },
+        ],
+      },
+      {
+        id: "q3",
+        text: "A ₹200 tool earns you ₹50 extra a week. How long until it pays for itself?",
+        options: [
+          { value: "a", label: "4 weeks" },
+          { value: "b", label: "2 weeks" },
+          { value: "c", label: "10 weeks" },
+          { value: "d", label: "200 weeks" },
+        ],
+      },
+      {
+        id: "q4",
+        text: "“The cheaper thing is always the better buy.”",
+        options: [
+          { value: "a", label: "True, always" },
+          { value: "b", label: "True if you like it more" },
+          { value: "c", label: "False — what matters is what it gives back" },
+          { value: "d", label: "True if a friend has one" },
+        ],
+      },
+      {
+        id: "q5",
+        text: "₹500 on an oven earning ₹100 a week, or ₹500 on a sign earning ₹20 a week?",
+        options: [
+          { value: "a", label: "The oven" },
+          { value: "b", label: "The sign" },
+          { value: "c", label: "Neither" },
+          { value: "d", label: "Toss a coin" },
+        ],
+      },
+      {
+        id: "q6",
+        text: "Something you buy that never earns anything back is…",
+        options: [
+          { value: "a", label: "An investment" },
+          { value: "b", label: "A great return" },
+          { value: "c", label: "Free" },
+          { value: "d", label: "A cost, not an investment" },
+        ],
+      },
+      {
+        id: "q7",
+        text: "Two tools cost the same. One lasts two years, one lasts two months. Better buy?",
+        options: [
+          { value: "a", label: "The one that lasts two years" },
+          { value: "b", label: "The one that lasts two months" },
+          { value: "c", label: "Exactly the same" },
+          { value: "d", label: "Whichever looks nicer" },
+        ],
+      },
+      {
+        id: "q8",
+        text: "Before a big buy for your stand, the best question is…",
+        options: [
+          { value: "a", label: "Is it the prettiest one?" },
+          { value: "b", label: "Do my friends have one?" },
+          { value: "c", label: "How much extra will this earn me?" },
+          { value: "d", label: "Is it the most expensive?" },
+        ],
+      },
+    ],
+  },
+  // C4-BEG-10 — "Too High, Too Low, Just Right" (MCQ_FEEDBACK → objective, pricing).
+  "C4-BEG-10": {
+    kind: "mcq",
+    prompt: "Find the price that covers your costs and still gets people buying.",
+    questions: [
+      {
+        id: "q1",
+        text: "A cup costs you ₹10 to make and you sell it for ₹8. What happens?",
+        options: [
+          { value: "a", label: "A small profit" },
+          { value: "b", label: "You break even" },
+          { value: "c", label: "You lose ₹2 on every cup" },
+          { value: "d", label: "A big profit" },
+        ],
+      },
+      {
+        id: "q2",
+        text: "Pricing far above everyone else usually means…",
+        options: [
+          { value: "a", label: "Fewer people buy" },
+          { value: "b", label: "More people buy" },
+          { value: "c", label: "Nothing changes" },
+          { value: "d", label: "Your costs go down" },
+        ],
+      },
+      {
+        id: "q3",
+        text: "A cup costs ₹10 to make. Which price makes a fair profit?",
+        options: [
+          { value: "a", label: "₹8" },
+          { value: "b", label: "₹15" },
+          { value: "c", label: "₹10" },
+          { value: "d", label: "₹5" },
+        ],
+      },
+      {
+        id: "q4",
+        text: "You sell out in ten minutes every single day. That's a sign you could…",
+        options: [
+          { value: "a", label: "Lower the price" },
+          { value: "b", label: "Raise the price a little" },
+          { value: "c", label: "Close the stand" },
+          { value: "d", label: "Give them away free" },
+        ],
+      },
+      {
+        id: "q5",
+        text: "Nobody has bought all day. What's the first thing to check?",
+        options: [
+          { value: "a", label: "Buy a lot more stock" },
+          { value: "b", label: "Raise the price" },
+          { value: "c", label: "Whether the price is too high" },
+          { value: "d", label: "Close down for good" },
+        ],
+      },
+      {
+        id: "q6",
+        text: "Your price should always be…",
+        options: [
+          { value: "a", label: "Above what it costs you to make" },
+          { value: "b", label: "Below cost, to pull people in" },
+          { value: "c", label: "Exactly what it costs you" },
+          { value: "d", label: "A different number every day" },
+        ],
+      },
+      {
+        id: "q7",
+        text: "A “just right” price is one that…",
+        options: [
+          { value: "a", label: "Is the cheapest possible" },
+          { value: "b", label: "Is the most expensive possible" },
+          { value: "c", label: "Is the same as last year" },
+          { value: "d", label: "Covers your costs and people still buy" },
+        ],
+      },
+      {
+        id: "q8",
+        text: "The stall next door sells at ₹20. Yours costs ₹12 to make. A sensible price is…",
+        options: [
+          { value: "a", label: "₹10" },
+          { value: "b", label: "Around ₹18–22" },
+          { value: "c", label: "₹50" },
+          { value: "d", label: "₹12" },
+        ],
+      },
     ],
   },
   // C4-BEG-09 — "Three Days at the Lemonade Stand": learn profit = revenue − costs.
