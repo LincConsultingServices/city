@@ -3,6 +3,7 @@ import type { InteriorProps } from "@/framework/building/manifest";
 import type { LevelActivity } from "@/framework/api/schemas";
 import { PlayerShell } from "@/activities/PlayerShell";
 import { CAFE_ACTIVITY_IDS } from "@/activities/content/cafe";
+import { CafeRoomScene } from "./CafeRoomScene";
 
 // Café interior (PRD_Cafe_Interior.md §5): an explorable room, not a flat activity
 // list. Four hotspots, each a physical thing in the café; picking one reveals
@@ -82,7 +83,7 @@ export default function CafeInterior({ onExit }: InteriorProps) {
       onClick={onExit}
     >
       <div
-        className="w-full max-w-xl rounded-2xl border border-line bg-surface p-6 shadow-2xl"
+        className="w-full max-w-2xl rounded-2xl border border-line bg-surface p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -98,7 +99,10 @@ export default function CafeInterior({ onExit }: InteriorProps) {
 
         {!hotspot && (
           <>
-            <p className="mt-1 text-xs text-muted">
+            <div className="mt-4">
+              <CafeRoomScene />
+            </div>
+            <p className="mt-3 text-xs text-muted">
               Four staff, a loyal set of regulars, a tight budget — and it's yours to run. Look
               around.
             </p>
