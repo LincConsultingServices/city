@@ -7,6 +7,8 @@ import { TrophyHall } from "./TrophyHall";
 import { ActivityListPanel } from "@/activities/ActivityListPanel";
 import { PlayerShell } from "@/activities/PlayerShell";
 import type { LevelActivity } from "@/framework/api/schemas";
+import { BuildingGate } from "@/framework/building/BuildingGate";
+import { cafeManifest } from "@/buildings/cafe/manifest";
 
 export function CityScreen() {
   const nearVenueId = useWorldStore((s) => s.nearVenueId);
@@ -73,9 +75,16 @@ export function CityScreen() {
       {openVenue && !playing && openVenue.kind === "trophy" && (
         <TrophyHall onClose={() => setOpenVenue(null)} />
       )}
-      {openVenue && !playing && openVenue.kind !== "competency" && openVenue.kind !== "trophy" && (
-        <InfoPanel venue={openVenue} onClose={() => setOpenVenue(null)} />
+      {openVenue && !playing && openVenue.kind === "cafe" && (
+        <BuildingGate manifest={cafeManifest} onExit={() => setOpenVenue(null)} />
       )}
+      {openVenue &&
+        !playing &&
+        openVenue.kind !== "competency" &&
+        openVenue.kind !== "trophy" &&
+        openVenue.kind !== "cafe" && (
+          <InfoPanel venue={openVenue} onClose={() => setOpenVenue(null)} />
+        )}
 
       {playing && openVenue && (
         <PlayerShell
@@ -101,10 +110,6 @@ function InfoPanel({ venue, onClose }: { venue: CityBuilding; onClose: () => voi
     locked: {
       title: "Custom venue",
       body: "A client-configurable venue — ships disabled until a client is set up.",
-    },
-    cafe: {
-      title: "Café",
-      body: "A dedicated venue, scaffolded and ready — wire up its activities, theme and competency draw whenever you're ready.",
     },
   };
   const c = copy[venue.kind] ?? { title: venue.displayName, body: "Coming soon." };

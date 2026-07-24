@@ -5,6 +5,7 @@
 // decorative filler buildings and props (trees/lamps/fountain). Building
 // INTERIORS are intentionally not scaffolded yet — main city UI only.
 import type { Grid, Cell } from "@/lib/pathfinding";
+import { CAFE_ACTIVITY_IDS } from "@/activities/content/cafe";
 
 export const BLOCK = 11; // road every BLOCK cells (1-cell road + 10-cell block interior)
 export const BLOCKS = 4;
@@ -118,7 +119,10 @@ export const VENUES: CityBuilding[] = [
     competency: "C8",
     level: "BEGINNER",
   }),
-  venue("cafe", "Café", "market", 2, 0, 0, 5, 2, 2, { kind: "cafe" }), // dedicated stub — build out later
+  venue("cafe", "Café", "market", 2, 0, 0, 5, 2, 2, {
+    kind: "cafe",
+    hostedActivities: Object.values(CAFE_ACTIVITY_IDS).flatMap((ids) => [ids.A, ids.B]),
+  }), // interior: src/buildings/cafe/ (BuildingGate-mounted, see CityScreen.tsx)
   venue("the_shop", "The Shop", "market", 3, 1, 3, 3, 2, 2, { kind: "shop" }),
   // Campus Quarter (blocks 0,2 / 0,3 / 1,3)
   venue("school", "School / College", "campus", 0, 2, 2, 2, 3, 2, {
