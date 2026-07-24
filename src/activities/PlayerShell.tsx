@@ -10,6 +10,7 @@ import { MiniSimRenderer } from "./renderers/MiniSimRenderer";
 import { DragMatchRenderer } from "./renderers/DragMatchRenderer";
 import { SortOrderRenderer } from "./renderers/SortOrderRenderer";
 import { BudgetRenderer } from "./renderers/BudgetRenderer";
+import { DecisionTreeRenderer } from "./renderers/DecisionTreeRenderer";
 
 // Player shell (PRD §8) — header + one renderer + server-driven result. F1 wires the
 // objective loop (start → play → submit → server result/celebration) end-to-end.
@@ -70,6 +71,8 @@ export function PlayerShell({
       return <DragMatchRenderer content={content} onChange={setResult} />;
     if (content?.kind === "sort_order")
       return <SortOrderRenderer content={content} onChange={setResult} />;
+    if (content?.kind === "decision_tree")
+      return <DecisionTreeRenderer content={content} onChange={setResult} />;
     return (
       <p className="text-muted">
         No client content authored for <code className="text-gold">{activity.id}</code> yet — its{" "}
