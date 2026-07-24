@@ -20,6 +20,7 @@ import {
   isRoad,
   venueNear,
   type CityBuilding,
+  type CityProp,
 } from "./cityMap";
 import {
   loadCityAssets,
@@ -30,12 +31,15 @@ import {
   DISTRICT_VARIETY,
   VENUE_VISUAL,
   FILLER_VISUALS,
+  FILLER_TINTS,
+  PROP_TEXTURE,
+  GROUND_PROPS,
+  PROP_SCALE,
   STORY_H,
   carTexture,
   type VenueVisual,
   type CarKind,
   type Cardinal,
-  type AssetKey,
 } from "./assets";
 import { useWorldStore } from "./worldStore";
 
@@ -124,33 +128,13 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       for (const v of VENUES) actors.addChild(makeBuilding(v));
       FILLERS.forEach((f) => {
         const visual = FILLER_VISUALS[f.visualIndex % FILLER_VISUALS.length];
-        actors.addChild(makeBuildingVisual(visual, f.footprintTiles, null));
+        const t0 = f.footprintTiles[0];
+        const wash = f.tint ?? FILLER_TINTS[(t0.x * 7 + t0.y * 13) % FILLER_TINTS.length];
+        actors.addChild(
+          makeBuildingVisual(visual, f.footprintTiles, wash === 0xffffff ? null : wash),
+        );
       });
-      for (const p of PROPS) {
-        const key: AssetKey =
-          p.kind === "fountain"
-            ? "ground_fountain"
-            : p.kind === "lamp"
-              ? "prop_lamp"
-              : p.kind === "conifer"
-                ? "conifer_tall"
-                : p.kind === "tree_short"
-                  ? "tree_short"
-                  : "tree_tall";
-        const s = new Sprite(tex(key));
-        s.anchor.set(0.5, 1);
-        const c = mapToWorld(p.cell.x, p.cell.y);
-        if (p.kind === "fountain") {
-          // full ground tile — replace look by drawing over the base tile
-          s.position.set(c.x, c.y + TILE_H / 2 + groundSkirt("ground_fountain"));
-          s.zIndex = p.cell.x + p.cell.y - 0.1;
-        } else {
-          s.scale.set(p.kind === "lamp" ? 1.35 : 2.1);
-          s.position.set(c.x, c.y + TILE_H / 2);
-          s.zIndex = p.cell.x + p.cell.y;
-        }
-        actors.addChild(s);
-      }
+      for (const p of PROPS) actors.addChild(makeProp(p));
 
       const char = makeCharacter();
       actors.addChild(char);
@@ -428,6 +412,41 @@ function frontVertex(footprint: Cell[]): { x: number; y: number } {
   const cy = frontCells.reduce((s, t) => s + t.y, 0) / frontCells.length;
   const p = mapToWorld(cx, cy);
   return { x: p.x, y: p.y + TILE_H / 2 };
+}
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+function makeProp(p: CityProp): Container {
+  const c = mapToWorld(p.cell.x, p.cell.y);
+  if (p.kind === "plaque") return makePlaque(p, c);
+  const key = PROP_TEXTURE[p.kind] ?? "prop_lamp";
+  const s = new Sprite(tex(key));
+  s.anchor.set(0.5, 1);
+  if (GROUND_PROPS.has(p.kind)) {
+    // full ground tile — replace look by drawing over the base tile
+    s.position.set(c.x, c.y + TILE_H / 2 + groundSkirt(key));
+    s.zIndex = p.cell.x + p.cell.y - 0.1;
+  } else {
+    s.scale.set(PROP_SCALE[p.kind] ?? 1);
+    s.position.set(c.x, c.y + TILE_H / 2);
+    s.zIndex = p.cell.x + p.cell.y;
+  }
+  return s;
+}
+
+/** Founders' plaque — procedural stone plinth with a gold face (no sprite). */
+function makePlaque(p: CityProp, c: { x: number; y: number }): Container {
+  const container = new Container();
+  const g = new Graphics();
+  g.ellipse(0, 0, 14, 6).fill({ color: 0x000000, alpha: 0.25 });
+  g.roundRect(-11, -24, 22, 24, 3).fill(0x8b8f9a).stroke({ color: 0x1a1e2a, alpha: 0.5, width: 1 });
+  g.roundRect(-8, -21, 16, 12, 2).fill(0xe2be78);
+  g.rect(-6, -18, 12, 1.5).fill({ color: 0x1a1e2a, alpha: 0.35 });
+  g.rect(-6, -15, 12, 1.5).fill({ color: 0x1a1e2a, alpha: 0.35 });
+  container.addChild(g);
+  container.position.set(c.x, c.y + TILE_H / 2 - 2);
+  container.zIndex = p.cell.x + p.cell.y;
+  return container;
 }
 
 // ── Character & path preview ──────────────────────────────────────────────────

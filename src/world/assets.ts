@@ -6,7 +6,7 @@
 //   • 99-wide modular pieces (floors/roofs) + 100-scale vehicles/trees — scaled
 //     by STACK_SCALE (≈1.333) so their 100×50 diamond matches a 132×66 tile.
 import { Assets, Texture } from "pixi.js";
-import type { District } from "./cityMap";
+import type { District, PropKind } from "./cityMap";
 
 /** Scale for the 99/100-wide sprite family (→ 132-wide). */
 export const STACK_SCALE = 132 / 99;
@@ -280,7 +280,53 @@ export const FILLER_VISUALS: VenueVisual[] = [
   { type: "stack", ground: "g_glass_store", floors: ["f_plain"], roof: "r_flat" },
   { type: "single", key: "g_awn_green" },
   { type: "single", key: "g_shopfront" },
+  // Expanded set — district skyline personality from existing sprites only.
+  { type: "single", key: "g_cream_arch" }, // 7 stately downtown arches
+  { type: "single", key: "g_red_arch" }, // 8 brick row
+  { type: "single", key: "g_awn_green2" }, // 9 market awnings
+  { type: "stack", ground: "g_windows_wide", floors: [], roof: "r_flat_ac2" }, // 10 warehouse + AC
+  { type: "stack", ground: "g_brown_arch", floors: ["f_cream"], roof: "r_slope_gray" }, // 11 townhouse
+  { type: "single", key: "g_plain" }, // 12 quiet low-rise
+  { type: "stack", ground: "g_glass_band", floors: ["f_blue_win"], roof: "r_flat2" }, // 13 office
+  { type: "stack", ground: "g_windows_wide2", floors: [], roof: "r_flat_ac" }, // 14 industrial flat
+  { type: "stack", ground: "g_glass_big", floors: ["f_blue_win", "f_blue_win"], roof: "r_flat" }, // 15 tall glass
+  { type: "stack", ground: "g_glass_store", floors: ["f_plain", "f_plain"], roof: "r_flat2" }, // 16 mid tower
 ];
+
+/** Subtle multiplicative washes cycled deterministically across fillers so the
+ * repeated sprites read as distinct buildings. White = untinted. */
+export const FILLER_TINTS: number[] = [
+  0xffffff, 0xf4e8d8, 0xffffff, 0xe6edf7, 0xffffff, 0xf1e3e3, 0xffffff, 0xe9f0e4,
+];
+
+/** Sprite for each map prop kind (null = drawn procedurally, e.g. the plaque). */
+export const PROP_TEXTURE: Record<PropKind, AssetKey | null> = {
+  tree_tall: "tree_tall",
+  tree_short: "tree_short",
+  conifer: "conifer_tall",
+  lamp: "prop_lamp",
+  lamp2: "prop_lamp2",
+  fountain: "ground_fountain",
+  billboard: "prop_billboard",
+  bench: "ground_bench",
+  pool: "ground_pool",
+  tree_prop: "prop_tree",
+  plaque: null,
+};
+
+/** Props drawn as full ground tiles (replace the base tile, no upright sprite). */
+export const GROUND_PROPS: ReadonlySet<PropKind> = new Set(["fountain", "bench", "pool"]);
+
+/** Upright-prop display scale (ground props draw 1×). */
+export const PROP_SCALE: Partial<Record<PropKind, number>> = {
+  lamp: 1.35,
+  lamp2: 1.35,
+  billboard: 1.8,
+  tree_prop: 1.7,
+  tree_tall: 2.1,
+  tree_short: 2.1,
+  conifer: 2.1,
+};
 
 // ── Vehicles ──────────────────────────────────────────────────────────────────
 

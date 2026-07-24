@@ -150,6 +150,7 @@ export const VENUES: CityBuilding[] = [
 export interface FillerBuilding {
   footprintTiles: Cell[];
   visualIndex: number; // → FILLER_VISUALS
+  tint?: number; // optional wash over FILLER_TINTS' deterministic default
 }
 
 function filler(
@@ -160,29 +161,82 @@ function filler(
   w: number,
   h: number,
   visualIndex: number,
+  tint?: number,
 ): FillerBuilding {
   const { ox, oy } = blockOrigin(bc, br);
-  return { footprintTiles: rect(ox + dx, oy + dy, w, h).footprintTiles, visualIndex };
+  return { footprintTiles: rect(ox + dx, oy + dy, w, h).footprintTiles, visualIndex, tint };
 }
 
+// Every non-park block holds 3–4 buildings so the skyline reads as a real city.
+// Placement rule: never touch a venue's entrance column (entrance tile straight
+// down to its crosswalk road) and keep at least one corridor into each block.
+// cityMap.test.ts enforces reachability + non-overlap for every placement here.
 export const FILLERS: FillerBuilding[] = [
+  // Downtown (0,0) — bank block
   filler(0, 0, 6, 6, 2, 2, 0),
+  filler(0, 0, 7, 2, 2, 2, 7),
+  filler(0, 0, 0, 6, 2, 2, 8, 0xf1e3e3),
+  // Downtown (1,0) — stock exchange block
   filler(1, 0, 6, 6, 2, 2, 1),
+  filler(1, 0, 7, 2, 2, 2, 10),
+  filler(1, 0, 0, 5, 2, 3, 11),
+  // Market (2,0) — ice cream + café block
   filler(2, 0, 7, 6, 2, 2, 3),
+  filler(2, 0, 6, 2, 2, 2, 9, 0xffe9d2),
+  // Market (3,0) — fashion block
   filler(3, 0, 6, 6, 2, 2, 5),
+  filler(3, 0, 0, 2, 2, 2, 13),
+  filler(3, 0, 0, 7, 2, 2, 12),
+  // Downtown (0,1) — venture capital block
   filler(0, 1, 6, 6, 2, 2, 2),
+  filler(0, 1, 7, 2, 2, 2, 8),
+  // Civic (1,1) — city-hall annex beside the Trophy Hall
+  filler(1, 1, 6, 6, 2, 2, 11, 0xf4e8d8),
+  // Market (3,1) — the Shop block
   filler(3, 1, 7, 7, 2, 2, 6),
+  filler(3, 1, 6, 2, 3, 2, 13),
+  filler(3, 1, 0, 6, 2, 2, 9),
+  // Campus (0,2) — school block (leafy, low-rise)
   filler(0, 2, 6, 6, 2, 2, 4),
+  filler(0, 2, 0, 2, 2, 2, 12, 0xe9f0e4),
+  // Industrial (2,2) — race car block
   filler(2, 2, 7, 6, 2, 2, 2),
+  filler(2, 2, 6, 2, 3, 2, 10),
+  filler(2, 2, 0, 5, 2, 3, 14),
+  // Industrial (3,2) — custom venue block (warehouse row)
+  filler(3, 2, 0, 2, 2, 2, 14),
+  filler(3, 2, 0, 6, 3, 2, 10, 0xe6edf7),
+  filler(3, 2, 6, 6, 2, 2, 14),
+  // Campus (0,3)
   filler(0, 3, 5, 6, 2, 2, 1),
+  filler(0, 3, 0, 5, 2, 2, 9),
+  // Campus (1,3) — gym block
   filler(1, 3, 6, 6, 2, 2, 0),
+  filler(1, 3, 0, 2, 2, 2, 13),
+  // Tech (2,3) — AI IT block (glass slabs)
   filler(2, 3, 7, 6, 2, 2, 4),
+  filler(2, 3, 0, 2, 2, 3, 15),
+  filler(2, 3, 6, 2, 2, 2, 16),
+  // Tech (3,3) — social media block
   filler(3, 3, 6, 6, 2, 2, 6),
+  filler(3, 3, 0, 2, 2, 2, 16),
+  filler(3, 3, 6, 2, 2, 2, 15, 0xe6edf7),
 ];
 
 // ── Props (visual only; trees block movement, lamps/fountain don't) ───────────
 
-export type PropKind = "tree_tall" | "tree_short" | "conifer" | "lamp" | "fountain";
+export type PropKind =
+  | "tree_tall"
+  | "tree_short"
+  | "conifer"
+  | "lamp"
+  | "lamp2"
+  | "fountain"
+  | "billboard"
+  | "bench"
+  | "pool"
+  | "tree_prop"
+  | "plaque";
 
 export interface CityProp {
   kind: PropKind;
@@ -250,7 +304,43 @@ export const PROPS: CityProp[] = [
   { kind: "lamp", cell: { x: 32, y: 12 }, blocking: false },
   { kind: "lamp", cell: { x: 12, y: 32 }, blocking: false },
   { kind: "lamp", cell: { x: 32, y: 32 }, blocking: false },
+  // More lamps (two styles, alternating) so every crossroads glows at night
+  { kind: "lamp2", cell: { x: 21, y: 12 }, blocking: false },
+  { kind: "lamp", cell: { x: 23, y: 12 }, blocking: false },
+  { kind: "lamp2", cell: { x: 12, y: 21 }, blocking: false },
+  { kind: "lamp", cell: { x: 12, y: 23 }, blocking: false },
+  { kind: "lamp", cell: { x: 32, y: 21 }, blocking: false },
+  { kind: "lamp2", cell: { x: 34, y: 23 }, blocking: false },
+  { kind: "lamp", cell: { x: 21, y: 32 }, blocking: false },
+  { kind: "lamp2", cell: { x: 23, y: 34 }, blocking: false },
+  { kind: "lamp", cell: { x: 34, y: 21 }, blocking: false },
+  { kind: "lamp2", cell: { x: 10, y: 12 }, blocking: false },
+  // Billboards — downtown buzz + tech park (blocking; clickable in-world)
+  { kind: "billboard", cell: { x: 20, y: 1 }, blocking: true },
+  { kind: "billboard", cell: { x: 34, y: 34 }, blocking: true },
+  // Bench tiles in the parks and campus (walk-through ground tiles)
+  { kind: "bench", cell: { x: 24, y: 16 }, blocking: false },
+  { kind: "bench", cell: { x: 29, y: 18 }, blocking: false },
+  { kind: "bench", cell: { x: 27, y: 14 }, blocking: false },
+  { kind: "bench", cell: { x: 16, y: 27 }, blocking: false },
+  { kind: "bench", cell: { x: 18, y: 25 }, blocking: false },
+  { kind: "bench", cell: { x: 5, y: 30 }, blocking: false },
+  // Rooftop-blue pool behind the AI campus (tech flex)
+  { kind: "pool", cell: { x: 27, y: 41 }, blocking: true },
+  // Street trees along downtown/market interior edges (bushy, blocking)
+  { kind: "tree_prop", cell: { x: 1, y: 4 }, blocking: true },
+  { kind: "tree_prop", cell: { x: 17, y: 7 }, blocking: true },
+  { kind: "tree_prop", cell: { x: 28, y: 6 }, blocking: true },
+  { kind: "tree_prop", cell: { x: 38, y: 8 }, blocking: true },
+  { kind: "tree_prop", cell: { x: 6, y: 14 }, blocking: true },
+  // Founders' plaque in the south park (clickable easter egg)
+  { kind: "plaque", cell: { x: 13, y: 31 }, blocking: true },
 ];
+
+/** The two open park blocks (no buildings; ambient birds/pigeons live here). */
+export function isParkBlock(bc: number, br: number): boolean {
+  return (bc === 2 && br === 1) || (bc === 1 && br === 2);
+}
 
 // ── Walkability ───────────────────────────────────────────────────────────────
 
