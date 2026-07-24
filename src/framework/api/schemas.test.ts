@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { ResultPayload, SubmitResponse, RegistryModules } from "./schemas";
+import {
+  ResultPayload,
+  SubmitResponse,
+  RegistryModules,
+  BadgesResponse,
+  ProfileResponse,
+} from "./schemas";
 
 describe("wire schemas", () => {
   it("accepts a valid objective result payload", () => {
@@ -38,5 +44,53 @@ describe("wire schemas", () => {
     });
     expect(r.metaBadges).toEqual([]);
     expect(r.modules[0].code).toBe("C4");
+  });
+});
+
+describe("Trophy Hall schemas (live endpoints)", () => {
+  it("parses GET /badges shape incl. awardedAt", () => {
+    const r = BadgesResponse.parse({
+      badges: [
+        {
+          id: "BADGE-C4-BEGINNER",
+          name: "Coin Counter",
+          tier: "BRONZE",
+          competencyCode: "C4",
+          level: "BEGINNER",
+          awardedAt: "2026-07-20T10:00:00Z",
+        },
+      ],
+    });
+    expect(r.badges[0].awardedAt).toBe("2026-07-20T10:00:00Z");
+  });
+
+  it("defaults awardedAt when the server omits it", () => {
+    const r = BadgesResponse.parse({ badges: [{ id: "B1", name: "Badge" }] });
+    expect(r.badges[0].awardedAt).toBe("");
+  });
+
+  it("parses GET /profile, tolerating an empty category", () => {
+    const r = ProfileResponse.parse({
+      competencies: [
+        {
+          code: "C4",
+          name: "Financial Discipline",
+          completed: 3,
+          totalSeeded: 12,
+          avgProficiency: 2.3,
+          category: "P2",
+        },
+        {
+          code: "C9",
+          name: "Resilience",
+          completed: 0,
+          totalSeeded: 12,
+          avgProficiency: 0,
+          category: "",
+        },
+      ],
+    });
+    expect(r.competencies).toHaveLength(2);
+    expect(r.competencies[1].category).toBe("");
   });
 });

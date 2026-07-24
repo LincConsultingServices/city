@@ -123,3 +123,26 @@ export const SubmitResponse = z.object({
   coinBalance: z.number().int().optional(),
 });
 export type SubmitResponse = z.infer<typeof SubmitResponse>;
+
+// ── Trophy Hall (PRD §9.4) — both endpoints are LIVE on the backend ───────────
+
+// GET /api/v1/badges → { badges: [ ...Badge, awardedAt ] }
+export const EarnedBadge = Badge.extend({ awardedAt: z.string().optional().default("") });
+export type EarnedBadge = z.infer<typeof EarnedBadge>;
+
+export const BadgesResponse = z.object({ badges: z.array(EarnedBadge) });
+export type BadgesResponse = z.infer<typeof BadgesResponse>;
+
+// GET /api/v1/profile → { competencies: [...] }. category is "" when no data yet.
+export const CompetencyProfile = z.object({
+  code: z.string(),
+  name: z.string(),
+  completed: z.number().int(),
+  totalSeeded: z.number().int(),
+  avgProficiency: z.number(),
+  category: z.string().optional().default(""),
+});
+export type CompetencyProfile = z.infer<typeof CompetencyProfile>;
+
+export const ProfileResponse = z.object({ competencies: z.array(CompetencyProfile) });
+export type ProfileResponse = z.infer<typeof ProfileResponse>;

@@ -10,6 +10,8 @@ import {
   LevelResponse,
   ActivityPublic,
   SubmitResponse,
+  BadgesResponse,
+  ProfileResponse,
   type SubmitRequest,
 } from "./schemas";
 
@@ -61,6 +63,16 @@ export class ApiClient {
 
   putState(activityId: string, blob: unknown): Promise<unknown> {
     return this.perform("PUT", `/api/v1/progress/${activityId}/state`, blob);
+  }
+
+  /** Trophy Hall (PRD §9.4) — the caller's earned badges. */
+  getBadges() {
+    return this.request("GET", "/api/v1/badges", BadgesResponse);
+  }
+
+  /** Trophy Hall progress board — per-competency P-levels. */
+  getProfile() {
+    return this.request("GET", "/api/v1/profile", ProfileResponse);
   }
 
   submit(activityId: string, body: SubmitRequest) {

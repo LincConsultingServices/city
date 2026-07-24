@@ -3,6 +3,7 @@ import { CityCanvas } from "@/world/CityCanvas";
 import { VENUES, type CityBuilding } from "@/world/cityMap";
 import { useWorldStore } from "@/world/worldStore";
 import { Hud } from "./Hud";
+import { TrophyHall } from "./TrophyHall";
 import { ActivityListPanel } from "@/activities/ActivityListPanel";
 import { PlayerShell } from "@/activities/PlayerShell";
 import type { LevelActivity } from "@/framework/api/schemas";
@@ -69,7 +70,10 @@ export function CityScreen() {
           onPlay={(a) => setPlaying(a)}
         />
       )}
-      {openVenue && !playing && openVenue.kind !== "competency" && (
+      {openVenue && !playing && openVenue.kind === "trophy" && (
+        <TrophyHall onClose={() => setOpenVenue(null)} />
+      )}
+      {openVenue && !playing && openVenue.kind !== "competency" && openVenue.kind !== "trophy" && (
         <InfoPanel venue={openVenue} onClose={() => setOpenVenue(null)} />
       )}
 
