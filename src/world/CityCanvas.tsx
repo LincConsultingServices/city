@@ -24,6 +24,8 @@ import {
   PLAYER_PALETTE,
 } from "./characterArt";
 import { createAmbient, type Ambient } from "./ambient";
+import { events } from "@/framework/events";
+import { useEggStore } from "@/framework/eggStore";
 import {
   GRID_W,
   GRID_H,
@@ -70,6 +72,7 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
     let app: Application | null = null;
     let ambient: Ambient | null = null;
     let bakedTextures: Texture[] = [];
+    const offBus: Array<() => void> = [];
     const reduced = prefersReducedMotion();
     const mount = mountRef.current;
     if (!mount) return;
@@ -182,7 +185,12 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
           makeBuildingVisual(visual, f.footprintTiles, wash === 0xffffff ? null : wash),
         );
       });
-      for (const p of PROPS) actors.addChild(makeProp(p));
+      const propNodes: Array<{ prop: CityProp; node: Container }> = [];
+      for (const p of PROPS) {
+        const node = makeProp(p);
+        actors.addChild(node);
+        propNodes.push({ prop: p, node });
+      }
 
       // Player rig: shared shadow + a body sprite swapping baked walk frames.
       const playerTex = bakePersonTextures(application.renderer, PLAYER_PALETTE);
@@ -239,6 +247,78 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       });
       ambient = amb;
       const view = { left: 0, top: 0, right: 0, bottom: 0 };
+
+      // ── Interactable props: click → world reaction and/or DOM panel ───────
+      // Handlers stopPropagation so a prop click never falls through to the
+      // stage's click-to-move handler (which receives events by bubbling).
+      const WISHES = [
+        "You toss a coin in. The fountain approves.",
+        "Plink. May your budget always balance.",
+        "A wish for compounding returns, granted daily.",
+        "The pigeons pretend not to watch. They watched.",
+        "Wish logged. The city keeps its promises.",
+      ];
+      let fountainClicks = 0;
+      let fountainShimmerUntil = -1;
+      let fountainNode: Container | null = null;
+      const hoverable = (node: Container) => {
+        const base = node.scale.x;
+        node.on("pointerover", () => node.scale.set(base * 1.07));
+        node.on("pointerout", () => node.scale.set(base));
+      };
+      for (const { prop, node } of propNodes) {
+        const kind = prop.kind;
+        if (
+          kind !== "fountain" &&
+          kind !== "billboard" &&
+          kind !== "bench" &&
+          kind !== "plaque" &&
+          kind !== "lamp" &&
+          kind !== "lamp2"
+        ) {
+          continue;
+        }
+        node.eventMode = "static";
+        node.cursor = "pointer";
+        if (kind === "fountain") fountainNode = node;
+        if (kind === "billboard" || kind === "plaque" || kind === "lamp" || kind === "lamp2") {
+          hoverable(node);
+        }
+        node.on("pointerdown", (e) => {
+          e.stopPropagation();
+          if (useWorldStore.getState().inputLocked) return;
+          if (kind === "fountain") {
+            const w = mapToWorld(prop.cell.x, prop.cell.y);
+            amb.splash(w.x, w.y + TILE_H / 2 - 16, 14);
+            amb.scatterPigeons();
+            fountainClicks += 1;
+            events.emit("toast", {
+              message: WISHES[(fountainClicks - 1) % WISHES.length],
+              kind: "info",
+            });
+            if (fountainClicks === 5) {
+              useEggStore.getState().markFound("wishmaker");
+              fountainShimmerUntil = elapsed + 3;
+            }
+          } else if (kind === "billboard") {
+            events.emit("world_interact", { kind: "billboard" });
+          } else if (kind === "plaque") {
+            useEggStore.getState().markFound("founders_plaque");
+            events.emit("world_interact", { kind: "plaque" });
+          } else if (kind === "bench") {
+            events.emit("toast", { message: "Take five. The city hustles on.", kind: "info" });
+          } else {
+            amb.toggleLampAt(prop.cell); // lamp / lamp2
+          }
+        });
+      }
+
+      // A venue panel opening pops its building (200ms scale bounce).
+      let venuePop: { node: Container; t: number } | null = null;
+      const offVenueOpened = events.on("venue_opened", (id) => {
+        const node = venueNodes.get(id);
+        if (node && !reduced) venuePop = { node, t: 0 };
+      });
 
       // ── Input: click-to-move ──────────────────────────────────────────────
       const pathLine = new Graphics();
@@ -368,6 +448,25 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
           if (pathTargets.length > 0) pathLine.alpha = 0.75 + 0.25 * Math.sin(elapsed * 5);
         }
 
+        // Wishmaker shimmer: the fountain glints gold for a few seconds.
+        if (fountainNode) {
+          fountainNode.tint =
+            elapsed < fountainShimmerUntil
+              ? lerpColor(0xffffff, 0xe2be78, 0.5 + 0.5 * Math.sin(elapsed * 12))
+              : 0xffffff;
+        }
+
+        // Venue pop: 200ms scale bounce on the building whose panel just opened.
+        if (venuePop) {
+          venuePop.t += dt;
+          if (venuePop.t >= 0.2) {
+            venuePop.node.scale.set(1);
+            venuePop = null;
+          } else {
+            venuePop.node.scale.set(1 + 0.035 * Math.sin((venuePop.t / 0.2) * Math.PI));
+          }
+        }
+
         // Camera: soft-lag follow, centered on the character.
         const txx = application.screen.width / 2 - charPixel.x;
         const tyy = application.screen.height / 2 - charPixel.y;
@@ -382,6 +481,7 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       });
 
       store.setCharCell(curCell);
+      offBus.push(offVenueOpened);
       onReady?.();
     })();
 
@@ -390,6 +490,8 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       store.setNearVenue(null);
+      offBus.forEach((off) => off());
+      offBus.length = 0;
       ambient?.dispose(); // detaches + frees its sprites/textures before the app teardown
       ambient = null;
       if (app) app.destroy(true, { children: true });
