@@ -4,10 +4,19 @@
 // Kenney-sprite city: district ground + street tiles, stacked venue buildings,
 // filler blocks, props (trees/lamps/fountain) and ambient vehicles on road loops.
 import { useEffect, useRef } from "react";
-import { Application, Container, Graphics, Sprite, Text, type Texture } from "pixi.js";
+import {
+  Application,
+  Container,
+  Graphics,
+  Sprite,
+  Text,
+  type Renderer,
+  type Texture,
+} from "pixi.js";
 import { mapToWorld, worldToMap, roundCell, TILE_W, TILE_H } from "@/lib/iso";
 import { findPath, type Cell } from "@/lib/pathfinding";
 import { prefersReducedMotion } from "@/lib/motion";
+import { dayPhase, lerpColor, BOOT_PHASE_OFFSET_S } from "@/lib/daycycle";
 import {
   bakePersonTextures,
   bakeShadowTexture,
@@ -102,6 +111,12 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       app = application;
       mount.appendChild(application.canvas);
 
+      // Sky backdrop: baked vertical gradient behind the world, day-phase tinted.
+      const skyTex = bakeSkyTexture(application.renderer);
+      bakedTextures.push(skyTex);
+      const sky = new Sprite(skyTex);
+      application.stage.addChild(sky);
+
       const world = new Container();
       application.stage.addChild(world);
 
@@ -126,18 +141,37 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       actors.sortableChildren = true;
       world.addChild(actors);
 
-      // Collect world points for the ambient smoke/steam emitters as we build.
+      // Warm window-glow texture shared by every building's night lights.
+      const windowTex = application.renderer.generateTexture({
+        target: new Graphics().roundRect(-5, -3.5, 10, 7, 2).fill({ color: 0xffd98a, alpha: 0.5 }),
+        resolution: 2,
+      });
+      bakedTextures.push(windowTex);
+
+      // Collect world points/handles for ambient emitters and ticker animation.
       const smokeStacks: Array<{ x: number; y: number }> = [];
       const steamVents: Array<{ x: number; y: number }> = [];
+      const markers: Graphics[] = [];
+      const windowLights: Sprite[] = [];
+      const venueNodes = new Map<string, Container>();
       for (const v of VENUES) {
-        const b = makeBuilding(v);
-        actors.addChild(b);
+        const parts = makeBuilding(v, windowTex);
+        actors.addChild(parts.root);
+        venueNodes.set(v.id, parts.root);
+        if (v.interactable) markers.push(parts.marker);
+        windowLights.push(...parts.lights);
         if (v.id === "race_car" || v.id === "custom") {
-          const bounds = b.getLocalBounds();
-          smokeStacks.push({ x: b.position.x + 16, y: b.position.y + bounds.minY + 26 });
+          const bounds = parts.root.getLocalBounds();
+          smokeStacks.push({
+            x: parts.root.position.x + 16,
+            y: parts.root.position.y + bounds.minY + 26,
+          });
         } else if (v.id === "cafe") {
-          const bounds = b.getLocalBounds();
-          steamVents.push({ x: b.position.x - 8, y: b.position.y + bounds.minY + 28 });
+          const bounds = parts.root.getLocalBounds();
+          steamVents.push({
+            x: parts.root.position.x - 8,
+            y: parts.root.position.y + bounds.minY + 28,
+          });
         }
       }
       FILLERS.forEach((f) => {
@@ -170,6 +204,29 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       // FX overlay (particles, glows, birds) draws above the y-sorted actors.
       const fx = new Container();
       world.addChild(fx);
+
+      // Soft cloud shadows drifting over the whole city (topmost world layer).
+      const cloudTex = application.renderer.generateTexture({
+        target: new Graphics()
+          .ellipse(0, 0, 190, 90)
+          .fill({ color: 0x0a0f1c, alpha: 0.055 })
+          .ellipse(-95, 32, 120, 60)
+          .fill({ color: 0x0a0f1c, alpha: 0.04 })
+          .ellipse(100, -22, 130, 68)
+          .fill({ color: 0x0a0f1c, alpha: 0.04 }),
+      });
+      bakedTextures.push(cloudTex);
+      const clouds: Sprite[] = [];
+      if (!reduced) {
+        for (let i = 0; i < 3; i++) {
+          const s = new Sprite(cloudTex);
+          s.anchor.set(0.5);
+          s.scale.set(1.4 + i * 0.5);
+          s.position.set(-1600 + i * 1500, i * 900);
+          world.addChild(s);
+          clouds.push(s);
+        }
+      }
 
       // Ambient life: NPCs, vehicles, particles, emitters, pigeons (PRD §6.4).
       const amb = createAmbient({
@@ -285,6 +342,32 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
         view.bottom = view.top + application.screen.height;
         amb.update(dt, elapsed, view, curCell);
 
+        // Atmosphere: day/night tint, window lights, marker pulse, drifting clouds.
+        sky.width = application.screen.width;
+        sky.height = application.screen.height;
+        if (!reduced) {
+          const phase = dayPhase(elapsed + BOOT_PHASE_OFFSET_S);
+          ground.tint = phase.ambient;
+          actors.tint = phase.ambient;
+          sky.tint = phase.ambient;
+          amb.setNight(phase.nightness);
+          for (let i = 0; i < windowLights.length; i++) {
+            windowLights[i].alpha =
+              phase.nightness * (0.55 + 0.12 * Math.sin(elapsed * 3 + i * 1.7));
+          }
+          for (let i = 0; i < markers.length; i++) {
+            markers[i].scale.set(1 + 0.12 * Math.sin(elapsed * 2.2 + i));
+          }
+          for (let i = 0; i < clouds.length; i++) {
+            const s = clouds[i];
+            s.position.x += (10 + i * 3) * dt;
+            s.position.y += (5 + i * 2) * dt;
+            if (s.position.x > 3400) s.position.x = -3400;
+            if (s.position.y > 3200) s.position.y = -400;
+          }
+          if (pathTargets.length > 0) pathLine.alpha = 0.75 + 0.25 * Math.sin(elapsed * 5);
+        }
+
         // Camera: soft-lag follow, centered on the character.
         const txx = application.screen.width / 2 - charPixel.x;
         const tyy = application.screen.height / 2 - charPixel.y;
@@ -343,9 +426,40 @@ function skirtFor(x: number, y: number): number {
 
 // ── Buildings ─────────────────────────────────────────────────────────────────
 
-function makeBuilding(v: CityBuilding): Container {
+interface BuildingParts {
+  root: Container;
+  /** Entrance marker, self-centered so the ticker can pulse its scale. */
+  marker: Graphics;
+  /** Warm window-glow sprites (lit by nightness in the ticker). */
+  lights: Sprite[];
+}
+
+function makeBuilding(v: CityBuilding, windowTex: Texture | null): BuildingParts {
   const visual = VENUE_VISUAL[v.id] ?? FILLER_VISUALS[0];
   const c = makeBuildingVisual(visual, v.footprintTiles, v.kind === "locked" ? 0x9aa0ad : null);
+
+  // Night window lights, placed from the visual's bounds (before the label).
+  const lights: Sprite[] = [];
+  if (windowTex && v.kind !== "locked") {
+    const vb = c.getLocalBounds();
+    const height = vb.maxY - vb.minY;
+    const spots =
+      visual.type === "stack"
+        ? [
+            { x: vb.minX * 0.32, y: vb.minY + height * 0.38 },
+            { x: vb.maxX * 0.28, y: vb.minY + height * 0.58 },
+          ]
+        : [{ x: vb.minX * 0.2, y: vb.minY + height * 0.55 }];
+    for (const spot of spots) {
+      const s = new Sprite(windowTex);
+      s.anchor.set(0.5);
+      s.blendMode = "add";
+      s.alpha = 0;
+      s.position.set(spot.x, spot.y);
+      c.addChild(s);
+      lights.push(s);
+    }
+  }
 
   // Name label above the building.
   const label = new Text({
@@ -363,19 +477,16 @@ function makeBuilding(v: CityBuilding): Container {
   label.position.set(0, top.minY - 6);
   c.addChild(label);
 
-  // Gold entrance marker on the entrance tile.
+  // Gold entrance marker on the entrance tile (own origin → pulsable).
   const ent = mapToWorld(v.entranceTile.x, v.entranceTile.y);
   const front = frontVertex(v.footprintTiles);
   const marker = new Graphics();
-  marker
-    .circle(ent.x - front.x, ent.y - front.y, 5)
-    .fill({ color: 0xe2be78, alpha: v.interactable ? 0.95 : 0.4 });
-  marker
-    .circle(ent.x - front.x, ent.y - front.y, 8)
-    .stroke({ color: 0xe2be78, alpha: 0.5, width: 2 });
+  marker.circle(0, 0, 5).fill({ color: 0xe2be78, alpha: v.interactable ? 0.95 : 0.4 });
+  marker.circle(0, 0, 8).stroke({ color: 0xe2be78, alpha: 0.5, width: 2 });
+  marker.position.set(ent.x - front.x, ent.y - front.y);
   c.addChild(marker);
 
-  return c;
+  return { root: c, marker, lights };
 }
 
 /** Compose a building visual scaled to its footprint, positioned at the footprint's
@@ -421,6 +532,18 @@ function makeBuildingVisual(
   container.addChild(inner);
   container.zIndex = Math.max(...footprint.map((t) => t.x + t.y)) + 0.5;
   return container;
+}
+
+/** Vertical sky gradient (blue → horizon green), baked once and screen-scaled. */
+function bakeSkyTexture(renderer: Renderer): Texture {
+  const g = new Graphics();
+  const steps = 24;
+  for (let i = 0; i < steps; i++) {
+    g.rect(0, i * 8, 8, 8).fill(lerpColor(0xaee0f2, 0x9dc183, i / (steps - 1)));
+  }
+  const t = renderer.generateTexture({ target: g });
+  g.destroy();
+  return t;
 }
 
 /** World position of a footprint's front (screen-bottom) diamond vertex. */
@@ -470,15 +593,16 @@ function makePlaque(p: CityProp, c: { x: number; y: number }): Container {
 
 // ── Path preview ──────────────────────────────────────────────────────────────
 
-function drawPathPreview(line: Graphics, from: { x: number; y: number }, targets: Cell[]): void {
+function drawPathPreview(line: Graphics, _from: { x: number; y: number }, targets: Cell[]): void {
   line.clear();
   if (targets.length === 0) return;
-  line.moveTo(from.x, from.y - TILE_H / 4);
-  for (const cc of targets) {
+  // Gold dotted trail with a ringed destination (the ticker pulses line alpha).
+  targets.forEach((cc, i) => {
     const w = mapToWorld(cc.x, cc.y);
-    line.lineTo(w.x, w.y - TILE_H / 4);
-  }
-  line.stroke({ width: 3, color: 0xffffff, alpha: 0.55 });
+    const fade = 0.4 + 0.5 * (i / Math.max(1, targets.length - 1));
+    line.circle(w.x, w.y - TILE_H / 4, 3).fill({ color: 0xe2be78, alpha: fade });
+  });
   const last = mapToWorld(targets[targets.length - 1].x, targets[targets.length - 1].y);
-  line.circle(last.x, last.y - TILE_H / 4, 5).fill({ color: 0xffffff, alpha: 0.8 });
+  line.circle(last.x, last.y - TILE_H / 4, 8).stroke({ color: 0xe2be78, alpha: 0.9, width: 2 });
+  line.circle(last.x, last.y - TILE_H / 4, 3.5).fill({ color: 0xe2be78, alpha: 1 });
 }
