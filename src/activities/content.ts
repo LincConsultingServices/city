@@ -6,6 +6,7 @@
 // silently scores 1/3 no matter how well the player does. content.test.ts guards
 // the structure; src/lib/budget.test.ts checks the budget activities are winnable.
 import type { SimContent } from "@/lib/sim";
+import { CAFE_CONTENT } from "./content/cafe";
 
 // MCQ_FEEDBACK → objective. The real C4 activities carry eight questions each.
 // `id` is the server itemId (q1..q8) and `value` the server choice ("a".."d") —
@@ -47,10 +48,40 @@ export interface BudgetContent {
   items: { key: string; label: string; cost: number; essential?: boolean; emoji?: string }[];
 }
 
+// DECISION_TREE → trace. A speaker delivers a prompt, the player picks one of 3
+// staged choices; `tier` rides along for the server rubric and must never be
+// rendered (PRD_Cafe_Interior.md §6). `next` chains to a follow-up node — every
+// entry today is a single root node (`next: null`); follow-up branches are a
+// separate content change (PRD_Cafe_Interior.md §8).
+export interface DecisionChoice {
+  id: string;
+  text: string;
+  tier: "developing" | "strong" | "advanced";
+  consequence: string;
+  next: string | null;
+}
+export interface DecisionNode {
+  id: string;
+  speaker: string;
+  prompt: string;
+  choices: DecisionChoice[];
+}
+export interface DecisionTreeContent {
+  kind: "decision_tree";
+  entryNodeId: string;
+  nodes: DecisionNode[];
+}
+
 export type ActivityContent =
-  SimContent | McqContent | DragMatchContent | SortOrderContent | BudgetContent;
+  | SimContent
+  | McqContent
+  | DragMatchContent
+  | SortOrderContent
+  | BudgetContent
+  | DecisionTreeContent;
 
 export const ACTIVITY_CONTENT: Record<string, ActivityContent> = {
+  ...CAFE_CONTENT,
   // C4-BEG-01 — "Needs vs Wants" (DRAG_MATCH → objective).
   "C4-BEG-01": {
     kind: "drag_match",
