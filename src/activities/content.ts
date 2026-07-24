@@ -1,7 +1,10 @@
 // Client-side rich content, keyed by registry activity id (PRD §8.2): the backend
-// serves scoring metadata only — sim tuning / question text lives here. The two
-// Ice Cream Cart activities are MINI_SIM (result kind `metrics`); the MCQ type is
-// retained for future objective activities.
+// serves scoring metadata only — question text and sim tuning live here.
+//
+// CRITICAL: item keys, option values and zone ids below must match the server's
+// hidden answer/order keys (read from the backend registry pack). A mismatch
+// silently scores 1/3 no matter how well the player does. content.test.ts guards
+// the structure; src/lib/budget.test.ts checks the budget activities are winnable.
 import type { SimContent } from "@/lib/sim";
 
 // MCQ_FEEDBACK → objective. The real C4 activities carry eight questions each.
@@ -33,10 +36,22 @@ export interface SortOrderContent {
   items: { key: string; label: string; emoji?: string }[];
 }
 
-export type ActivityContent = SimContent | McqContent | DragMatchContent | SortOrderContent;
+// Budget allocation → metrics. `essential` drives needsCovered/essentialsCovered
+// and is never surfaced in the UI — spotting the essentials is the exercise.
+export interface BudgetContent {
+  kind: "budget";
+  intro: string;
+  currency: string;
+  budget: number;
+  goalHint?: string;
+  items: { key: string; label: string; cost: number; essential?: boolean; emoji?: string }[];
+}
+
+export type ActivityContent =
+  SimContent | McqContent | DragMatchContent | SortOrderContent | BudgetContent;
 
 export const ACTIVITY_CONTENT: Record<string, ActivityContent> = {
-  // C4-BEG-01 — "Needs vs Wants" (DRAG_MATCH → objective). Placeholder keys.
+  // C4-BEG-01 — "Needs vs Wants" (DRAG_MATCH → objective).
   "C4-BEG-01": {
     kind: "drag_match",
     prompt: "Sort each thing into Needs (you must have it) or Wants (nice to have).",
@@ -457,6 +472,62 @@ export const ACTIVITY_CONTENT: Record<string, ActivityContent> = {
           { value: "d", label: "₹12" },
         ],
       },
+    ],
+  },
+  // C4-BEG-07 — "The Pocket-Money Month" (metrics: needsCovered + savings ≥ 50).
+  // Needs total ₹170 of ₹300, so covering them leaves ₹130 — enough to save ₹50
+  // AND add a want or two, but not the ₹120 game plus everything else.
+  "C4-BEG-07": {
+    kind: "budget",
+    intro:
+      "Here's your pocket money for the whole month. Cover what you actually need first, then decide what's worth it — and try to still have something left over at the end.",
+    currency: "₹",
+    budget: 300,
+    goalHint: "Cover your needs and try to keep at least ₹50 saved.",
+    items: [
+      {
+        key: "lunch",
+        label: "School lunches for the month",
+        cost: 80,
+        essential: true,
+        emoji: "🍱",
+      },
+      {
+        key: "buspass",
+        label: "Bus pass to get to school",
+        cost: 60,
+        essential: true,
+        emoji: "🚌",
+      },
+      { key: "notebook", label: "A notebook for class", cost: 30, essential: true, emoji: "📓" },
+      { key: "movie", label: "A movie with friends", cost: 60, emoji: "🎟️" },
+      { key: "game", label: "The new video game", cost: 120, emoji: "🎮" },
+      { key: "snacks", label: "Snacks after school", cost: 40, emoji: "🍪" },
+      { key: "stickers", label: "A pack of stickers", cost: 20, emoji: "✨" },
+      { key: "cap", label: "A branded cap", cost: 70, emoji: "🧢" },
+    ],
+  },
+  // C4-BEG-08 — "Build the Party Budget" (metrics: essentialsCovered + totalCost
+  // ≤ 500). Essentials are ₹340, leaving ₹160 of headroom — the ₹400 magician
+  // busts it, which is the point.
+  "C4-BEG-08": {
+    kind: "budget",
+    intro:
+      "You're throwing the party. Some things you simply can't skip; the rest is nice-to-have. Build a party that works and keep the total in check.",
+    currency: "₹",
+    budget: 500,
+    goalHint: "Get the essentials in and keep the total at or under ₹500.",
+    items: [
+      { key: "cake", label: "The birthday cake", cost: 150, essential: true, emoji: "🎂" },
+      { key: "cups", label: "Cups and plates", cost: 60, essential: true, emoji: "🥤" },
+      { key: "juice", label: "Juice for everyone", cost: 90, essential: true, emoji: "🧃" },
+      { key: "invites", label: "Invitations", cost: 40, essential: true, emoji: "💌" },
+      { key: "balloons", label: "Balloons", cost: 50, emoji: "🎈" },
+      { key: "streamers", label: "Streamers and banners", cost: 40, emoji: "🎊" },
+      { key: "partybags", label: "Party bags for guests", cost: 120, emoji: "🎁" },
+      { key: "speaker", label: "Speaker hire for music", cost: 150, emoji: "🔊" },
+      { key: "backdrop", label: "A fancy photo backdrop", cost: 200, emoji: "🖼️" },
+      { key: "magician", label: "A magician for an hour", cost: 400, emoji: "🎩" },
     ],
   },
   // C4-BEG-09 — "Three Days at the Lemonade Stand": learn profit = revenue − costs.

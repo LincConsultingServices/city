@@ -48,6 +48,20 @@ describe("authored activity content", () => {
     }
   });
 
+  it("budget content has unique keys, positive costs and at least one essential", () => {
+    for (const [id, c] of entries) {
+      if (c.kind !== "budget") continue;
+      const keys = c.items.map((i) => i.key);
+      expect(new Set(keys).size, `${id} duplicate item keys`).toBe(keys.length);
+      expect(c.budget, `${id} budget`).toBeGreaterThan(0);
+      expect(
+        c.items.some((i) => i.essential),
+        `${id} needs at least one essential`,
+      ).toBe(true);
+      for (const i of c.items) expect(i.cost, `${id}.${i.key} cost`).toBeGreaterThan(0);
+    }
+  });
+
   it("sim content declares a positive round count and starting cash", () => {
     for (const [id, c] of entries) {
       if (c.kind !== "sim") continue;

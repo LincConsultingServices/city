@@ -9,6 +9,7 @@ import { McqRenderer } from "./renderers/McqRenderer";
 import { MiniSimRenderer } from "./renderers/MiniSimRenderer";
 import { DragMatchRenderer } from "./renderers/DragMatchRenderer";
 import { SortOrderRenderer } from "./renderers/SortOrderRenderer";
+import { BudgetRenderer } from "./renderers/BudgetRenderer";
 
 // Player shell (PRD §8) — header + one renderer + server-driven result. F1 wires the
 // objective loop (start → play → submit → server result/celebration) end-to-end.
@@ -63,6 +64,8 @@ export function PlayerShell({
     if (content?.kind === "sim")
       return <MiniSimRenderer content={content} activityId={activity.id} onChange={setResult} />;
     if (content?.kind === "mcq") return <McqRenderer content={content} onChange={setResult} />;
+    if (content?.kind === "budget")
+      return <BudgetRenderer content={content} onChange={setResult} />;
     if (content?.kind === "drag_match")
       return <DragMatchRenderer content={content} onChange={setResult} />;
     if (content?.kind === "sort_order")
