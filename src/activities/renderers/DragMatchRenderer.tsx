@@ -31,6 +31,7 @@ export function DragMatchRenderer({
   }
 
   const placed = Object.keys(assign).length;
+  const manyZones = content.zones.length > 4;
 
   return (
     <div>
@@ -48,27 +49,51 @@ export function DragMatchRenderer({
               {item.emoji}
             </span>
             <span className="flex-1 text-sm text-text">{item.label}</span>
-            <div className="flex gap-1.5" role="group" aria-label={`Sort ${item.label}`}>
-              {content.zones.map((zone) => {
-                const on = assign[item.key] === zone.id;
-                return (
-                  <button
-                    key={zone.id}
-                    type="button"
-                    onClick={() => place(item.key, zone.id)}
-                    aria-pressed={on}
-                    className={
-                      "rounded-md px-3 py-1 text-xs font-medium transition " +
-                      (on
-                        ? "bg-gold text-ink"
-                        : "border border-line text-muted hover:bg-surface hover:text-text")
-                    }
-                  >
+            {/* Many zones (e.g. 8 price tags) would make a button row unusable. */}
+            {manyZones ? (
+              <select
+                value={assign[item.key] ?? ""}
+                onChange={(e) => place(item.key, e.target.value)}
+                aria-label={`Match ${item.label}`}
+                className={
+                  "rounded-md border px-2 py-1 text-xs font-medium outline-none " +
+                  (assign[item.key]
+                    ? "border-gold bg-gold/10 text-gold"
+                    : "border-line bg-surface text-muted")
+                }
+              >
+                <option value="" disabled>
+                  Pick…
+                </option>
+                {content.zones.map((zone) => (
+                  <option key={zone.id} value={zone.id}>
                     {zone.label}
-                  </button>
-                );
-              })}
-            </div>
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex gap-1.5" role="group" aria-label={`Sort ${item.label}`}>
+                {content.zones.map((zone) => {
+                  const on = assign[item.key] === zone.id;
+                  return (
+                    <button
+                      key={zone.id}
+                      type="button"
+                      onClick={() => place(item.key, zone.id)}
+                      aria-pressed={on}
+                      className={
+                        "rounded-md px-3 py-1 text-xs font-medium transition " +
+                        (on
+                          ? "bg-gold text-ink"
+                          : "border border-line text-muted hover:bg-surface hover:text-text")
+                      }
+                    >
+                      {zone.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ))}
       </div>

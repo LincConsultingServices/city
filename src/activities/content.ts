@@ -35,27 +35,74 @@ export const ACTIVITY_CONTENT: Record<string, ActivityContent> = {
     kind: "drag_match",
     prompt: "Sort each thing into Needs (you must have it) or Wants (nice to have).",
     zones: [
-      { id: "need", label: "Need" },
-      { id: "want", label: "Want" },
+      { id: "needs", label: "Need" },
+      { id: "wants", label: "Want" },
     ],
     items: [
-      { key: "rent", label: "This month's rent", emoji: "🏠" },
-      { key: "groceries", label: "Groceries for the week", emoji: "🥦" },
-      { key: "phone", label: "The newest phone", emoji: "📱" },
-      { key: "sneakers", label: "Limited-edition sneakers", emoji: "👟" },
-      { key: "bus", label: "Bus fare to work", emoji: "🚌" },
+      { key: "lunch", label: "Lunch at school", emoji: "🍱" },
+      { key: "notebook", label: "A notebook for class", emoji: "📓" },
+      { key: "busfare", label: "Bus fare to get home", emoji: "🚌" },
+      { key: "repair", label: "Fixing your broken shoe", emoji: "🥾" },
+      { key: "water", label: "Drinking water", emoji: "💧" },
+      { key: "game", label: "The new video game", emoji: "🎮" },
+      { key: "stickers", label: "A pack of stickers", emoji: "✨" },
+      { key: "candy", label: "Candy at the counter", emoji: "🍬" },
+      { key: "cap", label: "A branded cap", emoji: "🧢" },
+      { key: "movie", label: "A movie ticket", emoji: "🎟️" },
     ],
   },
-  // C4-BEG-05 — "Money In, Money Out" (SORT_ORDER → order). Placeholder order.
+  // C4-BEG-04 — "Price Tag Match" (DRAG_MATCH → objective). Match each item to its
+  // fair price. Many zones → the renderer switches to a select.
+  "C4-BEG-04": {
+    kind: "drag_match",
+    prompt: "What's a fair price for each item? Match it to the right price tag.",
+    zones: [
+      { id: "p10", label: "₹10" },
+      { id: "p15", label: "₹15" },
+      { id: "p20", label: "₹20" },
+      { id: "p25", label: "₹25" },
+      { id: "p40", label: "₹40" },
+      { id: "p60", label: "₹60" },
+      { id: "p80", label: "₹80" },
+      { id: "p120", label: "₹120" },
+    ],
+    items: [
+      { key: "lemonade", label: "A cup of lemonade", emoji: "🥤" },
+      { key: "cookie", label: "A home-baked cookie", emoji: "🍪" },
+      { key: "bookmark", label: "A hand-made bookmark", emoji: "🔖" },
+      { key: "card", label: "A greeting card", emoji: "💌" },
+      { key: "keychain", label: "A beaded keychain", emoji: "🔑" },
+      { key: "frame", label: "A decorated photo frame", emoji: "🖼️" },
+      { key: "plant", label: "A potted plant", emoji: "🪴" },
+      { key: "tote", label: "A painted tote bag", emoji: "👜" },
+    ],
+  },
+  // C4-BEG-05 — "Money In, Money Out" (SORT_ORDER → order). Presented scrambled;
+  // the server holds the correct sequence.
   "C4-BEG-05": {
     kind: "sort_order",
-    prompt: "Put the cash-flow steps in the order a disciplined stand-owner follows.",
+    prompt: "Put a stand-owner's money day in order, from first to last.",
     items: [
-      { key: "earn", label: "Take the day's sales", emoji: "💰" },
-      { key: "costs", label: "Pay for supplies used", emoji: "🧾" },
-      { key: "debt", label: "Make the loan payment", emoji: "🏦" },
-      { key: "save", label: "Set aside savings", emoji: "🐖" },
-      { key: "keep", label: "Keep what's left as profit", emoji: "✅" },
+      { key: "fair_sales", label: "Sell to customers all afternoon", emoji: "🧺" },
+      { key: "pocket_money", label: "Start with your pocket money", emoji: "👛" },
+      { key: "count_profit", label: "Count what's left as profit", emoji: "✅" },
+      { key: "buy_stock", label: "Buy the stock for the day", emoji: "🛒" },
+      { key: "pay_helper", label: "Pay your helper", emoji: "🤝" },
+      { key: "till_low", label: "Notice the till running low", emoji: "📉" },
+    ],
+  },
+  // C4-BEG-12 — "Payback Race" (SORT_ORDER → order). Which purchase pays itself
+  // back fastest? Presented scrambled.
+  "C4-BEG-12": {
+    kind: "sort_order",
+    prompt: "Order these buys from the one that pays itself back fastest to the slowest.",
+    items: [
+      { key: "speaker", label: "A bluetooth speaker for the stall", emoji: "🔊" },
+      { key: "lemon_squeezer", label: "A lemon squeezer", emoji: "🍋" },
+      { key: "fancy_apron", label: "A fancy embroidered apron", emoji: "🎽" },
+      { key: "cookie_cutter", label: "A cookie cutter set", emoji: "🍪" },
+      { key: "fairy_lights", label: "Fairy lights for the stall", emoji: "💡" },
+      { key: "poster_paint", label: "Paint for a bigger sign", emoji: "🎨" },
     ],
   },
   // C4-BEG-09 — "Three Days at the Lemonade Stand": learn profit = revenue − costs.

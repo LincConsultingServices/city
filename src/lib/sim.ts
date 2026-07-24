@@ -74,6 +74,11 @@ export function computeRound(
   };
 }
 
+// The flag names below are the ones the SERVER rubrics actually check (read from
+// the backend registry pack): C4-BEG-09 requires `tillPositiveAllDays` + `profit`,
+// C4-BEG-11 requires `neverNegative` + `fullStock`. Emitting the superset lets one
+// sim renderer satisfy every stand rubric; values are computed honestly from the
+// player's actual rounds (T3 plausibility tier, PRD §12.2).
 export interface SimSummary {
   values: {
     finalCash: number;
@@ -82,6 +87,12 @@ export interface SimSummary {
     unitsSold: number;
     revenue: number;
     wentBankrupt: boolean;
+    /** Cash stayed strictly above zero after every round. */
+    tillPositiveAllDays: boolean;
+    /** Cash never went below zero after any round. */
+    neverNegative: boolean;
+    /** Never understocked — stock met that day's demand on every round. */
+    fullStock: boolean;
   };
   decisionLog: Array<{
     round: number;
@@ -107,6 +118,9 @@ export function summarize(content: SimContent, outcomes: RoundOutcome[]): SimSum
       unitsSold,
       revenue,
       wentBankrupt: finalCash <= 0,
+      tillPositiveAllDays: outcomes.every((o) => o.cashAfter > 0),
+      neverNegative: outcomes.every((o) => o.cashAfter >= 0),
+      fullStock: outcomes.every((o) => o.stock >= o.demand),
     },
     decisionLog: outcomes.map((o) => ({
       round: o.round,

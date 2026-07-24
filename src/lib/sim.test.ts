@@ -55,3 +55,29 @@ describe("sim math", () => {
     expect(a()).toBe(b());
   });
 });
+
+describe("sim metrics match the server rubrics", () => {
+  // Read from the backend registry pack: C4-BEG-09 requires tillPositiveAllDays
+  // (+ profit >= 1); C4-BEG-11 requires neverNegative (+ fullStock).
+  it("emits the flags the C4-BEG-09 / C4-BEG-11 rubrics check", () => {
+    const o1 = computeRound(content, 1, { price: 25, stock: 10 }, 200, 1);
+    const s = summarize(content, [o1]);
+    for (const k of ["tillPositiveAllDays", "neverNegative", "fullStock", "profit"]) {
+      expect(s.values).toHaveProperty(k);
+    }
+  });
+
+  it("tillPositiveAllDays/neverNegative are false when the till is wiped out", () => {
+    // Buy max stock at a price nobody pays → no sales, cash gone.
+    const broke = computeRound(content, 1, { price: 50, stock: 20 }, 200, 0);
+    const s = summarize(content, [{ ...broke, cashAfter: -10 }]);
+    expect(s.values.tillPositiveAllDays).toBe(false);
+    expect(s.values.neverNegative).toBe(false);
+  });
+
+  it("fullStock is false when demand outstrips the stock bought", () => {
+    const understocked = computeRound(content, 1, { price: 25, stock: 2 }, 200, 1);
+    expect(understocked.demand).toBeGreaterThan(understocked.stock);
+    expect(summarize(content, [understocked]).values.fullStock).toBe(false);
+  });
+});
