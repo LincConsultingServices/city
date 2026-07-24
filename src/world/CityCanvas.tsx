@@ -187,7 +187,7 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       // Player rig: shared shadow + a body sprite swapping baked walk frames.
       const playerTex = bakePersonTextures(application.renderer, PLAYER_PALETTE);
       const shadowTex = bakeShadowTexture(application.renderer);
-      bakedTextures = [...playerTex.all, shadowTex];
+      bakedTextures.push(...playerTex.all, shadowTex);
       const char = new Container();
       const charShadow = new Sprite(shadowTex);
       charShadow.anchor.set(0.5, 0.5);
