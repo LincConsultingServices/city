@@ -4,9 +4,16 @@
 // Kenney-sprite city: district ground + street tiles, stacked venue buildings,
 // filler blocks, props (trees/lamps/fountain) and ambient vehicles on road loops.
 import { useEffect, useRef } from "react";
-import { Application, Container, Graphics, Sprite, Text } from "pixi.js";
-import { mapToWorld, worldToMap, roundCell, TILE_H } from "@/lib/iso";
+import { Application, Container, Graphics, Sprite, Text, type Texture } from "pixi.js";
+import { mapToWorld, worldToMap, roundCell, TILE_W, TILE_H } from "@/lib/iso";
 import { findPath, type Cell } from "@/lib/pathfinding";
+import { prefersReducedMotion } from "@/lib/motion";
+import {
+  bakePersonTextures,
+  bakeShadowTexture,
+  destroyTextures,
+  PLAYER_PALETTE,
+} from "./characterArt";
 import {
   GRID_W,
   GRID_H,
@@ -45,6 +52,7 @@ import { useWorldStore } from "./worldStore";
 
 const WALK_SPEED = 175; // px/sec (≈1.3 tiles/sec on the 132px grid)
 const CAR_SPEED_CELLS = 1.6; // cells/sec
+const STEP_S = 0.18; // seconds per walk-cycle frame
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
 
 interface CarState {
@@ -61,6 +69,8 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
   useEffect(() => {
     let destroyed = false;
     let app: Application | null = null;
+    let bakedTextures: Texture[] = [];
+    const reduced = prefersReducedMotion();
     const mount = mountRef.current;
     if (!mount) return;
 
@@ -136,8 +146,21 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       });
       for (const p of PROPS) actors.addChild(makeProp(p));
 
-      const char = makeCharacter();
+      // Player rig: shared shadow + a body sprite swapping baked walk frames.
+      const playerTex = bakePersonTextures(application.renderer, PLAYER_PALETTE);
+      const shadowTex = bakeShadowTexture(application.renderer);
+      bakedTextures = [...playerTex.all, shadowTex];
+      const char = new Container();
+      const charShadow = new Sprite(shadowTex);
+      charShadow.anchor.set(0.5, 0.5);
+      charShadow.position.set(0, 1);
+      const charBody = new Sprite(playerTex.idle.S);
+      charBody.anchor.set(0.5, 1);
+      char.addChild(charShadow, charBody);
       actors.addChild(char);
+      let facing: Cardinal = "S";
+      let stepClock = 0;
+      let elapsed = 0;
 
       // Ambient vehicles on closed road loops (PRD §6.4: well under the ≤6 budget).
       const cars: CarState[] = [
@@ -195,7 +218,10 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       // ── Ticker ────────────────────────────────────────────────────────────
       application.ticker.add((ticker) => {
         const dt = ticker.deltaMS / 1000;
+        elapsed += dt;
         const locked = useWorldStore.getState().inputLocked;
+        const prevX = charPixel.x;
+        const prevY = charPixel.y;
 
         // WASD / arrows — screen-relative direct drive (overrides click path).
         let dx = 0;
@@ -232,6 +258,28 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
             charPixel.y += (ddy / dist) * step;
           }
         }
+
+        // Character animation: facing from the dominant map-axis of this frame's
+        // motion (same convention as the cars' legDir), 2-frame stride + bob.
+        const movedX = charPixel.x - prevX;
+        const movedY = charPixel.y - prevY;
+        if (movedX !== 0 || movedY !== 0) {
+          const mdx = movedX / TILE_W + movedY / TILE_H;
+          const mdy = movedY / TILE_H - movedX / TILE_W;
+          facing = Math.abs(mdx) >= Math.abs(mdy) ? (mdx > 0 ? "E" : "W") : mdy > 0 ? "S" : "N";
+          stepClock += dt;
+          charBody.texture = playerTex.walk[facing][Math.floor(stepClock / STEP_S) % 2];
+          charBody.position.y = reduced
+            ? 0
+            : -Math.abs(Math.sin((stepClock * Math.PI) / STEP_S)) * 2.5;
+          charBody.scale.y = 1;
+        } else {
+          stepClock = 0;
+          charBody.texture = playerTex.idle[facing];
+          charBody.position.y = 0;
+          if (!reduced) charBody.scale.y = 1 + 0.012 * Math.sin(elapsed * 2); // breathing
+        }
+        charBody.scale.x = facing === "W" ? -1 : 1; // W = mirrored E profile
 
         char.position.set(charPixel.x, charPixel.y);
         const cell = roundCell(worldToMap(charPixel.x, charPixel.y));
@@ -284,6 +332,8 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       window.removeEventListener("keyup", onKeyUp);
       store.setNearVenue(null);
       if (app) app.destroy(true, { children: true });
+      destroyTextures(bakedTextures); // baked RenderTextures aren't freed by app.destroy
+      bakedTextures = [];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -449,16 +499,7 @@ function makePlaque(p: CityProp, c: { x: number; y: number }): Container {
   return container;
 }
 
-// ── Character & path preview ──────────────────────────────────────────────────
-
-function makeCharacter(): Graphics {
-  const g = new Graphics();
-  g.ellipse(0, 2, 11, 5).fill({ color: 0x000000, alpha: 0.3 });
-  g.roundRect(-7, -26, 14, 24, 5).fill(0x3d78d8);
-  g.circle(0, -31, 8).fill(0xf0d9b5);
-  g.circle(0, -31, 8).stroke({ color: 0xffffff, alpha: 0.25, width: 1 });
-  return g;
-}
+// ── Path preview ──────────────────────────────────────────────────────────────
 
 function drawPathPreview(line: Graphics, from: { x: number; y: number }, targets: Cell[]): void {
   line.clear();
