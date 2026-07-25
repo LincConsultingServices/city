@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { events } from "@/framework/events";
 import type { Badge } from "@/framework/api/schemas";
 import { prefersReducedMotion } from "@/lib/motion";
+import { Icon } from "./Icon";
 
 interface Burst {
   id: number;
@@ -79,7 +80,7 @@ export function Celebration() {
       {burst.badge && (
         <div className="absolute left-1/2 top-1/3 -translate-x-1/2 animate-pop-in">
           <div className="rounded-2xl border border-gold/60 bg-surface/95 px-6 py-4 text-center shadow-2xl backdrop-blur">
-            <div className="text-3xl">🏅</div>
+            <Icon name="medal" className="mx-auto h-9 w-9 text-gold" />
             <p className="mt-1 font-display text-lg font-semibold text-gold">{burst.badge.name}</p>
             <p className="text-xs text-muted">New badge earned</p>
           </div>

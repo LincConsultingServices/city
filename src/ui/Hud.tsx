@@ -5,6 +5,7 @@ import { useEconomyStore } from "@/framework/economy/economyStore";
 import { events } from "@/framework/events";
 import { useWorldStore } from "@/world/worldStore";
 import { useCountUp } from "./useCountUp";
+import { Icon } from "./Icon";
 
 // Persistent minimal HUD (PRD §9.1). Coin balance is server-authoritative; until
 // the economy endpoints land (§21 BE-1) it shows "—" — never fake data. The
@@ -58,9 +59,7 @@ export function Hud() {
             className="flex animate-pop-in items-center gap-1.5 rounded-full border border-line/70 bg-surface/80 px-3 py-1.5 backdrop-blur"
             title={coins === null ? "Your wallet isn't connected yet" : "Coins"}
           >
-            <span className="grid h-4 w-4 place-items-center rounded-full bg-coin text-[10px] font-bold text-ink">
-              ¢
-            </span>
+            <Icon name="coin" className="h-4 w-4 text-coin" />
             <span className="tabular-nums text-sm text-text">
               {displayCoins === null ? "—" : displayCoins}
             </span>

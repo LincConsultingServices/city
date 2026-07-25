@@ -10,6 +10,7 @@ import { MiniSimRenderer } from "./renderers/MiniSimRenderer";
 import { DragMatchRenderer } from "./renderers/DragMatchRenderer";
 import { SortOrderRenderer } from "./renderers/SortOrderRenderer";
 import { BudgetRenderer } from "./renderers/BudgetRenderer";
+import { Icon } from "@/ui/Icon";
 
 // Player shell (PRD §8) — header + one renderer + server-driven result. F1 wires the
 // objective loop (start → play → submit → server result/celebration) end-to-end.
@@ -86,8 +87,12 @@ export function PlayerShell({
             {venueName} · {activity.competencyCode} · {activity.level} · {activity.activityType}
           </p>
         </div>
-        <button onClick={onClose} className="text-muted hover:text-text" aria-label="Quit">
-          ✕
+        <button
+          onClick={onClose}
+          className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-text"
+          aria-label="Quit"
+        >
+          <Icon name="cross" className="h-3.5 w-3.5" />
         </button>
       </div>
 
@@ -112,8 +117,12 @@ export function PlayerShell({
 function ResultView({ response, onClose }: { response: SubmitResponse; onClose: () => void }) {
   return (
     <div className="text-center">
-      <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-gold/15 text-3xl">
-        {response.passed ? "🎉" : "💪"}
+      <div
+        className={`mx-auto grid h-16 w-16 place-items-center rounded-full ${
+          response.passed ? "bg-success/15 text-success" : "bg-accent/15 text-accent"
+        }`}
+      >
+        <Icon name={response.passed ? "trophy" : "star"} className="h-8 w-8" />
       </div>
       <h3 className="mt-3 font-display text-2xl font-semibold text-text">
         {response.passed ? "Passed!" : "Not yet — keep going"}
@@ -127,8 +136,9 @@ function ResultView({ response, onClose }: { response: SubmitResponse; onClose: 
         <p className="mt-3 font-medium text-coin">+{response.coinsEarned} coins</p>
       )}
       {response.badgesAwarded && response.badgesAwarded.length > 0 && (
-        <p className="mt-2 text-sm text-gold">
-          🏅 {response.badgesAwarded.map((b) => b.name).join(", ")}
+        <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-gold">
+          <Icon name="medal" className="h-4 w-4" />
+          {response.badgesAwarded.map((b) => b.name).join(", ")}
         </p>
       )}
       <button

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { signIn } from "@/framework/auth/firebase";
 import { appConfig, isConfigured } from "@/framework/config/appConfig";
+import { Icon } from "./Icon";
 
 // Login (PRD §10). No in-game sign-up: an unrecognised account routes to the
 // WarRoom register page. Ported look/flow from the Godot F0 login.
@@ -113,7 +114,10 @@ function RegisterInterstitial({ onClose }: { onClose: () => void }) {
           rel="noreferrer"
           className="mt-5 inline-block rounded-lg bg-gold px-5 py-2.5 font-medium text-ink hover:brightness-110"
         >
-          Register at WarRoom ↗
+          <span className="inline-flex items-center gap-1.5">
+            Register at WarRoom
+            <Icon name="arrow-right" className="h-3.5 w-3.5" />
+          </span>
         </a>
         <button onClick={onClose} className="mt-3 block w-full text-xs text-muted hover:text-text">
           I've registered — try again

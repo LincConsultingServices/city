@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "@/framework/api";
 import type { EarnedBadge, CompetencyProfile } from "@/framework/api/schemas";
+import { Icon, type IconName } from "./Icon";
 
 // Trophy Hall (PRD §9.4) — the first F2 surface that needs NO new backend work:
 // GET /api/v1/badges and GET /api/v1/profile are both live. Earned badges stand
@@ -39,8 +40,12 @@ export function TrophyHall({ onClose }: { onClose: () => void }) {
                 : "Your shelves are waiting"}
             </p>
           </div>
-          <button onClick={onClose} className="text-muted hover:text-text" aria-label="Leave">
-            ✕
+          <button
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-text"
+            aria-label="Leave"
+          >
+            <Icon name="cross" className="h-3.5 w-3.5" />
           </button>
         </div>
 
@@ -97,15 +102,21 @@ const TIER_STYLE: Record<string, string> = {
   META: "border-accent/70 bg-accent/10 text-accent",
 };
 
+/** Distinct shape per tier: colour alone left GOLD/SILVER/BRONZE identical. */
+const TIER_ICON: Record<string, IconName> = {
+  GOLD: "trophy",
+  SILVER: "medal",
+  BRONZE: "medal-alt",
+  META: "star",
+};
+
 function Trophy({ badge }: { badge: EarnedBadge }) {
   const tier = (badge.tier ?? "").toUpperCase();
   const style = TIER_STYLE[tier] ?? "border-line bg-surface-2 text-text";
   const awarded = badge.awardedAt ? new Date(badge.awardedAt) : null;
   return (
     <div className={"rounded-xl border p-3 text-center " + style} title={badge.description ?? ""}>
-      <div className="text-2xl" aria-hidden="true">
-        {tier === "META" ? "🏆" : "🏅"}
-      </div>
+      <Icon name={TIER_ICON[tier] ?? "medal"} className="mx-auto h-7 w-7" />
       <p className="mt-1 text-sm font-semibold leading-tight">{badge.name}</p>
       <p className="mt-0.5 text-[11px] opacity-70">
         {[badge.competencyCode, badge.level].filter(Boolean).join(" · ") || tier || "Badge"}
@@ -126,9 +137,10 @@ function EmptyShelf() {
             key={i}
             className="grid h-24 place-items-center rounded-xl border border-dashed border-line bg-surface-2/50"
           >
-            <span className="text-2xl opacity-20" aria-hidden="true">
-              🏅
-            </span>
+            <Icon
+              name={["trophy", "medal", "medal-alt"][i] as IconName}
+              className="h-7 w-7 opacity-20"
+            />
           </div>
         ))}
       </div>

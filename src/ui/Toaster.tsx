@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { events, type ToastKind } from "@/framework/events";
 import { useEggStore } from "@/framework/eggStore";
 import { EGG_COUNT } from "@/lib/eggs";
+import { Icon } from "./Icon";
 
 interface ToastItem {
   id: number;
@@ -49,7 +50,7 @@ export function Toaster() {
           key={t.id}
           className={`animate-slide-up rounded-full border px-4 py-2 text-sm shadow-lg backdrop-blur ${styles[t.kind]}`}
         >
-          {t.kind === "egg" && <span className="mr-1.5">✨</span>}
+          {t.kind === "egg" && <Icon name="diamond" className="mr-1.5 h-3.5 w-3.5" />}
           {t.message}
         </div>
       ))}

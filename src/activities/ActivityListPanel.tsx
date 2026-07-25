@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "@/framework/api";
 import type { LevelActivity } from "@/framework/api/schemas";
 import type { CityBuilding } from "@/world/cityMap";
+import { Icon } from "@/ui/Icon";
 
 // Framework activity-list (PRD §7.2): hostedActivities × live per-activity status
 // from the registry/progress APIs. This binds to the LIVE backend (GET
@@ -41,8 +42,12 @@ export function ActivityListPanel({
       >
         <div className="flex items-center justify-between">
           <h2 className="font-display text-2xl font-semibold text-gold">{venue.displayName}</h2>
-          <button onClick={onClose} className="text-muted hover:text-text" aria-label="Leave">
-            ✕
+          <button
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-text"
+            aria-label="Leave"
+          >
+            <Icon name="cross" className="h-3.5 w-3.5" />
           </button>
         </div>
         <p className="mt-1 text-xs text-muted">Choose an activity</p>
@@ -89,7 +94,14 @@ function StatusChip({ status, best }: { status: string; best: number | null }) {
   if (status === "COMPLETED")
     return (
       <span className="rounded-full bg-success/15 px-2 py-0.5 text-xs text-success">
-        {best ? `★ ${best}/3` : "done"}
+        {best ? (
+          <span className="inline-flex items-center gap-1">
+            <Icon name="star" className="h-3 w-3" />
+            {best}/3
+          </span>
+        ) : (
+          "done"
+        )}
       </span>
     );
   if (status === "IN_PROGRESS")
