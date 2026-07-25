@@ -37,3 +37,24 @@ and E/W are near-identical), so they ship **only as parked cars**, where
 orientation carries no meaning.
 
 Rule going forward: no asset merges without an entry here (CI-checked at F3).
+
+## 2026-07-25 graphics overhaul — additional packs
+
+All CC0 1.0, taken from the same byte-verified
+[ETdoFresh/kenney.nl](https://github.com/ETdoFresh/kenney.nl) mirror.
+
+| Pack | Source URL | Used for |
+|---|---|---|
+| Particle Pack | https://kenney.nl/assets/particle-pack | dust, smoke, droplets, leaves, confetti, sparkles, lamp glow, cloud shadows (`fx_*`) |
+| Game Icons + Expansion | https://kenney.nl/assets/game-icons | every UI icon — coin, trophy, medals, star, check, cross, lock, arrows, audio toggle (`public/assets/icons/`) |
+| Interface Sounds | https://kenney.nl/assets/interface-sounds | UI click / confirm / error / open / close |
+| Impact Sounds | https://kenney.nl/assets/impact-sounds | surface-aware footsteps (grass, concrete) |
+| Music Jingles | https://kenney.nl/assets/music-jingles | badge award and activity-pass stings |
+
+Notes:
+- Particle textures ship greyscale and are tinted in code; they were downscaled
+  from 512px to 48–256px (84 KB total) since they draw at ~10–30px.
+- UI icons are white-on-transparent and used as CSS masks over `currentColor`,
+  so they inherit text colour and hover states (12 KB total for 17 icons).
+- **Audio is Ogg Vorbis only** — Kenney ships no other format. Safari cannot
+  decode it and will stay silent; a transcode would be needed for that browser.
