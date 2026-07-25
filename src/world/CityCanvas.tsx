@@ -106,6 +106,16 @@ export function CityCanvas({
         autoDensity: true,
       });
       await loadCityAssets(onProgress);
+      // Pixi rasterises Text once, at world build. If Outfit hasn't arrived by
+      // then every building sign bakes in the system fallback and never
+      // re-renders, so wait for the webfont (with a cap so a blocked font CDN
+      // can't stall the boot).
+      if (typeof document !== "undefined" && document.fonts?.ready) {
+        await Promise.race([
+          document.fonts.ready,
+          new Promise((r) => window.setTimeout(r, 2500)),
+        ]).catch(() => {});
+      }
       if (destroyed) {
         application.destroy(true);
         return;
@@ -632,29 +642,84 @@ function makeBuilding(v: CityBuilding, windowTex: Texture | null): BuildingParts
     }
   }
 
-  // Name label above the building.
+  // Name sign above the building. Was 14px white text with a 3px stroke (a 21%
+  // halo) floating unbacked over tiles — it read as a debug overlay and vanished
+  // over light ground. Now a backed plate with the halo dropped to a hairline.
   const label = new Text({
-    text: v.kind === "locked" ? `${v.displayName} 🔒` : v.displayName,
+    text: v.displayName,
     style: {
-      fill: 0xffffff,
-      stroke: { color: 0x1a1e2a, width: 3 },
+      fill: 0xf3f6fb,
+      stroke: { color: 0x0f121a, width: 1 },
       fontFamily: "Outfit, sans-serif",
-      fontSize: 14,
+      fontSize: 17,
       fontWeight: "600",
     },
+    // Bake above the renderer's own density: this Text is a child of a container
+    // that gets scaled at runtime (hover 1.07x, venue pop 1.035x), and a
+    // rasterised label scaled up is a blurry label.
+    resolution: Math.max(2, Math.ceil(window.devicePixelRatio || 1) * 2),
   });
   label.anchor.set(0.5, 1);
-  const top = c.getLocalBounds();
-  label.position.set(0, top.minY - 6);
-  c.addChild(label);
 
-  // Gold entrance marker on the entrance tile (own origin → pulsable).
+  const sign = new Container();
+  const padX = 9;
+  const padY = 5;
+  const lockW = v.kind === "locked" ? 15 : 0;
+  const plateW = label.width + padX * 2 + lockW;
+  const plateH = label.height + padY * 2;
+  const plate = new Graphics();
+  plate
+    .roundRect(-plateW / 2, -plateH, plateW, plateH, 7)
+    .fill({ color: 0x11151f, alpha: 0.82 })
+    .stroke({ color: 0xe2be78, alpha: v.interactable ? 0.5 : 0.22, width: 1 });
+  sign.addChild(plate);
+  label.position.set(lockW / 2, -padY);
+  sign.addChild(label);
+
+  if (v.kind === "locked") {
+    // A padlock emoji inside a Pixi Text renders as an OS colour emoji that
+    // ignores `fill` and looks different on every platform — use the icon art.
+    const lock = new Sprite(tex("icon_locked"));
+    lock.anchor.set(0.5);
+    lock.width = 11;
+    lock.height = 11;
+    lock.tint = 0xc7cedb;
+    lock.position.set(-plateW / 2 + padX + 4, -plateH / 2);
+    sign.addChild(lock);
+  }
+
+  const top = c.getLocalBounds();
+  sign.position.set(0, top.minY - 8);
+  c.addChild(sign);
+
+  // Entrance affordance. This is the primary "you can enter here" signal, and it
+  // used to be a 5px gold ring floating alone on the ground, visually detached
+  // from its building. Now a grounded plate: a tile-shaped diamond footprint
+  // with a soft glow and a chevron pointing at the door.
   const ent = mapToWorld(v.entranceTile.x, v.entranceTile.y);
   const front = frontVertex(v.footprintTiles);
+  const mx = ent.x - front.x;
+  const my = ent.y - front.y;
+  const strength = v.interactable ? 1 : 0.35;
+
+  const glow = new Sprite(tex("fx_soft"));
+  glow.anchor.set(0.5);
+  glow.width = 96;
+  glow.height = 54;
+  glow.tint = 0xe2be78;
+  glow.alpha = 0.3 * strength;
+  glow.blendMode = "add";
+  glow.position.set(mx, my);
+  c.addChild(glow);
+
   const marker = new Graphics();
-  marker.circle(0, 0, 5).fill({ color: 0xe2be78, alpha: v.interactable ? 0.95 : 0.4 });
-  marker.circle(0, 0, 8).stroke({ color: 0xe2be78, alpha: 0.5, width: 2 });
-  marker.position.set(ent.x - front.x, ent.y - front.y);
+  // Diamond matching the tile grid, so it reads as painted on the pavement.
+  marker
+    .poly([0, -14, 28, 0, 0, 14, -28, 0])
+    .fill({ color: 0xe2be78, alpha: 0.16 * strength })
+    .stroke({ color: 0xe2be78, alpha: 0.7 * strength, width: 2 });
+  marker.poly([0, -5, 7, 1, 0, 7, -7, 1]).fill({ color: 0xe2be78, alpha: 0.95 * strength });
+  marker.position.set(mx, my);
   c.addChild(marker);
 
   return { root: c, marker, lights };

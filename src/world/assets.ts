@@ -55,6 +55,7 @@ const KEYS = [
   "prop_bench2",
   "prop_bench3",
   "prop_barrier_red",
+  "icon_locked",
   // particle / effect textures (greyscale, tinted at use)
   "fx_soft",
   "fx_dust",
