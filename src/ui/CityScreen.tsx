@@ -5,6 +5,7 @@ import { useWorldStore } from "@/world/worldStore";
 import { events } from "@/framework/events";
 import { useEggStore } from "@/framework/eggStore";
 import { EGG_COUNT, KONAMI, konamiStep } from "@/lib/eggs";
+import { audio } from "@/framework/audio/audioManager";
 import { Hud } from "./Hud";
 import { Toaster } from "./Toaster";
 import { Celebration } from "./Celebration";
@@ -29,6 +30,7 @@ export function CityScreen() {
   const panelOpen = openVenue !== null || playing !== null || worldPanel !== null;
 
   const enterVenue = useCallback((v: CityBuilding) => {
+    audio.play("ui_open");
     setOpenVenue(v);
     events.emit("venue_opened", v.id); // the world pops the building in response
   }, []);

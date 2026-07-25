@@ -5,6 +5,7 @@ import { events, type ToastKind } from "@/framework/events";
 import { useEggStore } from "@/framework/eggStore";
 import { EGG_COUNT } from "@/lib/eggs";
 import { Icon } from "./Icon";
+import { audio } from "@/framework/audio/audioManager";
 
 interface ToastItem {
   id: number;
@@ -23,8 +24,12 @@ export function Toaster() {
       setToasts((cur) => [...cur.slice(-2), { id, message, kind }]);
       window.setTimeout(() => setToasts((cur) => cur.filter((t) => t.id !== id)), 3500);
     };
-    const offToast = events.on("toast", ({ message, kind }) => push(message, kind));
+    const offToast = events.on("toast", ({ message, kind }) => {
+      audio.play(kind === "error" ? "ui_error" : "ui_confirm");
+      push(message, kind);
+    });
     const offEgg = events.on("egg_found", ({ title }) => {
+      audio.play("jingle_badge", { volume: 0.8 });
       const found = useEggStore.getState().found.length;
       push(`Easter egg found — ${title} (${found}/${EGG_COUNT})`, "egg");
     });

@@ -5,6 +5,7 @@ import { useEconomyStore } from "@/framework/economy/economyStore";
 import { events } from "@/framework/events";
 import { useWorldStore } from "@/world/worldStore";
 import { useCountUp } from "./useCountUp";
+import { audio } from "@/framework/audio/audioManager";
 import { Icon } from "./Icon";
 
 // Persistent minimal HUD (PRD §9.1). Coin balance is server-authoritative; until
@@ -15,6 +16,7 @@ export function Hud() {
   const coins = useEconomyStore((s) => s.coinBalance);
   const displayCoins = useCountUp(coins);
   const [floater, setFloater] = useState<{ id: number; amount: number } | null>(null);
+  const [soundOn, setSoundOn] = useState(audio.isEnabled());
   // A panel is open (inputLocked) while the result modal covers the screen.
   const panelOpen = useWorldStore((s) => s.inputLocked);
   const initial = (user?.displayName || user?.email || "?").charAt(0).toUpperCase();
@@ -29,6 +31,8 @@ export function Hud() {
       }),
     [],
   );
+
+  useEffect(() => audio.subscribe(setSoundOn), []);
 
   // Earnings arrive while the result modal is still up, so hold the floater
   // until it closes — otherwise it would animate and expire behind the panel.
@@ -73,6 +77,18 @@ export function Hud() {
             </span>
           )}
         </div>
+        <button
+          onClick={() => {
+            const on = audio.toggle();
+            if (on) audio.play("ui_click"); // confirm it works the moment it's on
+          }}
+          className="grid h-9 w-9 place-items-center rounded-full border border-line/70 bg-surface/80 text-muted backdrop-blur transition hover:text-text"
+          aria-label={soundOn ? "Mute sound" : "Unmute sound"}
+          aria-pressed={soundOn}
+          title={soundOn ? "Sound on" : "Sound off"}
+        >
+          <Icon name={soundOn ? "audio-on" : "audio-off"} className="h-4 w-4" />
+        </button>
         {configured && (
           <button
             onClick={() => void signOutUser()}

@@ -6,6 +6,7 @@ import { events } from "@/framework/events";
 import type { Badge } from "@/framework/api/schemas";
 import { prefersReducedMotion } from "@/lib/motion";
 import { Icon } from "./Icon";
+import { audio } from "@/framework/audio/audioManager";
 
 interface Burst {
   id: number;
@@ -48,9 +49,15 @@ export function Celebration() {
       // confetti lands instead of being unmounted mid-fall.
       timeout = window.setTimeout(() => setBurst((cur) => (cur?.id === id ? null : cur)), 3200);
     };
-    const offBadge = events.on("badge_awarded", (b) => trigger(b));
+    const offBadge = events.on("badge_awarded", (b) => {
+      audio.play("jingle_badge");
+      trigger(b);
+    });
     const offDone = events.on("activity_completed", (r) => {
-      if (r.passed && (!r.badgesAwarded || r.badgesAwarded.length === 0)) trigger(null);
+      if (r.passed && (!r.badgesAwarded || r.badgesAwarded.length === 0)) {
+        audio.play("jingle_win");
+        trigger(null);
+      }
     });
     return () => {
       offBadge();

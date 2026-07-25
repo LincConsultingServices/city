@@ -18,6 +18,7 @@ import {
 import { createAmbient, type Ambient } from "./ambient";
 import { events } from "@/framework/events";
 import { useEggStore } from "@/framework/eggStore";
+import { audio } from "@/framework/audio/audioManager";
 import {
   GRID_W,
   GRID_H,
@@ -55,6 +56,8 @@ import { useWorldStore } from "./worldStore";
 
 const WALK_SPEED = 175; // px/sec (≈1.3 tiles/sec on the 132px grid)
 const STEP_S = 0.18; // seconds per walk-cycle frame
+/** Districts whose ground is grass — picks the footstep sound. */
+const SOFT_GROUND = new Set(["campus", "civic"]);
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
 
 export function CityCanvas({
@@ -430,6 +433,19 @@ export function CityCanvas({
           if (stepFrame !== lastStepFrame) {
             lastStepFrame = stepFrame;
             amb.spawnDust(charPixel.x, charPixel.y + 1); // footstep puff
+            // Surface-aware: grass in the parks/campus, concrete on pavement.
+            const soft =
+              !isRoad(curCell.x, curCell.y) && SOFT_GROUND.has(districtAt(curCell.x, curCell.y));
+            audio.play(
+              soft
+                ? stepFrame === 0
+                  ? "step_grass_1"
+                  : "step_grass_2"
+                : stepFrame === 0
+                  ? "step_hard_1"
+                  : "step_hard_2",
+              { volume: 0.45, rate: 0.94 + Math.random() * 0.12 },
+            );
           }
           charBody.texture = playerTex.walk[facing][stepFrame];
           charBody.position.y = reduced
@@ -552,6 +568,7 @@ export function CityCanvas({
         }
       });
 
+      audio.preload(["step_grass_1", "step_grass_2", "step_hard_1", "step_hard_2"]);
       store.setCharCell(curCell);
       offBus.push(offVenueOpened, offKonami);
       if (import.meta.env.DEV) {
