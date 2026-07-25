@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, ApiError } from "@/framework/api";
 import type { EarnedBadge, CompetencyProfile } from "@/framework/api/schemas";
 import { Icon, type IconName } from "./Icon";
+import { Modal } from "./Modal";
 
 // Trophy Hall (PRD §9.4) — the first F2 surface that needs NO new backend work:
 // GET /api/v1/badges and GET /api/v1/profile are both live. Earned badges stand
@@ -23,75 +24,67 @@ export function TrophyHall({ onClose }: { onClose: () => void }) {
   const competencies = profileQ.data?.competencies ?? [];
 
   return (
-    <div
-      className="absolute inset-0 z-20 grid animate-fade-in place-items-center bg-ink/75 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[88vh] w-full max-w-2xl animate-pop-in overflow-y-auto rounded-2xl border border-line bg-surface p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="font-display text-3xl font-semibold text-gold">Trophy Hall</h2>
-            <p className="mt-1 text-xs text-muted">
-              {badges.length > 0
-                ? `${badges.length} badge${badges.length === 1 ? "" : "s"} earned`
-                : "Your shelves are waiting"}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-text"
-            aria-label="Leave"
-          >
-            <Icon name="cross" className="h-3.5 w-3.5" />
-          </button>
+    <Modal onClose={onClose} width="lg">
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="font-display text-3xl font-semibold text-gold">Trophy Hall</h2>
+          <p className="mt-1 text-xs text-muted">
+            {badges.length > 0
+              ? `${badges.length} badge${badges.length === 1 ? "" : "s"} earned`
+              : "Your shelves are waiting"}
+          </p>
         </div>
+        <button
+          onClick={onClose}
+          className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-text"
+          aria-label="Leave"
+        >
+          <Icon name="cross" className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
-        {/* ── Shelves ─────────────────────────────────────────────────────── */}
-        <section className="mt-5">
-          {badgesQ.isLoading && <p className="text-sm text-muted">Opening the cabinet…</p>}
-          {badgesQ.isError && (
+      {/* ── Shelves ─────────────────────────────────────────────────────── */}
+      <section className="mt-5">
+        {badgesQ.isLoading && <p className="text-sm text-muted">Opening the cabinet…</p>}
+        {badgesQ.isError && (
+          <p className="text-sm text-danger">
+            {badgesQ.error instanceof ApiError
+              ? badgesQ.error.message
+              : "Couldn't load your badges."}
+          </p>
+        )}
+        {badgesQ.isSuccess &&
+          (badges.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {badges.map((b) => (
+                <Trophy key={b.id} badge={b} />
+              ))}
+            </div>
+          ) : (
+            <EmptyShelf />
+          ))}
+        <div className="mt-3 h-1 rounded-full bg-gradient-to-r from-transparent via-line to-transparent" />
+      </section>
+
+      {/* ── Progress board ──────────────────────────────────────────────── */}
+      <section className="mt-6">
+        <h3 className="font-display text-lg font-semibold text-text">Progress board</h3>
+        <p className="text-xs text-muted">Where you stand in each competency.</p>
+        <div className="mt-3 space-y-1.5">
+          {profileQ.isLoading && <p className="text-sm text-muted">Reading the board…</p>}
+          {profileQ.isError && (
             <p className="text-sm text-danger">
-              {badgesQ.error instanceof ApiError
-                ? badgesQ.error.message
-                : "Couldn't load your badges."}
+              {profileQ.error instanceof ApiError
+                ? profileQ.error.message
+                : "Couldn't load progress."}
             </p>
           )}
-          {badgesQ.isSuccess &&
-            (badges.length > 0 ? (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {badges.map((b) => (
-                  <Trophy key={b.id} badge={b} />
-                ))}
-              </div>
-            ) : (
-              <EmptyShelf />
-            ))}
-          <div className="mt-3 h-1 rounded-full bg-gradient-to-r from-transparent via-line to-transparent" />
-        </section>
-
-        {/* ── Progress board ──────────────────────────────────────────────── */}
-        <section className="mt-6">
-          <h3 className="font-display text-lg font-semibold text-text">Progress board</h3>
-          <p className="text-xs text-muted">Where you stand in each competency.</p>
-          <div className="mt-3 space-y-1.5">
-            {profileQ.isLoading && <p className="text-sm text-muted">Reading the board…</p>}
-            {profileQ.isError && (
-              <p className="text-sm text-danger">
-                {profileQ.error instanceof ApiError
-                  ? profileQ.error.message
-                  : "Couldn't load progress."}
-              </p>
-            )}
-            {competencies.map((c) => (
-              <ProgressRow key={c.code} c={c} />
-            ))}
-          </div>
-        </section>
-      </div>
-    </div>
+          {competencies.map((c) => (
+            <ProgressRow key={c.code} c={c} />
+          ))}
+        </div>
+      </section>
+    </Modal>
   );
 }
 

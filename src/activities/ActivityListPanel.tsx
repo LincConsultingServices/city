@@ -3,6 +3,7 @@ import { api, ApiError } from "@/framework/api";
 import type { LevelActivity } from "@/framework/api/schemas";
 import type { CityBuilding } from "@/world/cityMap";
 import { Icon } from "@/ui/Icon";
+import { Modal } from "@/ui/Modal";
 
 // Framework activity-list (PRD §7.2): hostedActivities × live per-activity status
 // from the registry/progress APIs. This binds to the LIVE backend (GET
@@ -32,61 +33,53 @@ export function ActivityListPanel({
   const activities = venue.hostedActivities.length > 0 ? all.filter((a) => hosted.has(a.id)) : all;
 
   return (
-    <div
-      className="absolute inset-0 z-20 grid animate-fade-in place-items-center bg-ink/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg animate-pop-in rounded-2xl border border-line bg-surface p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-2xl font-semibold text-gold">{venue.displayName}</h2>
-          <button
-            onClick={onClose}
-            className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-text"
-            aria-label="Leave"
-          >
-            <Icon name="cross" className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        <p className="mt-1 text-xs text-muted">Choose an activity</p>
-
-        <div className="mt-5 space-y-2">
-          {q.isLoading && <p className="text-sm text-muted">Loading activities…</p>}
-          {q.isError && (
-            <p className="text-sm text-danger">
-              {q.error instanceof ApiError ? q.error.message : "Couldn't load activities."}
-            </p>
-          )}
-          {q.isSuccess && activities.length === 0 && (
-            <p className="text-sm text-muted">
-              Nothing open at this venue just yet — check back soon.
-            </p>
-          )}
-          {activities.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-center gap-3 rounded-xl border border-line bg-surface-2 px-4 py-3"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-text">{a.title}</p>
-                <p className="text-xs text-muted">
-                  {a.activityType} · {a.id}
-                </p>
-              </div>
-              <StatusChip status={a.status} best={a.bestProficiency ?? null} />
-              <button
-                onClick={() => onPlay(a)}
-                className="rounded-lg bg-gold px-4 py-1.5 text-sm font-medium text-ink hover:brightness-110"
-              >
-                Play
-              </button>
-            </div>
-          ))}
-        </div>
+    <Modal onClose={onClose} width="md">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-2xl font-semibold text-gold">{venue.displayName}</h2>
+        <button
+          onClick={onClose}
+          className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-text"
+          aria-label="Leave"
+        >
+          <Icon name="cross" className="h-3.5 w-3.5" />
+        </button>
       </div>
-    </div>
+      <p className="mt-1 text-xs text-muted">Choose an activity</p>
+
+      <div className="mt-5 space-y-2">
+        {q.isLoading && <p className="text-sm text-muted">Loading activities…</p>}
+        {q.isError && (
+          <p className="text-sm text-danger">
+            {q.error instanceof ApiError ? q.error.message : "Couldn't load activities."}
+          </p>
+        )}
+        {q.isSuccess && activities.length === 0 && (
+          <p className="text-sm text-muted">
+            Nothing open at this venue just yet — check back soon.
+          </p>
+        )}
+        {activities.map((a) => (
+          <div
+            key={a.id}
+            className="flex items-center gap-3 rounded-xl border border-line bg-surface-2 px-4 py-3"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-text">{a.title}</p>
+              <p className="text-xs text-muted">
+                {a.activityType} · {a.id}
+              </p>
+            </div>
+            <StatusChip status={a.status} best={a.bestProficiency ?? null} />
+            <button
+              onClick={() => onPlay(a)}
+              className="rounded-lg bg-gold px-4 py-1.5 text-sm font-medium text-ink hover:brightness-110"
+            >
+              Play
+            </button>
+          </div>
+        ))}
+      </div>
+    </Modal>
   );
 }
 

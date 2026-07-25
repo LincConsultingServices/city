@@ -11,6 +11,7 @@ import { DragMatchRenderer } from "./renderers/DragMatchRenderer";
 import { SortOrderRenderer } from "./renderers/SortOrderRenderer";
 import { BudgetRenderer } from "./renderers/BudgetRenderer";
 import { Icon } from "@/ui/Icon";
+import { Modal } from "@/ui/Modal";
 
 // Player shell (PRD §8) — header + one renderer + server-driven result. F1 wires the
 // objective loop (start → play → submit → server result/celebration) end-to-end.
@@ -79,7 +80,7 @@ export function PlayerShell({
   }, [response, content, activity, onClose]);
 
   return (
-    <Modal onClose={onClose}>
+    <Modal onClose={onClose} width="md" z={30}>
       <div className="flex items-center justify-between border-b border-line pb-3">
         <div>
           <h2 className="font-display text-xl font-semibold text-text">{activity.title}</h2>
@@ -147,22 +148,6 @@ function ResultView({ response, onClose }: { response: SubmitResponse; onClose: 
       >
         Back to the venue
       </button>
-    </div>
-  );
-}
-
-function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div
-      className="absolute inset-0 z-30 grid animate-fade-in place-items-center bg-ink/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg animate-pop-in rounded-2xl border border-line bg-surface p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
     </div>
   );
 }
