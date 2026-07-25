@@ -45,7 +45,8 @@ import {
   FILLER_TINTS,
   PROP_TEXTURE,
   GROUND_PROPS,
-  PROP_SCALE,
+  PROP_TINT,
+  propScale,
   STORY_H,
   type VenueVisual,
   type Cardinal,
@@ -719,12 +720,15 @@ function makeProp(p: CityProp): Container {
   const key = PROP_TEXTURE[p.kind] ?? "prop_lamp";
   const s = new Sprite(tex(key));
   s.anchor.set(0.5, 1);
+  s.roundPixels = true; // the camera lerps on sub-pixels; without this props shimmer
   if (GROUND_PROPS.has(p.kind)) {
     // full ground tile — replace look by drawing over the base tile
     s.position.set(c.x, c.y + TILE_H / 2 + groundSkirt(key));
     s.zIndex = p.cell.x + p.cell.y - 0.1;
   } else {
-    s.scale.set(PROP_SCALE[p.kind] ?? 1);
+    s.scale.set(propScale(p.kind));
+    const tint = PROP_TINT[p.kind];
+    if (tint) s.tint = tint;
     s.position.set(c.x, c.y + TILE_H / 2);
     s.zIndex = p.cell.x + p.cell.y;
   }

@@ -55,9 +55,6 @@ const KEYS = [
   "prop_bench2",
   "prop_bench3",
   "prop_barrier_red",
-  "tree_tall",
-  "tree_short",
-  "conifer_tall",
   // parked cars (static street dressing)
   "parked_blue",
   "parked_red",
@@ -405,9 +402,12 @@ export const FILLER_TINTS: number[] = [
 
 /** Sprite for each map prop kind (null = drawn procedurally, e.g. the plaque). */
 export const PROP_TEXTURE: Record<PropKind, AssetKey | null> = {
-  tree_tall: "tree_tall",
-  tree_short: "tree_short",
-  conifer: "conifer_tall",
+  // Trees use the 32×45 city-pack sprite, not the roads pack's 11–19px ones:
+  // against a 132px tile the latter were ~10× under-dense and rendered as
+  // featureless green pills. Variety comes from tint + target size instead.
+  tree_tall: "prop_tree",
+  tree_short: "prop_tree_round",
+  conifer: "prop_tree",
   lamp: "prop_lamp",
   lamp2: "prop_lamp2",
   lamp_thin: "prop_lamp_thin",
@@ -430,25 +430,48 @@ export const PROP_TEXTURE: Record<PropKind, AssetKey | null> = {
 /** Props drawn as full ground tiles (replace the base tile, no upright sprite). */
 export const GROUND_PROPS: ReadonlySet<PropKind> = new Set(["fountain", "bench", "pool"]);
 
-/** Upright-prop display scale (ground props draw 1×). */
-export const PROP_SCALE: Partial<Record<PropKind, number>> = {
-  lamp: 1.35,
-  lamp2: 1.35,
-  lamp_thin: 1.35,
-  billboard: 1.8,
-  tree_prop: 1.7,
-  tree_round: 1.9,
-  tree_tall: 2.1,
-  tree_short: 2.1,
-  conifer: 2.1,
-  street_bench: 1.5,
-  street_bench2: 1.5,
-  barrier: 1.4,
-  parked_blue: 1.35,
-  parked_red: 1.35,
-  parked_silver: 1.35,
-  parked_green: 1.35,
+/**
+ * Target on-screen WIDTH in world px for each upright prop, against the 132px
+ * tile. Scale is derived from the real texture at runtime (`propScale`) rather
+ * than hand-tuned multipliers, so a prop's size stays physically right no
+ * matter which pack its art came from — the mistake that made 12px trees get
+ * blown up 2.1× and read as pills. `spriteDensity.test.ts` guards the ratio.
+ */
+export const PROP_TARGET_W: Partial<Record<PropKind, number>> = {
+  lamp: 30,
+  lamp2: 30,
+  lamp_thin: 30,
+  billboard: 116,
+  tree_prop: 56,
+  tree_round: 52,
+  tree_tall: 60,
+  tree_short: 50,
+  conifer: 46,
+  street_bench: 46,
+  street_bench2: 46,
+  barrier: 44,
+  parked_blue: 58,
+  parked_red: 58,
+  parked_silver: 58,
+  parked_green: 58,
 };
+
+/** Subtle per-kind tint so the two tree sprites read as a varied canopy. */
+export const PROP_TINT: Partial<Record<PropKind, number>> = {
+  tree_tall: 0xffffff,
+  tree_short: 0xd9f0c4,
+  conifer: 0xbcd9b0,
+  tree_prop: 0xeaf7e0,
+};
+
+/** Display scale for an upright prop: target width ÷ real texture width. */
+export function propScale(kind: PropKind): number {
+  const target = PROP_TARGET_W[kind];
+  const key = PROP_TEXTURE[kind];
+  if (!target || !key) return 1;
+  const w = tex(key)?.width;
+  return w ? target / w : 1;
+}
 
 // ── Vehicles ──────────────────────────────────────────────────────────────────
 

@@ -268,7 +268,11 @@ export function createAmbient(ctx: AmbientContext): Ambient {
   const cars: AmbientCar[] = carDefs.slice(0, reduced ? CAR_COUNT_REDUCED : CAR_COUNT).map((d) => {
     const sprite = new Sprite();
     sprite.anchor.set(0.5, 1);
-    sprite.scale.set(1.45);
+    // Vehicles are 31x23 source art on a 132px tile; 1.45x left them ~1/3 of a
+    // lane. 1.9x reads as a real car — the pack has no higher-res tier, so this
+    // trades a little sharpness for correct physical scale.
+    sprite.scale.set(1.9);
+    sprite.roundPixels = true;
     actors.addChild(sprite);
     return { ...d, sprite };
   });
