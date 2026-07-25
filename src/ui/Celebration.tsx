@@ -43,10 +43,9 @@ export function Celebration() {
       const id = nextBurstId++;
       setBurst({ id, badge, pieces: makePieces() });
       window.clearTimeout(timeout);
-      timeout = window.setTimeout(
-        () => setBurst((cur) => (cur?.id === id ? null : cur)),
-        badge ? 3200 : 2600,
-      );
+      // Outlive the longest piece (max delay 0.35s + max duration 2.7s) so
+      // confetti lands instead of being unmounted mid-fall.
+      timeout = window.setTimeout(() => setBurst((cur) => (cur?.id === id ? null : cur)), 3200);
     };
     const offBadge = events.on("badge_awarded", (b) => trigger(b));
     const offDone = events.on("activity_completed", (r) => {

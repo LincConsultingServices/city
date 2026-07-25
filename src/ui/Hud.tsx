@@ -3,6 +3,7 @@ import { useAuth } from "@/framework/auth/AuthProvider";
 import { signOutUser } from "@/framework/auth/firebase";
 import { useEconomyStore } from "@/framework/economy/economyStore";
 import { events } from "@/framework/events";
+import { useWorldStore } from "@/world/worldStore";
 import { useCountUp } from "./useCountUp";
 
 // Persistent minimal HUD (PRD §9.1). Coin balance is server-authoritative; until
@@ -13,6 +14,8 @@ export function Hud() {
   const coins = useEconomyStore((s) => s.coinBalance);
   const displayCoins = useCountUp(coins);
   const [floater, setFloater] = useState<{ id: number; amount: number } | null>(null);
+  // A panel is open (inputLocked) while the result modal covers the screen.
+  const panelOpen = useWorldStore((s) => s.inputLocked);
   const initial = (user?.displayName || user?.email || "?").charAt(0).toUpperCase();
 
   // "+N" floater on real earnings (server's coinsEarned, not a client guess).
@@ -20,13 +23,20 @@ export function Hud() {
     () =>
       events.on("activity_completed", (r) => {
         if (typeof r.coinsEarned === "number" && r.coinsEarned > 0) {
-          const id = Date.now();
-          setFloater({ id, amount: r.coinsEarned });
-          window.setTimeout(() => setFloater((cur) => (cur?.id === id ? null : cur)), 1600);
+          setFloater({ id: Date.now(), amount: r.coinsEarned });
         }
       }),
     [],
   );
+
+  // Earnings arrive while the result modal is still up, so hold the floater
+  // until it closes — otherwise it would animate and expire behind the panel.
+  useEffect(() => {
+    if (!floater || panelOpen) return;
+    const { id } = floater;
+    const t = window.setTimeout(() => setFloater((cur) => (cur?.id === id ? null : cur)), 1600);
+    return () => window.clearTimeout(t);
+  }, [floater, panelOpen]);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
@@ -55,7 +65,7 @@ export function Hud() {
               {displayCoins === null ? "—" : displayCoins}
             </span>
           </div>
-          {floater && (
+          {floater && !panelOpen && (
             <span
               key={floater.id}
               className="absolute -bottom-1 right-2 animate-float-up text-sm font-semibold text-coin"

@@ -54,3 +54,14 @@
     }
   }
 }
+
+/* Animations whose final keyframe is invisible must NOT be collapsed to that
+   frame by the rule above — with `forwards` fill they'd hold at opacity 0 and
+   the feedback would never be seen. Show them statically instead; the JS
+   timers that own these elements still remove them on schedule. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-up {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
