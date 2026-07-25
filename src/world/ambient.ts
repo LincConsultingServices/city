@@ -11,7 +11,7 @@ import { mulberry32, seedFromString } from "@/lib/rng";
 import { events } from "@/framework/events";
 import { useEggStore } from "@/framework/eggStore";
 import { PROPS, cityGrid } from "./cityMap";
-import { carTexture, type CarKind, type Cardinal } from "./assets";
+import { carTexture, tex, type CarKind, type Cardinal } from "./assets";
 import { npcRoutes, type NpcRoute } from "./routes";
 import {
   bakePersonTextures,
@@ -82,7 +82,7 @@ export interface AmbientCar {
   t: number;
 }
 
-type ParticleKind = "dust" | "leaf" | "droplet" | "smoke";
+type ParticleKind = "dust" | "leaf" | "droplet" | "smoke" | "confetti" | "star";
 
 interface Particle {
   sprite: Sprite;
@@ -97,6 +97,8 @@ interface Particle {
   scaleRate: number;
   startAlpha: number;
   sway: number;
+  baseScale: number;
+  spin: number; // radians/sec — leaves and confetti tumble
 }
 
 interface Npc {
@@ -140,11 +142,25 @@ export function createAmbient(ctx: AmbientContext): Ambient {
   };
 
   // ── Particle pool (pre-allocated; zero per-frame allocation) ────────────────
+  // Real Kenney particle art (greyscale, tinted per kind) instead of the flat
+  // vector discs this used to draw: a hard-edged circle scaled up reads as a
+  // visible disc, never as smoke or dust.
   const particleTex: Record<ParticleKind, Texture> = {
-    dust: bake(new Graphics().circle(0, 0, 3).fill({ color: 0xcfc8b8, alpha: 0.55 })),
-    leaf: bake(new Graphics().ellipse(0, 0, 3.2, 1.9).fill({ color: 0x6fae5c, alpha: 0.9 })),
-    droplet: bake(new Graphics().circle(0, 0, 2).fill({ color: 0xbfe3f2, alpha: 0.9 })),
-    smoke: bake(new Graphics().circle(0, 0, 5).fill({ color: 0xb9bcc4, alpha: 0.4 })),
+    dust: tex("fx_dust"),
+    leaf: tex("fx_leaf"),
+    droplet: tex("fx_soft"),
+    smoke: tex("fx_smoke"),
+    confetti: tex("fx_confetti"),
+    star: tex("fx_star"),
+  };
+  /** Base tint + on-screen size per particle kind (textures ship white). */
+  const PARTICLE_STYLE: Record<ParticleKind, { tint: number; size: number }> = {
+    dust: { tint: 0xcfc8b8, size: 16 },
+    leaf: { tint: 0x6fae5c, size: 13 },
+    droplet: { tint: 0xbfe3f2, size: 9 },
+    smoke: { tint: 0xb9bcc4, size: 30 },
+    confetti: { tint: 0xffffff, size: 14 },
+    star: { tint: 0xffd75e, size: 18 },
   };
   const pool: Particle[] = [];
   const free: Particle[] = [];
@@ -166,6 +182,8 @@ export function createAmbient(ctx: AmbientContext): Ambient {
       scaleRate: 0,
       startAlpha: 1,
       sway: 0,
+      baseScale: 1,
+      spin: 0,
     };
     pool.push(p);
     free.push(p);
@@ -185,6 +203,7 @@ export function createAmbient(ctx: AmbientContext): Ambient {
       sway?: number;
       scale?: number;
       tint?: number;
+      spin?: number;
     },
   ): void {
     if (reduced) return; // decorative only — reduced motion kills all particles
@@ -201,21 +220,28 @@ export function createAmbient(ctx: AmbientContext): Ambient {
     p.scaleRate = opts.scaleRate ?? 0;
     p.startAlpha = opts.alpha ?? 1;
     p.sway = opts.sway ?? 0;
+    const style = PARTICLE_STYLE[kind];
     p.sprite.texture = particleTex[kind];
-    p.sprite.tint = opts.tint ?? 0xffffff;
+    p.sprite.tint = opts.tint ?? style.tint;
     p.sprite.visible = true;
     p.sprite.alpha = p.startAlpha;
-    p.sprite.scale.set(opts.scale ?? 1);
+    // Textures are 48-96px source; normalise to the kind's on-screen size so
+    // callers keep passing intuitive 1-ish scale multipliers.
+    p.baseScale = (style.size / p.sprite.texture.width) * (opts.scale ?? 1);
+    p.sprite.scale.set(p.baseScale);
+    p.spin = opts.spin ?? 0;
+    p.sprite.rotation = opts.spin ? rand() * Math.PI * 2 : 0;
     p.sprite.position.set(x, y);
   }
 
   const CONFETTI = [0xe2be78, 0x5fae6f, 0x4aa3c7, 0xd987b5, 0xf0954f, 0x8a6fd1];
   function celebrate(x: number, y: number, count: number): void {
     for (let i = 0; i < count; i++) {
-      spawn("droplet", x, y - 20, (rand() - 0.5) * 220, -120 - rand() * 120, 1.1, {
+      spawn("confetti", x, y - 20, (rand() - 0.5) * 220, -120 - rand() * 120, 1.1, {
         gravity: 260,
         alpha: 1,
-        scale: 1.4,
+        scale: 1.1,
+        spin: (rand() - 0.5) * 12,
         tint: CONFETTI[i % CONFETTI.length],
       });
     }
@@ -279,21 +305,18 @@ export function createAmbient(ctx: AmbientContext): Ambient {
   let carTint: number | null = null;
 
   // ── Lamp glows (lit by setNight; clickable lamps toggle them) ───────────────
-  const glowTex = bake(
-    new Graphics()
-      .circle(0, 0, 26)
-      .fill({ color: 0xffd98a, alpha: 0.08 })
-      .circle(0, 0, 17)
-      .fill({ color: 0xffd98a, alpha: 0.14 })
-      .circle(0, 0, 9)
-      .fill({ color: 0xffe9b8, alpha: 0.22 }),
-  );
+  // A smooth radial blob, not the ringed "light" texture — concentric rings
+  // read as glowing donuts once scaled up. Sized in world px, warm-tinted.
+  const glowTex = tex("fx_soft");
+  const GLOW_W = 78;
   const lampProps = PROPS.filter((p) => p.kind === "lamp" || p.kind === "lamp2");
   const lampGlows = lampProps.map((p) => {
     const w = mapToWorld(p.cell.x, p.cell.y);
     const s = new Sprite(glowTex);
     s.anchor.set(0.5);
     s.blendMode = "add";
+    s.scale.set(GLOW_W / glowTex.width);
+    s.tint = 0xffd08a;
     s.position.set(w.x, w.y + TILE_H / 2 - 46);
     s.alpha = 0;
     fx.addChild(s);
@@ -323,12 +346,16 @@ export function createAmbient(ctx: AmbientContext): Ambient {
   });
 
   // ── Birds — two flocks of three chevrons orbiting the parks ─────────────────
+  // Birds read at distance as a gull silhouette, not the 1.6px "^" stroke this
+  // used to draw — at that weight they looked like stray caret glyphs.
   const birdTex = bake(
     new Graphics()
-      .moveTo(-4, 0)
-      .lineTo(0, -2.5)
-      .lineTo(4, 0)
-      .stroke({ color: 0x2c3240, width: 1.6, alpha: 0.8 }),
+      .moveTo(-9, 0)
+      .quadraticCurveTo(-4.5, -5.5, 0, -1.5)
+      .quadraticCurveTo(4.5, -5.5, 9, 0)
+      .quadraticCurveTo(4.5, -2.5, 0, 1)
+      .quadraticCurveTo(-4.5, -2.5, -9, 0)
+      .fill({ color: 0x2c3240, alpha: 0.85 }),
   );
   const parkCenters = [mapToWorld(27.5, 16.5), mapToWorld(16.5, 27.5)];
   const birds = parkCenters.flatMap((center, f) =>
@@ -349,14 +376,21 @@ export function createAmbient(ctx: AmbientContext): Ambient {
   );
 
   // ── Pigeons pecking around the fountain plaza ───────────────────────────────
+  // Pigeons were ~6px of grey ellipses — indistinguishable from image noise.
   const pigeonTex = bake(
     new Graphics()
-      .ellipse(0, -2.4, 3.2, 2.6)
+      .ellipse(0, -4, 5.4, 4.2)
       .fill(0x9aa2b0)
-      .circle(2.6, -4.4, 1.6)
+      .ellipse(-4.2, -4.4, 2.8, 1.9)
       .fill(0x7d8595)
-      .ellipse(-2.4, -2.6, 1.7, 1.1)
-      .fill(0x7d8595),
+      .circle(4.2, -7.4, 2.7)
+      .fill(0xa8b0bd)
+      .circle(5.1, -7.9, 0.8)
+      .fill(0x2b2f38)
+      .poly([6.6, -7.2, 8.6, -6.4, 6.6, -6])
+      .fill(0xe0a24a)
+      .roundRect(-0.9, -1, 1.6, 3, 0.7)
+      .fill(0xe0a24a),
   );
   const pigeonCells: Cell[] = [
     { x: 26, y: 16 },
@@ -558,7 +592,7 @@ export function createAmbient(ctx: AmbientContext): Ambient {
           while (sparkleClock >= 0.12) {
             sparkleClock -= 0.12;
             spawn(
-              "dust",
+              "star",
               goldenTaxi.sprite.position.x + (rand() - 0.5) * 24,
               goldenTaxi.sprite.position.y - 6,
               (rand() - 0.5) * 18,
@@ -659,6 +693,7 @@ export function createAmbient(ctx: AmbientContext): Ambient {
           spawn("leaf", src.x + (rand() - 0.5) * 24, src.y, 12 + rand() * 8, 9, 3.5, {
             sway: 14,
             alpha: 0.9,
+            spin: (rand() - 0.5) * 3,
           });
         }
       }
@@ -679,7 +714,8 @@ export function createAmbient(ctx: AmbientContext): Ambient {
       const k = p.life / p.maxLife;
       p.sprite.position.set(p.x, p.y);
       p.sprite.alpha = p.startAlpha * (1 - k);
-      if (p.scaleRate) p.sprite.scale.set(1 + k * p.scaleRate * 3);
+      if (p.spin) p.sprite.rotation += p.spin * dtS;
+      if (p.scaleRate) p.sprite.scale.set(p.baseScale * (1 + k * p.scaleRate * 3));
     }
 
     // Birds
@@ -732,7 +768,7 @@ export function createAmbient(ctx: AmbientContext): Ambient {
     for (let i = 0; i < lampGlows.length; i++) {
       const g = lampGlows[i];
       const flicker = reduced ? 1 : 0.88 + 0.12 * Math.sin(nowS * 6.5 + g.phase);
-      g.sprite.alpha = g.on ? nightness * 0.55 * flicker : 0;
+      g.sprite.alpha = g.on ? nightness * 0.34 * flicker : 0;
     }
   }
 

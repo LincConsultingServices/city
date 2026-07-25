@@ -55,6 +55,15 @@ const KEYS = [
   "prop_bench2",
   "prop_bench3",
   "prop_barrier_red",
+  // particle / effect textures (greyscale, tinted at use)
+  "fx_soft",
+  "fx_dust",
+  "fx_smoke",
+  "fx_cloud",
+  "fx_leaf",
+  "fx_confetti",
+  "fx_star",
+  "fx_glow",
   // parked cars (static street dressing)
   "parked_blue",
   "parked_red",

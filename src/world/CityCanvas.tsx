@@ -210,27 +210,32 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       nightOverlay.blendMode = "multiply";
       world.addChild(nightOverlay);
 
+      // Vignette: multiplying by a flat quad dims everything uniformly, which
+      // reads as "the brightness slider moved", not as nightfall. A radial ramp
+      // (white centre, dark edges) pools light around the player instead.
+      const vignetteTex = bakeVignetteTexture(application.renderer);
+      bakedTextures.push(vignetteTex);
+      const vignette = new Sprite(vignetteTex);
+      vignette.blendMode = "multiply";
+      vignette.alpha = 0;
+      world.addChild(vignette);
+
       // FX overlay (particles, glows, birds) draws above the y-sorted actors.
       const fx = new Container();
       world.addChild(fx);
 
       // Soft cloud shadows drifting over the whole city (topmost world layer).
-      const cloudTex = application.renderer.generateTexture({
-        target: new Graphics()
-          .ellipse(0, 0, 190, 90)
-          .fill({ color: 0x0a0f1c, alpha: 0.055 })
-          .ellipse(-95, 32, 120, 60)
-          .fill({ color: 0x0a0f1c, alpha: 0.04 })
-          .ellipse(100, -22, 130, 68)
-          .fill({ color: 0x0a0f1c, alpha: 0.04 }),
-      });
-      bakedTextures.push(cloudTex);
+      // Soft cloud texture; the old procedural ellipse stretched to ~2000px read
+      // as a dirty-lens smudge across the ground rather than a passing cloud.
+      const cloudTex = tex("fx_cloud");
       const clouds: Sprite[] = [];
       if (!reduced) {
         for (let i = 0; i < 3; i++) {
           const s = new Sprite(cloudTex);
           s.anchor.set(0.5);
-          s.scale.set(1.4 + i * 0.5);
+          s.scale.set(3.2 + i * 1.1);
+          s.tint = 0x0a0f1c;
+          s.alpha = 0.07;
           s.position.set(-1600 + i * 1500, i * 900);
           world.addChild(s);
           clouds.push(s);
@@ -447,6 +452,10 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
           nightOverlay.position.set(view.left, view.top);
           nightOverlay.width = application.screen.width;
           nightOverlay.height = application.screen.height;
+          vignette.position.set(view.left, view.top);
+          vignette.width = application.screen.width;
+          vignette.height = application.screen.height;
+          vignette.alpha = phase.nightness * 0.65;
           sky.tint = phase.ambient;
           amb.setNight(phase.nightness);
           for (let i = 0; i < windowLights.length; i++) {
@@ -690,12 +699,28 @@ function makeBuildingVisual(
   return container;
 }
 
+/** Radial vignette for the night pass: white centre → dark rim, multiplied. */
+function bakeVignetteTexture(renderer: Renderer): Texture {
+  const g = new Graphics();
+  const R = 128;
+  g.rect(0, 0, R * 2, R * 2).fill(0x0a1020);
+  const steps = 48;
+  for (let i = 0; i < steps; i++) {
+    const k = i / (steps - 1); // 0 = rim, 1 = centre
+    const c = lerpColor(0x0a1020, 0xffffff, k);
+    g.ellipse(R, R, R * (1 - k) + 4, R * (1 - k) + 4).fill(c);
+  }
+  const t = renderer.generateTexture({ target: g });
+  g.destroy();
+  return t;
+}
+
 /** Vertical sky gradient (blue → horizon green), baked once and screen-scaled. */
 function bakeSkyTexture(renderer: Renderer): Texture {
   const g = new Graphics();
-  const steps = 24;
+  const steps = 96; // 24 bands posterised visibly against a flat sky
   for (let i = 0; i < steps; i++) {
-    g.rect(0, i * 8, 8, 8).fill(lerpColor(0xaee0f2, 0x9dc183, i / (steps - 1)));
+    g.rect(0, i * 2, 8, 2).fill(lerpColor(0xaee0f2, 0x9dc183, i / (steps - 1)));
   }
   const t = renderer.generateTexture({ target: g });
   g.destroy();
