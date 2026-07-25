@@ -56,7 +56,7 @@ export function ActivityListPanel({
           )}
           {q.isSuccess && activities.length === 0 && (
             <p className="text-sm text-muted">
-              No hosted activities resolved from the registry yet (seeding — PRD §21 BE-12).
+              Nothing open at this venue just yet — check back soon.
             </p>
           )}
           {activities.map((a) => (

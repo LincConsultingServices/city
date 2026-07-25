@@ -57,7 +57,13 @@ const WALK_SPEED = 175; // px/sec (≈1.3 tiles/sec on the 132px grid)
 const STEP_S = 0.18; // seconds per walk-cycle frame
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
 
-export function CityCanvas({ onReady }: { onReady?: () => void }) {
+export function CityCanvas({
+  onReady,
+  onProgress,
+}: {
+  onReady?: () => void;
+  onProgress?: (fraction: number) => void;
+}) {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -99,7 +105,7 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
       });
-      await loadCityAssets();
+      await loadCityAssets(onProgress);
       if (destroyed) {
         application.destroy(true);
         return;

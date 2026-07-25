@@ -166,8 +166,11 @@ export type AssetKey = (typeof KEYS)[number];
 
 let loaded = false;
 
-export async function loadCityAssets(): Promise<void> {
-  if (loaded) return;
+export async function loadCityAssets(onProgress?: (fraction: number) => void): Promise<void> {
+  if (loaded) {
+    onProgress?.(1);
+    return;
+  }
   // HMR-safe: module state resets on hot reload but Pixi's Assets cache is
   // global — re-adding an existing bundle throws/warns, so guard it.
   try {
@@ -178,7 +181,7 @@ export async function loadCityAssets(): Promise<void> {
   } catch {
     /* bundle already registered from a previous HMR pass */
   }
-  await Assets.loadBundle("city");
+  await Assets.loadBundle("city", onProgress);
   loaded = true;
 }
 

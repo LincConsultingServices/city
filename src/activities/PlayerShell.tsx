@@ -72,9 +72,7 @@ export function PlayerShell({
       return <SortOrderRenderer content={content} onChange={setResult} />;
     return (
       <p className="text-muted">
-        No client content authored for <code className="text-gold">{activity.id}</code> yet — its{" "}
-        <code className="text-gold">{activity.activityType}</code> renderer/content lands next in
-        F1.
+        This activity isn't playable yet — its content is still being written.
       </p>
     );
   }, [response, content, activity, onClose]);

@@ -22,6 +22,7 @@ export function CityScreen() {
   const [playing, setPlaying] = useState<LevelActivity | null>(null);
   const [worldPanel, setWorldPanel] = useState<WorldPanel | null>(null);
   const [worldReady, setWorldReady] = useState(false);
+  const [loadPct, setLoadPct] = useState(0);
   const konamiRef = useRef(0);
 
   const nearVenue = nearVenueId ? (VENUES.find((v) => v.id === nearVenueId) ?? null) : null;
@@ -66,15 +67,8 @@ export function CityScreen() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-ink">
-      <CityCanvas onReady={() => setWorldReady(true)} />
-      {!worldReady && (
-        <div className="absolute inset-0 z-20 grid place-items-center bg-ink">
-          <div className="text-center">
-            <h1 className="font-display text-3xl font-semibold text-gold">THE CITY</h1>
-            <p className="mt-2 text-sm text-muted">Entering the city…</p>
-          </div>
-        </div>
-      )}
+      <CityCanvas onReady={() => setWorldReady(true)} onProgress={setLoadPct} />
+      {!worldReady && <CityLoader pct={loadPct} />}
       <Hud />
       <Toaster />
       <Celebration />
@@ -116,6 +110,36 @@ export function CityScreen() {
 
       {worldPanel === "billboard" && <BillboardPanel onClose={() => setWorldPanel(null)} />}
       {worldPanel === "plaque" && <FoundersPanel onClose={() => setWorldPanel(null)} />}
+    </div>
+  );
+}
+
+/** Boot screen with real asset-load progress (PRD §12.3 asks for it, and the
+ * splash otherwise sits blank through the whole load). */
+function CityLoader({ pct }: { pct: number }) {
+  const shown = Math.round(Math.min(1, Math.max(0, pct)) * 100);
+  return (
+    <div className="absolute inset-0 z-20 grid place-items-center bg-ink">
+      <div className="w-[min(20rem,80vw)] text-center">
+        <h1 className="font-display text-3xl font-semibold tracking-wide text-gold">THE CITY</h1>
+        <p className="mt-2 text-sm text-muted">
+          {shown < 100 ? "Laying out the streets…" : "Opening the gates…"}
+        </p>
+        <div
+          className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-surface-2"
+          role="progressbar"
+          aria-valuenow={shown}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Loading the city"
+        >
+          <div
+            className="h-full rounded-full bg-gold transition-[width] duration-200 ease-out"
+            style={{ width: `${shown}%` }}
+          />
+        </div>
+        <p className="mt-2 text-xs tabular-nums text-muted">{shown}%</p>
+      </div>
     </div>
   );
 }

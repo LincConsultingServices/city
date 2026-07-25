@@ -56,7 +56,7 @@ export function Hud() {
           <div
             key={coins ?? "empty"}
             className="flex animate-pop-in items-center gap-1.5 rounded-full border border-line/70 bg-surface/80 px-3 py-1.5 backdrop-blur"
-            title={coins === null ? "Wallet endpoint not live yet (PRD §21 BE-1)" : "Coins"}
+            title={coins === null ? "Your wallet isn't connected yet" : "Coins"}
           >
             <span className="grid h-4 w-4 place-items-center rounded-full bg-coin text-[10px] font-bold text-ink">
               ¢
