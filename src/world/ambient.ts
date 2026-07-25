@@ -262,7 +262,7 @@ export function createAmbient(ctx: AmbientContext): Ambient {
     { kind: "police", route: [c2(0, 0), c2(44, 0), c2(44, 44), c2(0, 44)], leg: 0, t: 0.5 },
     { kind: "amb", route: [c2(22, 11), c2(33, 11), c2(33, 22), c2(22, 22)], leg: 2, t: 0 },
     { kind: "taxi", route: [c2(0, 22), c2(22, 22), c2(22, 44), c2(0, 44)], leg: 1, t: 0.3 },
-    { kind: "taxi", route: [c2(22, 22), c2(44, 22), c2(44, 44), c2(22, 44)], leg: 3, t: 0.6 },
+    { kind: "garbage", route: [c2(22, 22), c2(44, 22), c2(44, 44), c2(22, 44)], leg: 3, t: 0.6 },
     { kind: "amb", route: [c2(0, 11), c2(22, 11), c2(22, 33), c2(0, 33)], leg: 2, t: 0.4 },
   ];
   const cars: AmbientCar[] = carDefs.slice(0, reduced ? CAR_COUNT_REDUCED : CAR_COUNT).map((d) => {
