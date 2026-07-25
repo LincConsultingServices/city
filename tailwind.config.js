@@ -22,6 +22,46 @@ module.exports = {
         display: ["Fraunces", "Georgia", "serif"],
         body: ["Outfit", "system-ui", "sans-serif"],
       },
+      keyframes: {
+        "fade-in": { from: { opacity: "0" }, to: { opacity: "1" } },
+        "pop-in": {
+          "0%": { opacity: "0", transform: "scale(0.96)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        "slide-up": {
+          from: { opacity: "0", transform: "translateY(10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "float-up": {
+          "0%": { opacity: "0", transform: "translateY(4px)" },
+          "20%": { opacity: "1" },
+          "100%": { opacity: "0", transform: "translateY(-26px)" },
+        },
+        twinkle: {
+          "0%, 100%": { opacity: "0.35" },
+          "50%": { opacity: "0.8" },
+        },
+        "drift-x": {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(46px)" },
+        },
+        // Skyline layers loop by sliding exactly one gradient period.
+        "skyline-far": { to: { backgroundPosition: "-88px 0" } },
+        "skyline-mid": { to: { backgroundPosition: "-72px 0" } },
+        "skyline-near": { to: { backgroundPosition: "-60px 0" } },
+      },
+      animation: {
+        "fade-in": "fade-in 0.2s ease-out",
+        "pop-in": "pop-in 0.22s cubic-bezier(0.34, 1.4, 0.64, 1)",
+        "slide-up": "slide-up 0.25s ease-out",
+        "float-up": "float-up 1.6s ease-out forwards",
+        twinkle: "twinkle 4s ease-in-out infinite",
+        "drift-a": "drift-x 18s ease-in-out infinite alternate",
+        "drift-b": "drift-x 26s ease-in-out infinite alternate",
+        "skyline-far": "skyline-far 80s linear infinite",
+        "skyline-mid": "skyline-mid 45s linear infinite",
+        "skyline-near": "skyline-near 25s linear infinite",
+      },
     },
   },
   plugins: [],

@@ -89,3 +89,11 @@ export const appConfig: AppConfig = resolve();
 
 /** Login is disabled until a Firebase web API key is present. */
 export const isConfigured = (): boolean => appConfig.firebaseApiKey.length > 0;
+
+/**
+ * Dev-only world bypass: `VITE_DEV_WORLD=1 npm run dev` mounts CityScreen
+ * without auth so the world can be eyeballed/screenshotted locally (Playwright
+ * world spec). `import.meta.env.DEV` is statically false in production builds,
+ * so this flag is dead-code-eliminated and can never ship.
+ */
+export const devWorldBypass: boolean = import.meta.env.DEV && pickEnv("VITE_DEV_WORLD") === "1";

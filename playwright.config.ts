@@ -11,6 +11,11 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:5173",
     trace: "on-first-retry",
+    // Sandboxes/CI images with a system Chromium can point at it instead of
+    // downloading a matching build: PW_CHROMIUM_PATH=/path/to/chrome npm run e2e
+    ...(process.env.PW_CHROMIUM_PATH
+      ? { launchOptions: { executablePath: process.env.PW_CHROMIUM_PATH } }
+      : {}),
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {

@@ -28,4 +28,40 @@
   body {
     @apply bg-ink text-text font-body antialiased;
   }
+
+  /* Confetti keyframes live here (pieces animate via inline styles, so the
+     Tailwind animation utility never references them). */
+  @keyframes confetti-fall {
+    0% {
+      opacity: 1;
+      transform: translateY(-12vh) rotate(0deg);
+    }
+    100% {
+      opacity: 0.85;
+      transform: translateY(112vh) rotate(720deg);
+    }
+  }
+
+  /* Decorative animation dies under reduced motion (PRD §16); functional
+     feedback still renders — it just stops moving. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Animations whose final keyframe is invisible must NOT be collapsed to that
+   frame by the rule above — with `forwards` fill they'd hold at opacity 0 and
+   the feedback would never be seen. Show them statically instead; the JS
+   timers that own these elements still remove them on schedule. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-up {
+    animation: none !important;
+    opacity: 1 !important;
+  }
 }
