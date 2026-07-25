@@ -4,6 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>The City</title>
+    <meta
+      name="description"
+      content="The City — walk a living isometric city and learn a competency by walking into a building, not opening a form."
+    />
+    <meta name="theme-color" content="#0f121a" />
+    <!-- The fonts come from two other origins; without these the DNS+TLS
+         handshakes happen serially after the CSS has already parsed. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Inline favicon: the browser requests /favicon.ico unprompted and 404s
+         without one. Data URI keeps it to zero extra requests. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f121a'/%3E%3Cpath d='M6 24V13l5-3 5 3v11z' fill='%23e2be78'/%3E%3Cpath d='M17 24V9l5-3 5 3v15z' fill='%23c9a35f'/%3E%3Crect x='8.5' y='15' width='2' height='2' fill='%230f121a'/%3E%3Crect x='12' y='15' width='2' height='2' fill='%230f121a'/%3E%3Crect x='19.5' y='11' width='2' height='2' fill='%230f121a'/%3E%3Crect x='23' y='11' width='2' height='2' fill='%230f121a'/%3E%3Crect x='19.5' y='16' width='2' height='2' fill='%230f121a'/%3E%3Crect x='23' y='16' width='2' height='2' fill='%230f121a'/%3E%3C/svg%3E"
+    />
+    <!-- Paint the app background before any CSS lands, otherwise the page
+         flashes white and snaps to the dark theme. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #0f121a;
+        color-scheme: dark;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

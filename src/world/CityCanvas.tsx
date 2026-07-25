@@ -18,6 +18,7 @@ import {
 import { createAmbient, type Ambient } from "./ambient";
 import { events } from "@/framework/events";
 import { useEggStore } from "@/framework/eggStore";
+import { audio } from "@/framework/audio/audioManager";
 import {
   GRID_W,
   GRID_H,
@@ -45,7 +46,8 @@ import {
   FILLER_TINTS,
   PROP_TEXTURE,
   GROUND_PROPS,
-  PROP_SCALE,
+  PROP_TINT,
+  propScale,
   STORY_H,
   type VenueVisual,
   type Cardinal,
@@ -54,9 +56,17 @@ import { useWorldStore } from "./worldStore";
 
 const WALK_SPEED = 175; // px/sec (≈1.3 tiles/sec on the 132px grid)
 const STEP_S = 0.18; // seconds per walk-cycle frame
+/** Districts whose ground is grass — picks the footstep sound. */
+const SOFT_GROUND = new Set(["campus", "civic"]);
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
 
-export function CityCanvas({ onReady }: { onReady?: () => void }) {
+export function CityCanvas({
+  onReady,
+  onProgress,
+}: {
+  onReady?: () => void;
+  onProgress?: (fraction: number) => void;
+}) {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -98,7 +108,17 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
       });
-      await loadCityAssets();
+      await loadCityAssets(onProgress);
+      // Pixi rasterises Text once, at world build. If Outfit hasn't arrived by
+      // then every building sign bakes in the system fallback and never
+      // re-renders, so wait for the webfont (with a cap so a blocked font CDN
+      // can't stall the boot).
+      if (typeof document !== "undefined" && document.fonts?.ready) {
+        await Promise.race([
+          document.fonts.ready,
+          new Promise((r) => window.setTimeout(r, 2500)),
+        ]).catch(() => {});
+      }
       if (destroyed) {
         application.destroy(true);
         return;
@@ -209,27 +229,32 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       nightOverlay.blendMode = "multiply";
       world.addChild(nightOverlay);
 
+      // Vignette: multiplying by a flat quad dims everything uniformly, which
+      // reads as "the brightness slider moved", not as nightfall. A radial ramp
+      // (white centre, dark edges) pools light around the player instead.
+      const vignetteTex = bakeVignetteTexture(application.renderer);
+      bakedTextures.push(vignetteTex);
+      const vignette = new Sprite(vignetteTex);
+      vignette.blendMode = "multiply";
+      vignette.alpha = 0;
+      world.addChild(vignette);
+
       // FX overlay (particles, glows, birds) draws above the y-sorted actors.
       const fx = new Container();
       world.addChild(fx);
 
       // Soft cloud shadows drifting over the whole city (topmost world layer).
-      const cloudTex = application.renderer.generateTexture({
-        target: new Graphics()
-          .ellipse(0, 0, 190, 90)
-          .fill({ color: 0x0a0f1c, alpha: 0.055 })
-          .ellipse(-95, 32, 120, 60)
-          .fill({ color: 0x0a0f1c, alpha: 0.04 })
-          .ellipse(100, -22, 130, 68)
-          .fill({ color: 0x0a0f1c, alpha: 0.04 }),
-      });
-      bakedTextures.push(cloudTex);
+      // Soft cloud texture; the old procedural ellipse stretched to ~2000px read
+      // as a dirty-lens smudge across the ground rather than a passing cloud.
+      const cloudTex = tex("fx_cloud");
       const clouds: Sprite[] = [];
       if (!reduced) {
         for (let i = 0; i < 3; i++) {
           const s = new Sprite(cloudTex);
           s.anchor.set(0.5);
-          s.scale.set(1.4 + i * 0.5);
+          s.scale.set(3.2 + i * 1.1);
+          s.tint = 0x0a0f1c;
+          s.alpha = 0.07;
           s.position.set(-1600 + i * 1500, i * 900);
           world.addChild(s);
           clouds.push(s);
@@ -408,6 +433,19 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
           if (stepFrame !== lastStepFrame) {
             lastStepFrame = stepFrame;
             amb.spawnDust(charPixel.x, charPixel.y + 1); // footstep puff
+            // Surface-aware: grass in the parks/campus, concrete on pavement.
+            const soft =
+              !isRoad(curCell.x, curCell.y) && SOFT_GROUND.has(districtAt(curCell.x, curCell.y));
+            audio.play(
+              soft
+                ? stepFrame === 0
+                  ? "step_grass_1"
+                  : "step_grass_2"
+                : stepFrame === 0
+                  ? "step_hard_1"
+                  : "step_hard_2",
+              { volume: 0.45, rate: 0.94 + Math.random() * 0.12 },
+            );
           }
           charBody.texture = playerTex.walk[facing][stepFrame];
           charBody.position.y = reduced
@@ -446,6 +484,10 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
           nightOverlay.position.set(view.left, view.top);
           nightOverlay.width = application.screen.width;
           nightOverlay.height = application.screen.height;
+          vignette.position.set(view.left, view.top);
+          vignette.width = application.screen.width;
+          vignette.height = application.screen.height;
+          vignette.alpha = phase.nightness * 0.65;
           sky.tint = phase.ambient;
           amb.setNight(phase.nightness);
           for (let i = 0; i < windowLights.length; i++) {
@@ -526,6 +568,7 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
         }
       });
 
+      audio.preload(["step_grass_1", "step_grass_2", "step_hard_1", "step_hard_2"]);
       store.setCharCell(curCell);
       offBus.push(offVenueOpened, offKonami);
       if (import.meta.env.DEV) {
@@ -616,29 +659,84 @@ function makeBuilding(v: CityBuilding, windowTex: Texture | null): BuildingParts
     }
   }
 
-  // Name label above the building.
+  // Name sign above the building. Was 14px white text with a 3px stroke (a 21%
+  // halo) floating unbacked over tiles — it read as a debug overlay and vanished
+  // over light ground. Now a backed plate with the halo dropped to a hairline.
   const label = new Text({
-    text: v.kind === "locked" ? `${v.displayName} 🔒` : v.displayName,
+    text: v.displayName,
     style: {
-      fill: 0xffffff,
-      stroke: { color: 0x1a1e2a, width: 3 },
+      fill: 0xf3f6fb,
+      stroke: { color: 0x0f121a, width: 1 },
       fontFamily: "Outfit, sans-serif",
-      fontSize: 14,
+      fontSize: 17,
       fontWeight: "600",
     },
+    // Bake above the renderer's own density: this Text is a child of a container
+    // that gets scaled at runtime (hover 1.07x, venue pop 1.035x), and a
+    // rasterised label scaled up is a blurry label.
+    resolution: Math.max(2, Math.ceil(window.devicePixelRatio || 1) * 2),
   });
   label.anchor.set(0.5, 1);
-  const top = c.getLocalBounds();
-  label.position.set(0, top.minY - 6);
-  c.addChild(label);
 
-  // Gold entrance marker on the entrance tile (own origin → pulsable).
+  const sign = new Container();
+  const padX = 9;
+  const padY = 5;
+  const lockW = v.kind === "locked" ? 15 : 0;
+  const plateW = label.width + padX * 2 + lockW;
+  const plateH = label.height + padY * 2;
+  const plate = new Graphics();
+  plate
+    .roundRect(-plateW / 2, -plateH, plateW, plateH, 7)
+    .fill({ color: 0x11151f, alpha: 0.82 })
+    .stroke({ color: 0xe2be78, alpha: v.interactable ? 0.5 : 0.22, width: 1 });
+  sign.addChild(plate);
+  label.position.set(lockW / 2, -padY);
+  sign.addChild(label);
+
+  if (v.kind === "locked") {
+    // A padlock emoji inside a Pixi Text renders as an OS colour emoji that
+    // ignores `fill` and looks different on every platform — use the icon art.
+    const lock = new Sprite(tex("icon_locked"));
+    lock.anchor.set(0.5);
+    lock.width = 11;
+    lock.height = 11;
+    lock.tint = 0xc7cedb;
+    lock.position.set(-plateW / 2 + padX + 4, -plateH / 2);
+    sign.addChild(lock);
+  }
+
+  const top = c.getLocalBounds();
+  sign.position.set(0, top.minY - 8);
+  c.addChild(sign);
+
+  // Entrance affordance. This is the primary "you can enter here" signal, and it
+  // used to be a 5px gold ring floating alone on the ground, visually detached
+  // from its building. Now a grounded plate: a tile-shaped diamond footprint
+  // with a soft glow and a chevron pointing at the door.
   const ent = mapToWorld(v.entranceTile.x, v.entranceTile.y);
   const front = frontVertex(v.footprintTiles);
+  const mx = ent.x - front.x;
+  const my = ent.y - front.y;
+  const strength = v.interactable ? 1 : 0.35;
+
+  const glow = new Sprite(tex("fx_soft"));
+  glow.anchor.set(0.5);
+  glow.width = 96;
+  glow.height = 54;
+  glow.tint = 0xe2be78;
+  glow.alpha = 0.3 * strength;
+  glow.blendMode = "add";
+  glow.position.set(mx, my);
+  c.addChild(glow);
+
   const marker = new Graphics();
-  marker.circle(0, 0, 5).fill({ color: 0xe2be78, alpha: v.interactable ? 0.95 : 0.4 });
-  marker.circle(0, 0, 8).stroke({ color: 0xe2be78, alpha: 0.5, width: 2 });
-  marker.position.set(ent.x - front.x, ent.y - front.y);
+  // Diamond matching the tile grid, so it reads as painted on the pavement.
+  marker
+    .poly([0, -14, 28, 0, 0, 14, -28, 0])
+    .fill({ color: 0xe2be78, alpha: 0.16 * strength })
+    .stroke({ color: 0xe2be78, alpha: 0.7 * strength, width: 2 });
+  marker.poly([0, -5, 7, 1, 0, 7, -7, 1]).fill({ color: 0xe2be78, alpha: 0.95 * strength });
+  marker.position.set(mx, my);
   c.addChild(marker);
 
   return { root: c, marker, lights };
@@ -689,12 +787,28 @@ function makeBuildingVisual(
   return container;
 }
 
+/** Radial vignette for the night pass: white centre → dark rim, multiplied. */
+function bakeVignetteTexture(renderer: Renderer): Texture {
+  const g = new Graphics();
+  const R = 128;
+  g.rect(0, 0, R * 2, R * 2).fill(0x0a1020);
+  const steps = 48;
+  for (let i = 0; i < steps; i++) {
+    const k = i / (steps - 1); // 0 = rim, 1 = centre
+    const c = lerpColor(0x0a1020, 0xffffff, k);
+    g.ellipse(R, R, R * (1 - k) + 4, R * (1 - k) + 4).fill(c);
+  }
+  const t = renderer.generateTexture({ target: g });
+  g.destroy();
+  return t;
+}
+
 /** Vertical sky gradient (blue → horizon green), baked once and screen-scaled. */
 function bakeSkyTexture(renderer: Renderer): Texture {
   const g = new Graphics();
-  const steps = 24;
+  const steps = 96; // 24 bands posterised visibly against a flat sky
   for (let i = 0; i < steps; i++) {
-    g.rect(0, i * 8, 8, 8).fill(lerpColor(0xaee0f2, 0x9dc183, i / (steps - 1)));
+    g.rect(0, i * 2, 8, 2).fill(lerpColor(0xaee0f2, 0x9dc183, i / (steps - 1)));
   }
   const t = renderer.generateTexture({ target: g });
   g.destroy();
@@ -719,12 +833,15 @@ function makeProp(p: CityProp): Container {
   const key = PROP_TEXTURE[p.kind] ?? "prop_lamp";
   const s = new Sprite(tex(key));
   s.anchor.set(0.5, 1);
+  s.roundPixels = true; // the camera lerps on sub-pixels; without this props shimmer
   if (GROUND_PROPS.has(p.kind)) {
     // full ground tile — replace look by drawing over the base tile
     s.position.set(c.x, c.y + TILE_H / 2 + groundSkirt(key));
     s.zIndex = p.cell.x + p.cell.y - 0.1;
   } else {
-    s.scale.set(PROP_SCALE[p.kind] ?? 1);
+    s.scale.set(propScale(p.kind));
+    const tint = PROP_TINT[p.kind];
+    if (tint) s.tint = tint;
     s.position.set(c.x, c.y + TILE_H / 2);
     s.zIndex = p.cell.x + p.cell.y;
   }

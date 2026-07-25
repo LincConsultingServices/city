@@ -6,8 +6,9 @@
 export const DAY_LENGTH_S = 240;
 /** Boot offset: start mid-day so players get ~1 min of full daylight first. */
 export const BOOT_PHASE_OFFSET_S = DAY_LENGTH_S * 0.2;
-/** No ambient channel drops below this fraction of 255 (keeps night subtle). */
-export const MIN_CHANNEL = 0.7;
+/** Floor on the ambient tint so night never crushes to black. Raised the
+ * darkness once lamp/window glows became real art worth contrasting against. */
+export const MIN_CHANNEL = 0.45;
 
 export type DayLabel = "day" | "dusk" | "night" | "dawn";
 

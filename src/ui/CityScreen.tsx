@@ -5,6 +5,8 @@ import { useWorldStore } from "@/world/worldStore";
 import { events } from "@/framework/events";
 import { useEggStore } from "@/framework/eggStore";
 import { EGG_COUNT, KONAMI, konamiStep } from "@/lib/eggs";
+import { audio } from "@/framework/audio/audioManager";
+import { Modal } from "./Modal";
 import { Hud } from "./Hud";
 import { Toaster } from "./Toaster";
 import { Celebration } from "./Celebration";
@@ -22,12 +24,14 @@ export function CityScreen() {
   const [playing, setPlaying] = useState<LevelActivity | null>(null);
   const [worldPanel, setWorldPanel] = useState<WorldPanel | null>(null);
   const [worldReady, setWorldReady] = useState(false);
+  const [loadPct, setLoadPct] = useState(0);
   const konamiRef = useRef(0);
 
   const nearVenue = nearVenueId ? (VENUES.find((v) => v.id === nearVenueId) ?? null) : null;
   const panelOpen = openVenue !== null || playing !== null || worldPanel !== null;
 
   const enterVenue = useCallback((v: CityBuilding) => {
+    audio.play("ui_open");
     setOpenVenue(v);
     events.emit("venue_opened", v.id); // the world pops the building in response
   }, []);
@@ -66,15 +70,8 @@ export function CityScreen() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-ink">
-      <CityCanvas onReady={() => setWorldReady(true)} />
-      {!worldReady && (
-        <div className="absolute inset-0 z-20 grid place-items-center bg-ink">
-          <div className="text-center">
-            <h1 className="font-display text-3xl font-semibold text-gold">THE CITY</h1>
-            <p className="mt-2 text-sm text-muted">Entering the city…</p>
-          </div>
-        </div>
-      )}
+      <CityCanvas onReady={() => setWorldReady(true)} onProgress={setLoadPct} />
+      {!worldReady && <CityLoader pct={loadPct} />}
       <Hud />
       <Toaster />
       <Celebration />
@@ -120,6 +117,36 @@ export function CityScreen() {
   );
 }
 
+/** Boot screen with real asset-load progress (PRD §12.3 asks for it, and the
+ * splash otherwise sits blank through the whole load). */
+function CityLoader({ pct }: { pct: number }) {
+  const shown = Math.round(Math.min(1, Math.max(0, pct)) * 100);
+  return (
+    <div className="absolute inset-0 z-20 grid place-items-center bg-ink">
+      <div className="w-[min(20rem,80vw)] text-center">
+        <h1 className="font-display text-3xl font-semibold tracking-wide text-gold">THE CITY</h1>
+        <p className="mt-2 text-sm text-muted">
+          {shown < 100 ? "Laying out the streets…" : "Opening the gates…"}
+        </p>
+        <div
+          className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-surface-2"
+          role="progressbar"
+          aria-valuenow={shown}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Loading the city"
+        >
+          <div
+            className="h-full rounded-full bg-gold transition-[width] duration-200 ease-out"
+            style={{ width: `${shown}%` }}
+          />
+        </div>
+        <p className="mt-2 text-xs tabular-nums text-muted">{shown}%</p>
+      </div>
+    </div>
+  );
+}
+
 // City billboard headlines — half flavor, half genuinely useful training tips.
 const CITY_TIPS = [
   "DOWNTOWN GAZETTE: Coin balances are server-verified. No funny business, ever.",
@@ -135,67 +162,51 @@ const CITY_TIPS = [
 function BillboardPanel({ onClose }: { onClose: () => void }) {
   const [idx, setIdx] = useState(() => Math.floor(Math.random() * CITY_TIPS.length));
   return (
-    <div
-      className="absolute inset-0 z-20 grid animate-fade-in place-items-center bg-ink/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md animate-pop-in rounded-2xl border border-line bg-surface p-6 text-center"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="text-xs uppercase tracking-widest text-muted">City Billboard</p>
-        <h2 className="mt-2 font-display text-xl font-semibold text-gold">Today's headline</h2>
-        <p className="mt-4 min-h-[3.5rem] text-sm text-text">{CITY_TIPS[idx]}</p>
-        <div className="mt-5 flex justify-center gap-2">
-          <button
-            onClick={() => setIdx((i) => (i + 1) % CITY_TIPS.length)}
-            className="rounded-lg border border-line bg-surface-2 px-4 py-2 text-sm text-text hover:brightness-110"
-          >
-            Next headline
-          </button>
-          <button
-            onClick={onClose}
-            className="rounded-lg bg-gold px-4 py-2 text-sm font-medium text-ink hover:brightness-110"
-          >
-            Back to the street
-          </button>
-        </div>
+    <Modal onClose={onClose} width="sm" className="text-center">
+      <p className="text-xs uppercase tracking-widest text-muted">City Billboard</p>
+      <h2 className="mt-2 font-display text-xl font-semibold text-gold">Today's headline</h2>
+      <p className="mt-4 min-h-[3.5rem] text-sm text-text">{CITY_TIPS[idx]}</p>
+      <div className="mt-5 flex justify-center gap-2">
+        <button
+          onClick={() => setIdx((i) => (i + 1) % CITY_TIPS.length)}
+          className="rounded-lg border border-line bg-surface-2 px-4 py-2 text-sm text-text hover:brightness-110"
+        >
+          Next headline
+        </button>
+        <button
+          onClick={onClose}
+          className="rounded-lg bg-gold px-4 py-2 text-sm font-medium text-ink hover:brightness-110"
+        >
+          Back to the street
+        </button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
 function FoundersPanel({ onClose }: { onClose: () => void }) {
   const found = useEggStore((s) => s.found);
   return (
-    <div
-      className="absolute inset-0 z-20 grid animate-fade-in place-items-center bg-ink/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md animate-pop-in rounded-2xl border border-gold/40 bg-surface p-6 text-center"
-        onClick={(e) => e.stopPropagation()}
+    <Modal onClose={onClose} width="sm" className="text-center">
+      <p className="text-xs uppercase tracking-widest text-muted">Founders' Plaque</p>
+      <h2 className="mt-2 font-display text-2xl font-semibold text-gold">THE CITY — EST. 2026</h2>
+      <p className="mt-4 text-sm text-muted">
+        Raised brick by brick for the WarRoom Academy, so learning a competency feels like walking
+        into a building, not opening a form.
+      </p>
+      <p className="mt-3 text-xs text-muted">
+        Sprite art from the wonderful CC0 isometric packs by Kenney (kenney.nl) — thank you.
+      </p>
+      <p className="mt-4 text-xs text-gold/80">
+        Secrets discovered: {found.length}/{EGG_COUNT} — keep exploring.
+      </p>
+      <button
+        onClick={onClose}
+        className="mt-5 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110"
       >
-        <p className="text-xs uppercase tracking-widest text-muted">Founders' Plaque</p>
-        <h2 className="mt-2 font-display text-2xl font-semibold text-gold">THE CITY — EST. 2026</h2>
-        <p className="mt-4 text-sm text-muted">
-          Raised brick by brick for the WarRoom Academy, so learning a competency feels like walking
-          into a building, not opening a form.
-        </p>
-        <p className="mt-3 text-xs text-muted">
-          Sprite art from the wonderful CC0 isometric packs by Kenney (kenney.nl) — thank you.
-        </p>
-        <p className="mt-4 text-xs text-gold/80">
-          Secrets discovered: {found.length}/{EGG_COUNT} — keep exploring.
-        </p>
-        <button
-          onClick={onClose}
-          className="mt-5 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110"
-        >
-          Tip your hat
-        </button>
-      </div>
-    </div>
+        Tip your hat
+      </button>
+    </Modal>
   );
 }
 
@@ -220,24 +231,16 @@ function InfoPanel({ venue, onClose }: { venue: CityBuilding; onClose: () => voi
   };
   const c = copy[venue.kind] ?? { title: venue.displayName, body: "Coming soon." };
   return (
-    <div
-      className="absolute inset-0 z-20 grid animate-fade-in place-items-center bg-ink/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md animate-pop-in rounded-2xl border border-line bg-surface p-6 text-center"
-        onClick={(e) => e.stopPropagation()}
+    <Modal onClose={onClose} width="sm" className="text-center">
+      <h2 className="font-display text-2xl font-semibold text-gold">{c.title}</h2>
+      <p className="mt-3 text-sm text-muted">{c.body}</p>
+      <button
+        onClick={onClose}
+        className="mt-5 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110"
       >
-        <h2 className="font-display text-2xl font-semibold text-gold">{c.title}</h2>
-        <p className="mt-3 text-sm text-muted">{c.body}</p>
-        <button
-          onClick={onClose}
-          className="mt-5 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110"
-        >
-          Got it
-        </button>
-      </div>
-    </div>
+        Got it
+      </button>
+    </Modal>
   );
 }
 

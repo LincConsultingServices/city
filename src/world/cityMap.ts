@@ -174,53 +174,53 @@ function filler(
 export const FILLERS: FillerBuilding[] = [
   // Downtown (0,0) — bank block
   filler(0, 0, 6, 6, 2, 2, 0),
-  filler(0, 0, 7, 2, 2, 2, 7),
-  filler(0, 0, 0, 6, 2, 2, 8, 0xf1e3e3),
+  filler(0, 0, 7, 2, 2, 2, 19),
+  filler(0, 0, 0, 6, 2, 2, 23),
   // Downtown (1,0) — stock exchange block
   filler(1, 0, 6, 6, 2, 2, 1),
-  filler(1, 0, 7, 2, 2, 2, 10),
-  filler(1, 0, 0, 5, 2, 3, 11),
+  filler(1, 0, 7, 2, 2, 2, 36),
+  filler(1, 0, 0, 5, 2, 3, 31),
   // Market (2,0) — ice cream + café block
   filler(2, 0, 7, 6, 2, 2, 3),
-  filler(2, 0, 6, 2, 2, 2, 9, 0xffe9d2),
+  filler(2, 0, 6, 2, 2, 2, 20),
   // Market (3,0) — fashion block
   filler(3, 0, 6, 6, 2, 2, 5),
-  filler(3, 0, 0, 2, 2, 2, 13),
-  filler(3, 0, 0, 7, 2, 2, 12),
+  filler(3, 0, 0, 2, 2, 2, 17),
+  filler(3, 0, 0, 7, 2, 2, 25),
   // Downtown (0,1) — venture capital block
   filler(0, 1, 6, 6, 2, 2, 2),
-  filler(0, 1, 7, 2, 2, 2, 8),
+  filler(0, 1, 7, 2, 2, 2, 21),
   // Civic (1,1) stays building-free beyond the Trophy Hall: it's the spawn
   // plaza, and anything SE of spawn draws over the player at boot.
   // Market (3,1) — the Shop block
   filler(3, 1, 7, 7, 2, 2, 6),
-  filler(3, 1, 6, 2, 3, 2, 13),
-  filler(3, 1, 0, 6, 2, 2, 9),
+  filler(3, 1, 6, 2, 3, 2, 26),
+  filler(3, 1, 0, 6, 2, 2, 28),
   // Campus (0,2) — school block (leafy, low-rise)
   filler(0, 2, 6, 6, 2, 2, 4),
-  filler(0, 2, 0, 2, 2, 2, 12, 0xe9f0e4),
+  filler(0, 2, 0, 2, 2, 2, 29),
   // Industrial (2,2) — race car block
   filler(2, 2, 7, 6, 2, 2, 2),
-  filler(2, 2, 6, 2, 3, 2, 10),
-  filler(2, 2, 0, 5, 2, 3, 14),
+  filler(2, 2, 6, 2, 3, 2, 27),
+  filler(2, 2, 0, 5, 2, 3, 37),
   // Industrial (3,2) — custom venue block (warehouse row)
-  filler(3, 2, 0, 2, 2, 2, 14),
-  filler(3, 2, 0, 6, 3, 2, 10, 0xe6edf7),
-  filler(3, 2, 6, 6, 2, 2, 14),
+  filler(3, 2, 0, 2, 2, 2, 39),
+  filler(3, 2, 0, 6, 3, 2, 33),
+  filler(3, 2, 6, 6, 2, 2, 34),
   // Campus (0,3)
   filler(0, 3, 5, 6, 2, 2, 1),
-  filler(0, 3, 0, 5, 2, 2, 9),
+  filler(0, 3, 0, 5, 2, 2, 22),
   // Campus (1,3) — gym block
   filler(1, 3, 6, 6, 2, 2, 0),
-  filler(1, 3, 0, 2, 2, 2, 13),
+  filler(1, 3, 0, 2, 2, 2, 24),
   // Tech (2,3) — AI IT block (glass slabs)
   filler(2, 3, 7, 6, 2, 2, 4),
-  filler(2, 3, 0, 2, 2, 3, 15),
-  filler(2, 3, 6, 2, 2, 2, 16),
+  filler(2, 3, 0, 2, 2, 3, 38),
+  filler(2, 3, 6, 2, 2, 2, 32),
   // Tech (3,3) — social media block
   filler(3, 3, 6, 6, 2, 2, 6),
-  filler(3, 3, 0, 2, 2, 2, 16),
-  filler(3, 3, 6, 2, 2, 2, 15, 0xe6edf7),
+  filler(3, 3, 0, 2, 2, 2, 35),
+  filler(3, 3, 6, 2, 2, 2, 30),
 ];
 
 // ── Props (visual only; trees block movement, lamps/fountain don't) ───────────
@@ -231,11 +231,20 @@ export type PropKind =
   | "conifer"
   | "lamp"
   | "lamp2"
+  | "lamp_thin"
   | "fountain"
   | "billboard"
   | "bench"
+  | "street_bench"
+  | "street_bench2"
+  | "barrier"
   | "pool"
   | "tree_prop"
+  | "tree_round"
+  | "parked_blue"
+  | "parked_red"
+  | "parked_silver"
+  | "parked_green"
   | "plaque";
 
 export interface CityProp {
@@ -335,6 +344,24 @@ export const PROPS: CityProp[] = [
   { kind: "tree_prop", cell: { x: 6, y: 14 }, blocking: true },
   // Founders' plaque in the south park (clickable easter egg)
   { kind: "plaque", cell: { x: 13, y: 31 }, blocking: true },
+  // Parked cars at the kerb — static street dressing, one per district
+  { kind: "parked_blue", cell: { x: 13, y: 10 }, blocking: true },
+  { kind: "parked_red", cell: { x: 35, y: 10 }, blocking: true },
+  { kind: "parked_silver", cell: { x: 24, y: 43 }, blocking: true },
+  { kind: "parked_green", cell: { x: 35, y: 32 }, blocking: true },
+  // Park benches people actually sit on (walk-through)
+  { kind: "street_bench", cell: { x: 27, y: 20 }, blocking: false },
+  { kind: "street_bench", cell: { x: 24, y: 20 }, blocking: false },
+  { kind: "street_bench2", cell: { x: 16, y: 29 }, blocking: false },
+  // Roadworks barriers on the industrial edge
+  { kind: "barrier", cell: { x: 28, y: 31 }, blocking: true },
+  { kind: "barrier", cell: { x: 29, y: 31 }, blocking: true },
+  // Round street trees
+  { kind: "tree_round", cell: { x: 8, y: 9 }, blocking: true },
+  { kind: "tree_round", cell: { x: 13, y: 42 }, blocking: true },
+  // Slim lamps in the parks
+  { kind: "lamp_thin", cell: { x: 21, y: 23 }, blocking: false },
+  { kind: "lamp_thin", cell: { x: 23, y: 21 }, blocking: false },
 ];
 
 /** The two open park blocks (no buildings; ambient birds/pigeons live here). */

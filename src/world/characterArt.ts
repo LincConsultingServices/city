@@ -110,10 +110,16 @@ export function bakePersonTextures(renderer: Renderer, palette: PersonPalette): 
   };
 }
 
-/** Shared soft drop-shadow ellipse. */
+/**
+ * Shared soft drop-shadow. Built from concentric rings so it actually fades —
+ * a single filled ellipse gave every person a hard-edged grey sticker.
+ */
 export function bakeShadowTexture(renderer: Renderer): Texture {
   const g = new Graphics();
-  g.ellipse(0, 0, 11, 5).fill({ color: 0x000000, alpha: 0.3 });
+  for (let i = 6; i >= 1; i--) {
+    const k = i / 6;
+    g.ellipse(0, 0, 12 * k, 5.5 * k).fill({ color: 0x000000, alpha: 0.06 });
+  }
   return bake(renderer, g);
 }
 
