@@ -4,6 +4,7 @@
 // VITE_* names and the main frontend's NEXT_PUBLIC_* names are exposed (see the
 // envPrefix in vite.config.ts), so the existing .env drops in verbatim.
 interface ImportMetaEnv {
+  readonly VITE_DEV_WORLD?: string;
   readonly VITE_FIREBASE_API_KEY?: string;
   readonly VITE_FIREBASE_PROJECT_ID?: string;
   readonly VITE_API_BASE_URL?: string;

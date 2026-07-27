@@ -6,7 +6,8 @@
 //   • 99-wide modular pieces (floors/roofs) + 100-scale vehicles/trees — scaled
 //     by STACK_SCALE (≈1.333) so their 100×50 diamond matches a 132×66 tile.
 import { Assets, Texture } from "pixi.js";
-import type { District } from "./cityMap";
+import { TILE_H } from "@/lib/iso";
+import type { District, PropKind } from "./cityMap";
 
 /** Scale for the 99/100-wide sprite family (→ 132-wide). */
 export const STACK_SCALE = 132 / 99;
@@ -38,14 +39,37 @@ const KEYS = [
   "ground_grass",
   "ground_grass2",
   "ground_dirt",
+  "ground_grass3",
+  "ground_dirt2",
+  "ground_pool2",
+  "ground_tree_path",
+  "ground_parking",
+  "ground_parking2",
   // props
   "prop_lamp",
   "prop_lamp2",
+  "prop_lamp_thin",
   "prop_billboard",
   "prop_tree",
-  "tree_tall",
-  "tree_short",
-  "conifer_tall",
+  "prop_tree_round",
+  "prop_bench2",
+  "prop_bench3",
+  "prop_barrier_red",
+  "icon_locked",
+  // particle / effect textures (greyscale, tinted at use)
+  "fx_soft",
+  "fx_dust",
+  "fx_smoke",
+  "fx_cloud",
+  "fx_leaf",
+  "fx_confetti",
+  "fx_star",
+  "fx_glow",
+  // parked cars (static street dressing)
+  "parked_blue",
+  "parked_red",
+  "parked_silver",
+  "parked_green",
   // building grounds (132-wide, complete single stories)
   "g_awn_green",
   "g_awn_green2",
@@ -59,6 +83,20 @@ const KEYS = [
   "g_shop_red",
   "g_shopfront",
   "g_stand",
+  "g_awn_red",
+  "g_win_blue",
+  "g_win_blue2",
+  "g_brown_arch_wide",
+  "g_brown_arch_tall",
+  "g_awn_green3",
+  "g_awn_blue",
+  "g_awn_orange2",
+  "g_cream_arch2",
+  "g_red_arch2",
+  "g_red_top",
+  "g_shop_green",
+  "g_shop_small",
+  "g_garage",
   // building grounds/floors (99-wide stackable family)
   "g_brown_arch",
   "g_glass_band",
@@ -68,12 +106,24 @@ const KEYS = [
   "g_red_windows",
   "g_windows_wide",
   "g_windows_wide2",
+  "g_glass_wide",
+  "g_glass_orange",
+  "g_red_band",
+  "g_red_glass",
+  "g_arch_brown2",
   "f_blue_win",
   "f_cream",
   "f_cream_arch",
   "f_plain",
   "f_red_arch",
   "f_yellow",
+  "f_brown",
+  "f_cream2",
+  "f_pale",
+  "f_white",
+  "f_yellow2",
+  "f_gray",
+  "f_blue2",
   // roofs (99-wide)
   "r_flat",
   "r_flat2",
@@ -85,6 +135,15 @@ const KEYS = [
   "r_slope_red",
   "r_round_gray",
   "r_round_red",
+  "r_slope_orange2",
+  "r_slope_red2",
+  "r_slope_gray2",
+  "r_curve_orange",
+  "r_curve_red",
+  "r_curve_gray",
+  "r_curve_dark",
+  "r_flat_ac3",
+  "r_flat_box",
   // vehicles (cardinal directions)
   "car_taxi_E",
   "car_taxi_N",
@@ -98,14 +157,21 @@ const KEYS = [
   "car_amb_N",
   "car_amb_S",
   "car_amb_W",
+  "car_garbage_E",
+  "car_garbage_N",
+  "car_garbage_S",
+  "car_garbage_W",
 ] as const;
 
 export type AssetKey = (typeof KEYS)[number];
 
 let loaded = false;
 
-export async function loadCityAssets(): Promise<void> {
-  if (loaded) return;
+export async function loadCityAssets(onProgress?: (fraction: number) => void): Promise<void> {
+  if (loaded) {
+    onProgress?.(1);
+    return;
+  }
   // HMR-safe: module state resets on hot reload but Pixi's Assets cache is
   // global — re-adding an existing bundle throws/warns, so guard it.
   try {
@@ -116,7 +182,7 @@ export async function loadCityAssets(): Promise<void> {
   } catch {
     /* bundle already registered from a previous HMR pass */
   }
-  await Assets.loadBundle("city");
+  await Assets.loadBundle("city", onProgress);
   loaded = true;
 }
 
@@ -147,7 +213,7 @@ export const DISTRICT_VARIETY: Record<District, (AssetKey | null)[]> = {
     null,
     "ground_lawn",
     null,
-    null,
+    "ground_tree_path",
     "ground_bench",
   ],
   market: [
@@ -164,43 +230,67 @@ export const DISTRICT_VARIETY: Record<District, (AssetKey | null)[]> = {
     null,
     null,
   ],
-  campus: [null, null, null, null, null, null, null, null, null, null, null, null], // trees are props here
+  // IMPORTANT: a district's variety tiles must share its base tile's skirt depth
+  // (see groundSkirt). A shallow-skirt tile drawn in front of a deep-skirt one
+  // fails to cover its side wall, leaving a dark step across the ground — so
+  // grass blocks (33) never mix with flat landscape tiles (17), and so on.
+  // Campus/civic also stay plainly green: trees and benches are explicit props.
+  campus: [
+    null,
+    null,
+    "ground_grass3",
+    null,
+    null,
+    null,
+    null,
+    "ground_grass3",
+    null,
+    null,
+    null,
+    null,
+  ],
   tech: [
     null,
     null,
     null,
     "ground_lawn",
     null,
-    null,
+    "ground_parking",
     null,
     "ground_pave_tree",
     null,
-    null,
-    null,
-    "ground_pool",
+    "ground_parking2",
+    "ground_asphalt",
+    "ground_pool2",
   ],
   industrial: [
     null,
     null,
     null,
+    "ground_dirt2",
     null,
     null,
     null,
+    "ground_dirt2",
     null,
     null,
-    "ground_asphalt",
     null,
-    "ground_asphalt",
     null,
   ],
-  civic: [null, null, null, null, null, null, null, null, null, null, null, null], // fountain/trees placed explicitly
+  civic: [null, null, null, null, null, "ground_grass3", null, null, null, null, null, null],
 };
 
-/** Skirt depth for a ground key (how far the tile art hangs below the diamond). */
+/**
+ * Skirt depth for a ground key (how far the tile art hangs below the diamond).
+ * Derived from the loaded texture rather than a hand-kept list, so new tiles
+ * from any pack land at the right height: a flat tile's art is the 132×66
+ * diamond plus its skirt, and anything taller than SKIRT_CITY is a feature
+ * sticking *up* (trees, lamps), which doesn't deepen the skirt.
+ */
 export function groundSkirt(key: AssetKey): number {
-  if (key === "ground_dirt") return SKIRT_LAND; // 132×83 flat tile
-  if (key === "ground_grass" || key === "ground_grass2") return 33; // seamless block, 132×99
-  return SKIRT_CITY;
+  const h = tex(key)?.height;
+  if (!h) return SKIRT_CITY;
+  return Math.min(h - TILE_H, SKIRT_CITY);
 }
 
 /** Road tile by neighbor situation. Our avenues are 1 cell wide on block spines. */
@@ -280,11 +370,125 @@ export const FILLER_VISUALS: VenueVisual[] = [
   { type: "stack", ground: "g_glass_store", floors: ["f_plain"], roof: "r_flat" },
   { type: "single", key: "g_awn_green" },
   { type: "single", key: "g_shopfront" },
+  // Expanded set — district skyline personality from existing sprites only.
+  { type: "single", key: "g_cream_arch" }, // 7 stately downtown arches
+  { type: "single", key: "g_red_arch" }, // 8 brick row
+  { type: "single", key: "g_awn_green2" }, // 9 market awnings
+  { type: "stack", ground: "g_windows_wide", floors: [], roof: "r_flat_ac2" }, // 10 warehouse + AC
+  { type: "stack", ground: "g_brown_arch", floors: ["f_cream"], roof: "r_slope_gray" }, // 11 townhouse
+  { type: "single", key: "g_plain" }, // 12 quiet low-rise
+  { type: "stack", ground: "g_glass_band", floors: ["f_blue_win"], roof: "r_flat2" }, // 13 office
+  { type: "stack", ground: "g_windows_wide2", floors: [], roof: "r_flat_ac" }, // 14 industrial flat
+  { type: "stack", ground: "g_glass_big", floors: ["f_blue_win", "f_blue_win"], roof: "r_flat" }, // 15 tall glass
+  { type: "stack", ground: "g_glass_store", floors: ["f_plain", "f_plain"], roof: "r_flat2" }, // 16 mid tower
+  // Real sprites from the full Kenney packs — genuine variety, not tint reuse.
+  { type: "single", key: "g_awn_red" }, // 17 red-awning corner shop
+  { type: "single", key: "g_win_blue" }, // 18 blue-window block
+  { type: "single", key: "g_brown_arch_wide" }, // 19 wide brick arcade
+  { type: "single", key: "g_awn_green3" }, // 20 greengrocer
+  { type: "single", key: "g_brown_arch_tall" }, // 21 tall brick arcade
+  { type: "single", key: "g_red_top" }, // 22 red-capped block
+  { type: "single", key: "g_cream_arch2" }, // 23 cream arcade
+  { type: "single", key: "g_red_arch2" }, // 24 red arcade
+  { type: "single", key: "g_awn_blue" }, // 25 blue-awning store
+  { type: "single", key: "g_shop_green" }, // 26 green shopfront
+  { type: "single", key: "g_garage" }, // 27 garage / depot
+  { type: "single", key: "g_awn_orange2" }, // 28 orange-awning cafe front
+  { type: "single", key: "g_shop_small" }, // 29 small kiosk
+  { type: "single", key: "g_win_blue2" }, // 30 glassy low-rise
+  { type: "stack", ground: "g_glass_wide", floors: ["f_white"], roof: "r_curve_gray" }, // 31
+  { type: "stack", ground: "g_glass_orange", floors: ["f_cream2"], roof: "r_slope_orange2" }, // 32
+  { type: "stack", ground: "g_red_band", floors: ["f_pale"], roof: "r_slope_red2" }, // 33
+  { type: "stack", ground: "g_red_glass", floors: ["f_gray"], roof: "r_curve_red" }, // 34
+  { type: "stack", ground: "g_arch_brown2", floors: ["f_brown"], roof: "r_curve_orange" }, // 35
+  { type: "stack", ground: "g_glass_big", floors: ["f_blue2", "f_white"], roof: "r_flat_box" }, // 36
+  { type: "stack", ground: "g_windows_wide", floors: ["f_yellow2"], roof: "r_slope_gray2" }, // 37
+  { type: "stack", ground: "g_glass_store", floors: ["f_gray", "f_blue2"], roof: "r_flat_ac3" }, // 38
+  { type: "stack", ground: "g_red_windows", floors: ["f_brown"], roof: "r_curve_dark" }, // 39
 ];
+
+/** Subtle multiplicative washes cycled deterministically across fillers so the
+ * repeated sprites read as distinct buildings. White = untinted. */
+export const FILLER_TINTS: number[] = [
+  0xffffff, 0xf4e8d8, 0xffffff, 0xe6edf7, 0xffffff, 0xf1e3e3, 0xffffff, 0xe9f0e4,
+];
+
+/** Sprite for each map prop kind (null = drawn procedurally, e.g. the plaque). */
+export const PROP_TEXTURE: Record<PropKind, AssetKey | null> = {
+  // Trees use the 32×45 city-pack sprite, not the roads pack's 11–19px ones:
+  // against a 132px tile the latter were ~10× under-dense and rendered as
+  // featureless green pills. Variety comes from tint + target size instead.
+  tree_tall: "prop_tree",
+  tree_short: "prop_tree_round",
+  conifer: "prop_tree",
+  lamp: "prop_lamp",
+  lamp2: "prop_lamp2",
+  lamp_thin: "prop_lamp_thin",
+  fountain: "ground_fountain",
+  billboard: "prop_billboard",
+  bench: "ground_bench",
+  street_bench: "prop_bench2",
+  street_bench2: "prop_bench3",
+  barrier: "prop_barrier_red",
+  pool: "ground_pool",
+  tree_prop: "prop_tree",
+  tree_round: "prop_tree_round",
+  parked_blue: "parked_blue",
+  parked_red: "parked_red",
+  parked_silver: "parked_silver",
+  parked_green: "parked_green",
+  plaque: null,
+};
+
+/** Props drawn as full ground tiles (replace the base tile, no upright sprite). */
+export const GROUND_PROPS: ReadonlySet<PropKind> = new Set(["fountain", "bench", "pool"]);
+
+/**
+ * Target on-screen WIDTH in world px for each upright prop, against the 132px
+ * tile. Scale is derived from the real texture at runtime (`propScale`) rather
+ * than hand-tuned multipliers, so a prop's size stays physically right no
+ * matter which pack its art came from — the mistake that made 12px trees get
+ * blown up 2.1× and read as pills. `spriteDensity.test.ts` guards the ratio.
+ */
+export const PROP_TARGET_W: Partial<Record<PropKind, number>> = {
+  lamp: 30,
+  lamp2: 30,
+  lamp_thin: 30,
+  billboard: 116,
+  tree_prop: 56,
+  tree_round: 52,
+  tree_tall: 60,
+  tree_short: 50,
+  conifer: 46,
+  street_bench: 46,
+  street_bench2: 46,
+  barrier: 44,
+  parked_blue: 58,
+  parked_red: 58,
+  parked_silver: 58,
+  parked_green: 58,
+};
+
+/** Subtle per-kind tint so the two tree sprites read as a varied canopy. */
+export const PROP_TINT: Partial<Record<PropKind, number>> = {
+  tree_tall: 0xffffff,
+  tree_short: 0xd9f0c4,
+  conifer: 0xbcd9b0,
+  tree_prop: 0xeaf7e0,
+};
+
+/** Display scale for an upright prop: target width ÷ real texture width. */
+export function propScale(kind: PropKind): number {
+  const target = PROP_TARGET_W[kind];
+  const key = PROP_TEXTURE[kind];
+  if (!target || !key) return 1;
+  const w = tex(key)?.width;
+  return w ? target / w : 1;
+}
 
 // ── Vehicles ──────────────────────────────────────────────────────────────────
 
-export type CarKind = "taxi" | "police" | "amb";
+export type CarKind = "taxi" | "police" | "amb" | "garbage";
 export type Cardinal = "N" | "E" | "S" | "W";
 
 export const carTexture = (kind: CarKind, dir: Cardinal): Texture =>

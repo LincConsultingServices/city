@@ -4,9 +4,21 @@
 // Kenney-sprite city: district ground + street tiles, stacked venue buildings,
 // filler blocks, props (trees/lamps/fountain) and ambient vehicles on road loops.
 import { useEffect, useRef } from "react";
-import { Application, Container, Graphics, Sprite, Text } from "pixi.js";
-import { mapToWorld, worldToMap, roundCell, TILE_H } from "@/lib/iso";
+import { Application, Container, Graphics, Sprite, Text, Texture, type Renderer } from "pixi.js";
+import { mapToWorld, worldToMap, roundCell, TILE_W, TILE_H } from "@/lib/iso";
 import { findPath, type Cell } from "@/lib/pathfinding";
+import { prefersReducedMotion } from "@/lib/motion";
+import { dayPhase, lerpColor, BOOT_PHASE_OFFSET_S } from "@/lib/daycycle";
+import {
+  bakePersonTextures,
+  bakeShadowTexture,
+  destroyTextures,
+  PLAYER_PALETTE,
+} from "./characterArt";
+import { createAmbient, type Ambient } from "./ambient";
+import { events } from "@/framework/events";
+import { useEggStore } from "@/framework/eggStore";
+import { audio } from "@/framework/audio/audioManager";
 import {
   GRID_W,
   GRID_H,
@@ -20,6 +32,7 @@ import {
   isRoad,
   venueNear,
   type CityBuilding,
+  type CityProp,
 } from "./cityMap";
 import {
   loadCityAssets,
@@ -30,33 +43,39 @@ import {
   DISTRICT_VARIETY,
   VENUE_VISUAL,
   FILLER_VISUALS,
+  FILLER_TINTS,
+  PROP_TEXTURE,
+  GROUND_PROPS,
+  PROP_TINT,
+  propScale,
   STORY_H,
-  carTexture,
   type VenueVisual,
-  type CarKind,
   type Cardinal,
-  type AssetKey,
 } from "./assets";
 import { useWorldStore } from "./worldStore";
 
 const WALK_SPEED = 175; // px/sec (≈1.3 tiles/sec on the 132px grid)
-const CAR_SPEED_CELLS = 1.6; // cells/sec
+const STEP_S = 0.18; // seconds per walk-cycle frame
+/** Districts whose ground is grass — picks the footstep sound. */
+const SOFT_GROUND = new Set(["campus", "civic"]);
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
 
-interface CarState {
-  kind: CarKind;
-  route: Cell[]; // closed loop of road cells (corners)
-  leg: number;
-  t: number; // 0..1 along current leg
-  sprite: Sprite;
-}
-
-export function CityCanvas({ onReady }: { onReady?: () => void }) {
+export function CityCanvas({
+  onReady,
+  onProgress,
+}: {
+  onReady?: () => void;
+  onProgress?: (fraction: number) => void;
+}) {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let destroyed = false;
     let app: Application | null = null;
+    let ambient: Ambient | null = null;
+    let bakedTextures: Texture[] = [];
+    const offBus: Array<() => void> = [];
+    const reduced = prefersReducedMotion();
     const mount = mountRef.current;
     if (!mount) return;
 
@@ -89,13 +108,29 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
         resolution: window.devicePixelRatio || 1,
         autoDensity: true,
       });
-      await loadCityAssets();
+      await loadCityAssets(onProgress);
+      // Pixi rasterises Text once, at world build. If Outfit hasn't arrived by
+      // then every building sign bakes in the system fallback and never
+      // re-renders, so wait for the webfont (with a cap so a blocked font CDN
+      // can't stall the boot).
+      if (typeof document !== "undefined" && document.fonts?.ready) {
+        await Promise.race([
+          document.fonts.ready,
+          new Promise((r) => window.setTimeout(r, 2500)),
+        ]).catch(() => {});
+      }
       if (destroyed) {
         application.destroy(true);
         return;
       }
       app = application;
       mount.appendChild(application.canvas);
+
+      // Sky backdrop: baked vertical gradient behind the world, day-phase tinted.
+      const skyTex = bakeSkyTexture(application.renderer);
+      bakedTextures.push(skyTex);
+      const sky = new Sprite(skyTex);
+      application.stage.addChild(sky);
 
       const world = new Container();
       application.stage.addChild(world);
@@ -121,76 +156,209 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       actors.sortableChildren = true;
       world.addChild(actors);
 
-      for (const v of VENUES) actors.addChild(makeBuilding(v));
+      // Warm window-glow texture shared by every building's night lights.
+      const windowTex = application.renderer.generateTexture({
+        target: new Graphics().roundRect(-5, -3.5, 10, 7, 2).fill({ color: 0xffd98a, alpha: 0.5 }),
+        resolution: 2,
+      });
+      bakedTextures.push(windowTex);
+
+      // Collect world points/handles for ambient emitters and ticker animation.
+      const smokeStacks: Array<{ x: number; y: number }> = [];
+      const steamVents: Array<{ x: number; y: number }> = [];
+      const markers: Graphics[] = [];
+      const windowLights: Sprite[] = [];
+      const venueNodes = new Map<string, Container>();
+      for (const v of VENUES) {
+        const parts = makeBuilding(v, windowTex);
+        actors.addChild(parts.root);
+        venueNodes.set(v.id, parts.root);
+        if (v.interactable) markers.push(parts.marker);
+        windowLights.push(...parts.lights);
+        if (v.id === "race_car" || v.id === "custom") {
+          const bounds = parts.root.getLocalBounds();
+          smokeStacks.push({
+            x: parts.root.position.x + 16,
+            y: parts.root.position.y + bounds.minY + 26,
+          });
+        } else if (v.id === "cafe") {
+          const bounds = parts.root.getLocalBounds();
+          steamVents.push({
+            x: parts.root.position.x - 8,
+            y: parts.root.position.y + bounds.minY + 28,
+          });
+        }
+      }
       FILLERS.forEach((f) => {
         const visual = FILLER_VISUALS[f.visualIndex % FILLER_VISUALS.length];
-        actors.addChild(makeBuildingVisual(visual, f.footprintTiles, null));
+        const t0 = f.footprintTiles[0];
+        const wash = f.tint ?? FILLER_TINTS[(t0.x * 7 + t0.y * 13) % FILLER_TINTS.length];
+        actors.addChild(
+          makeBuildingVisual(visual, f.footprintTiles, wash === 0xffffff ? null : wash),
+        );
       });
+      const propNodes: Array<{ prop: CityProp; node: Container }> = [];
       for (const p of PROPS) {
-        const key: AssetKey =
-          p.kind === "fountain"
-            ? "ground_fountain"
-            : p.kind === "lamp"
-              ? "prop_lamp"
-              : p.kind === "conifer"
-                ? "conifer_tall"
-                : p.kind === "tree_short"
-                  ? "tree_short"
-                  : "tree_tall";
-        const s = new Sprite(tex(key));
-        s.anchor.set(0.5, 1);
-        const c = mapToWorld(p.cell.x, p.cell.y);
-        if (p.kind === "fountain") {
-          // full ground tile — replace look by drawing over the base tile
-          s.position.set(c.x, c.y + TILE_H / 2 + groundSkirt("ground_fountain"));
-          s.zIndex = p.cell.x + p.cell.y - 0.1;
-        } else {
-          s.scale.set(p.kind === "lamp" ? 1.35 : 2.1);
-          s.position.set(c.x, c.y + TILE_H / 2);
-          s.zIndex = p.cell.x + p.cell.y;
-        }
-        actors.addChild(s);
+        const node = makeProp(p);
+        actors.addChild(node);
+        propNodes.push({ prop: p, node });
       }
 
-      const char = makeCharacter();
+      // Player rig: shared shadow + a body sprite swapping baked walk frames.
+      const playerTex = bakePersonTextures(application.renderer, PLAYER_PALETTE);
+      const shadowTex = bakeShadowTexture(application.renderer);
+      bakedTextures.push(...playerTex.all, shadowTex);
+      const char = new Container();
+      const charShadow = new Sprite(shadowTex);
+      charShadow.anchor.set(0.5, 0.5);
+      charShadow.position.set(0, 1);
+      const charBody = new Sprite(playerTex.idle.S);
+      charBody.anchor.set(0.5, 1);
+      char.addChild(charShadow, charBody);
       actors.addChild(char);
+      let facing: Cardinal = "S";
+      let stepClock = 0;
+      let lastStepFrame = 0;
+      let elapsed = 0;
 
-      // Ambient vehicles on closed road loops (PRD §6.4: well under the ≤6 budget).
-      const cars: CarState[] = [
-        {
-          kind: "taxi",
-          route: [c2(11, 11), c2(33, 11), c2(33, 33), c2(11, 33)],
-          leg: 0,
-          t: 0,
-          sprite: new Sprite(),
-        },
-        {
-          kind: "police",
-          route: [c2(0, 0), c2(44, 0), c2(44, 44), c2(0, 44)],
-          leg: 0,
-          t: 0.5,
-          sprite: new Sprite(),
-        },
-        {
-          kind: "amb",
-          route: [c2(22, 11), c2(33, 11), c2(33, 22), c2(22, 22)],
-          leg: 2,
-          t: 0,
-          sprite: new Sprite(),
-        },
-        {
-          kind: "taxi",
-          route: [c2(0, 22), c2(22, 22), c2(22, 44), c2(0, 44)],
-          leg: 1,
-          t: 0.3,
-          sprite: new Sprite(),
-        },
-      ];
-      for (const car of cars) {
-        car.sprite.anchor.set(0.5, 1);
-        car.sprite.scale.set(1.45);
-        actors.addChild(car.sprite);
+      // Night tint: a multiply-blend quad tracking the viewport in world space,
+      // above ground/actors but below fx so lamp glows stay warm. Applied as an
+      // explicit overlay because Container.tint propagation proved unreliable
+      // on this pixi build (verified: children rendered untinted at night).
+      const nightOverlay = new Sprite(Texture.WHITE);
+      nightOverlay.blendMode = "multiply";
+      world.addChild(nightOverlay);
+
+      // Vignette: multiplying by a flat quad dims everything uniformly, which
+      // reads as "the brightness slider moved", not as nightfall. A radial ramp
+      // (white centre, dark edges) pools light around the player instead.
+      const vignetteTex = bakeVignetteTexture(application.renderer);
+      bakedTextures.push(vignetteTex);
+      const vignette = new Sprite(vignetteTex);
+      vignette.blendMode = "multiply";
+      vignette.alpha = 0;
+      world.addChild(vignette);
+
+      // FX overlay (particles, glows, birds) draws above the y-sorted actors.
+      const fx = new Container();
+      world.addChild(fx);
+
+      // Soft cloud shadows drifting over the whole city (topmost world layer).
+      // Soft cloud texture; the old procedural ellipse stretched to ~2000px read
+      // as a dirty-lens smudge across the ground rather than a passing cloud.
+      const cloudTex = tex("fx_cloud");
+      const clouds: Sprite[] = [];
+      if (!reduced) {
+        for (let i = 0; i < 3; i++) {
+          const s = new Sprite(cloudTex);
+          s.anchor.set(0.5);
+          s.scale.set(3.2 + i * 1.1);
+          s.tint = 0x0a0f1c;
+          s.alpha = 0.07;
+          s.position.set(-1600 + i * 1500, i * 900);
+          world.addChild(s);
+          clouds.push(s);
+        }
       }
+
+      // Ambient life: NPCs, vehicles, particles, emitters, pigeons (PRD §6.4).
+      const amb = createAmbient({
+        renderer: application.renderer,
+        actors,
+        fx,
+        reduced,
+        smokeStacks,
+        steamVents,
+      });
+      ambient = amb;
+      const view = { left: 0, top: 0, right: 0, bottom: 0 };
+
+      // ── Interactable props: click → world reaction and/or DOM panel ───────
+      // Handlers stopPropagation so a prop click never falls through to the
+      // stage's click-to-move handler (which receives events by bubbling).
+      const WISHES = [
+        "You toss a coin in. The fountain approves.",
+        "Plink. May your budget always balance.",
+        "A wish for compounding returns, granted daily.",
+        "The pigeons pretend not to watch. They watched.",
+        "Wish logged. The city keeps its promises.",
+      ];
+      let fountainClicks = 0;
+      let fountainShimmerUntil = -1;
+      let fountainNode: Container | null = null;
+      const hoverable = (node: Container) => {
+        const base = node.scale.x;
+        node.on("pointerover", () => node.scale.set(base * 1.07));
+        node.on("pointerout", () => node.scale.set(base));
+      };
+      for (const { prop, node } of propNodes) {
+        const kind = prop.kind;
+        if (
+          kind !== "fountain" &&
+          kind !== "billboard" &&
+          kind !== "bench" &&
+          kind !== "plaque" &&
+          kind !== "lamp" &&
+          kind !== "lamp2"
+        ) {
+          continue;
+        }
+        node.eventMode = "static";
+        node.cursor = "pointer";
+        if (kind === "fountain") fountainNode = node;
+        if (kind === "billboard" || kind === "plaque" || kind === "lamp" || kind === "lamp2") {
+          hoverable(node);
+        }
+        node.on("pointerdown", (e) => {
+          e.stopPropagation();
+          if (useWorldStore.getState().inputLocked) return;
+          if (kind === "fountain") {
+            const w = mapToWorld(prop.cell.x, prop.cell.y);
+            amb.splash(w.x, w.y + TILE_H / 2 - 16, 14);
+            amb.scatterPigeons();
+            fountainClicks += 1;
+            events.emit("toast", {
+              message: WISHES[(fountainClicks - 1) % WISHES.length],
+              kind: "info",
+            });
+            if (fountainClicks === 5) {
+              useEggStore.getState().markFound("wishmaker");
+              fountainShimmerUntil = elapsed + 3;
+            }
+          } else if (kind === "billboard") {
+            events.emit("world_interact", { kind: "billboard" });
+          } else if (kind === "plaque") {
+            useEggStore.getState().markFound("founders_plaque");
+            events.emit("world_interact", { kind: "plaque" });
+          } else if (kind === "bench") {
+            events.emit("toast", { message: "Take five. The city hustles on.", kind: "info" });
+          } else {
+            amb.toggleLampAt(prop.cell); // lamp / lamp2
+          }
+        });
+      }
+
+      // A venue panel opening pops its building (200ms scale bounce).
+      let venuePop: { node: Container; t: number } | null = null;
+      const offVenueOpened = events.on("venue_opened", (id) => {
+        const node = venueNodes.get(id);
+        if (node && !reduced) venuePop = { node, t: 0 };
+      });
+
+      // Konami block party: 12s of gold cabs, quick strides, rainbow markers.
+      let partyUntil = -1;
+      let partyActive = false;
+      const offKonami = events.on("konami", () => {
+        if (reduced) return;
+        partyUntil = elapsed + 12;
+        amb.setCarTint(0xffd75e);
+        amb.setTempo(1.6);
+        amb.celebrate(charPixel.x, charPixel.y, 24);
+      });
+
+      // Night owl: stay out through the deepest night with the tab in view.
+      let nightOwlClock = 0;
+      let nightOwlDone = useEggStore.getState().found.includes("night_owl");
 
       // ── Input: click-to-move ──────────────────────────────────────────────
       const pathLine = new Graphics();
@@ -211,7 +379,10 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       // ── Ticker ────────────────────────────────────────────────────────────
       application.ticker.add((ticker) => {
         const dt = ticker.deltaMS / 1000;
+        elapsed += dt;
         const locked = useWorldStore.getState().inputLocked;
+        const prevX = charPixel.x;
+        const prevY = charPixel.y;
 
         // WASD / arrows — screen-relative direct drive (overrides click path).
         let dx = 0;
@@ -249,6 +420,46 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
           }
         }
 
+        // Character animation: facing from the dominant map-axis of this frame's
+        // motion (same convention as the cars' legDir), 2-frame stride + bob.
+        const movedX = charPixel.x - prevX;
+        const movedY = charPixel.y - prevY;
+        if (movedX !== 0 || movedY !== 0) {
+          const mdx = movedX / TILE_W + movedY / TILE_H;
+          const mdy = movedY / TILE_H - movedX / TILE_W;
+          facing = Math.abs(mdx) >= Math.abs(mdy) ? (mdx > 0 ? "E" : "W") : mdy > 0 ? "S" : "N";
+          stepClock += dt;
+          const stepFrame = Math.floor(stepClock / STEP_S) % 2;
+          if (stepFrame !== lastStepFrame) {
+            lastStepFrame = stepFrame;
+            amb.spawnDust(charPixel.x, charPixel.y + 1); // footstep puff
+            // Surface-aware: grass in the parks/campus, concrete on pavement.
+            const soft =
+              !isRoad(curCell.x, curCell.y) && SOFT_GROUND.has(districtAt(curCell.x, curCell.y));
+            audio.play(
+              soft
+                ? stepFrame === 0
+                  ? "step_grass_1"
+                  : "step_grass_2"
+                : stepFrame === 0
+                  ? "step_hard_1"
+                  : "step_hard_2",
+              { volume: 0.45, rate: 0.94 + Math.random() * 0.12 },
+            );
+          }
+          charBody.texture = playerTex.walk[facing][stepFrame];
+          charBody.position.y = reduced
+            ? 0
+            : -Math.abs(Math.sin((stepClock * Math.PI) / STEP_S)) * 2.5;
+          charBody.scale.y = 1;
+        } else {
+          stepClock = 0;
+          charBody.texture = playerTex.idle[facing];
+          charBody.position.y = 0;
+          if (!reduced) charBody.scale.y = 1 + 0.012 * Math.sin(elapsed * 2); // breathing
+        }
+        charBody.scale.x = facing === "W" ? -1 : 1; // W = mirrored E profile
+
         char.position.set(charPixel.x, charPixel.y);
         const cell = roundCell(worldToMap(charPixel.x, charPixel.y));
         char.zIndex = cell.x + cell.y + 0.6;
@@ -257,24 +468,91 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
           store.setCharCell(curCell);
         }
 
-        // Vehicles: advance along their loops (cell-space lerp → world).
-        for (const car of cars) {
-          const a = car.route[car.leg];
-          const b = car.route[(car.leg + 1) % car.route.length];
-          const legLen = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
-          car.t += (CAR_SPEED_CELLS * dt) / Math.max(1, legLen);
-          if (car.t >= 1) {
-            car.t -= 1;
-            car.leg = (car.leg + 1) % car.route.length;
+        // Ambient life: NPCs, vehicles, particles, pigeons — one call, culled to view.
+        view.left = -world.position.x;
+        view.top = -world.position.y;
+        view.right = view.left + application.screen.width;
+        view.bottom = view.top + application.screen.height;
+        amb.update(dt, elapsed, view, curCell);
+
+        // Atmosphere: day/night tint, window lights, marker pulse, drifting clouds.
+        sky.width = application.screen.width;
+        sky.height = application.screen.height;
+        if (!reduced) {
+          const phase = dayPhase(elapsed + BOOT_PHASE_OFFSET_S);
+          nightOverlay.tint = phase.ambient;
+          nightOverlay.position.set(view.left, view.top);
+          nightOverlay.width = application.screen.width;
+          nightOverlay.height = application.screen.height;
+          vignette.position.set(view.left, view.top);
+          vignette.width = application.screen.width;
+          vignette.height = application.screen.height;
+          vignette.alpha = phase.nightness * 0.65;
+          sky.tint = phase.ambient;
+          amb.setNight(phase.nightness);
+          for (let i = 0; i < windowLights.length; i++) {
+            windowLights[i].alpha =
+              phase.nightness * (0.55 + 0.12 * Math.sin(elapsed * 3 + i * 1.7));
           }
-          const aa = car.route[car.leg];
-          const bb = car.route[(car.leg + 1) % car.route.length];
-          const cx = aa.x + (bb.x - aa.x) * car.t;
-          const cy = aa.y + (bb.y - aa.y) * car.t;
-          const w = mapToWorld(cx, cy);
-          car.sprite.texture = carTexture(car.kind, legDir(aa, bb));
-          car.sprite.position.set(w.x, w.y + 14);
-          car.sprite.zIndex = cx + cy + 0.3;
+          for (let i = 0; i < markers.length; i++) {
+            markers[i].scale.set(1 + 0.12 * Math.sin(elapsed * 2.2 + i));
+          }
+          for (let i = 0; i < clouds.length; i++) {
+            const s = clouds[i];
+            s.position.x += (10 + i * 3) * dt;
+            s.position.y += (5 + i * 2) * dt;
+            if (s.position.x > 3400) s.position.x = -3400;
+            if (s.position.y > 3200) s.position.y = -400;
+          }
+          if (pathTargets.length > 0) pathLine.alpha = 0.75 + 0.25 * Math.sin(elapsed * 5);
+
+          if (!nightOwlDone) {
+            nightOwlClock =
+              phase.nightness >= 0.95 && document.visibilityState === "visible"
+                ? nightOwlClock + dt
+                : 0;
+            if (nightOwlClock >= 10) {
+              nightOwlDone = true;
+              useEggStore.getState().markFound("night_owl");
+            }
+          }
+        }
+
+        // Block party wind-down + rainbow markers while it lasts.
+        if (partyUntil > 0) {
+          if (elapsed < partyUntil) {
+            partyActive = true;
+            const pr = Math.round(150 + 105 * Math.sin(elapsed * 4));
+            const pg = Math.round(150 + 105 * Math.sin(elapsed * 4 + 2.09));
+            const pb = Math.round(150 + 105 * Math.sin(elapsed * 4 + 4.19));
+            const rainbow = (pr << 16) | (pg << 8) | pb;
+            for (const m of markers) m.tint = rainbow;
+          } else if (partyActive) {
+            partyActive = false;
+            partyUntil = -1;
+            amb.setCarTint(null);
+            amb.setTempo(1);
+            for (const m of markers) m.tint = 0xffffff;
+          }
+        }
+
+        // Wishmaker shimmer: the fountain glints gold for a few seconds.
+        if (fountainNode) {
+          fountainNode.tint =
+            elapsed < fountainShimmerUntil
+              ? lerpColor(0xffffff, 0xe2be78, 0.5 + 0.5 * Math.sin(elapsed * 12))
+              : 0xffffff;
+        }
+
+        // Venue pop: 200ms scale bounce on the building whose panel just opened.
+        if (venuePop) {
+          venuePop.t += dt;
+          if (venuePop.t >= 0.2) {
+            venuePop.node.scale.set(1);
+            venuePop = null;
+          } else {
+            venuePop.node.scale.set(1 + 0.035 * Math.sin((venuePop.t / 0.2) * Math.PI));
+          }
         }
 
         // Camera: soft-lag follow, centered on the character.
@@ -290,7 +568,16 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
         }
       });
 
+      audio.preload(["step_grass_1", "step_grass_2", "step_hard_1", "step_hard_2"]);
       store.setCharCell(curCell);
+      offBus.push(offVenueOpened, offKonami);
+      if (import.meta.env.DEV) {
+        // Dev-only QA hook: jump the world clock (day/night) from the console
+        // or Playwright. Dead-code-eliminated from production builds.
+        (window as unknown as { __cityTime?: (s: number) => void }).__cityTime = (s) => {
+          elapsed = s;
+        };
+      }
       onReady?.();
     })();
 
@@ -299,7 +586,13 @@ export function CityCanvas({ onReady }: { onReady?: () => void }) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       store.setNearVenue(null);
+      offBus.forEach((off) => off());
+      offBus.length = 0;
+      ambient?.dispose(); // detaches + frees its sprites/textures before the app teardown
+      ambient = null;
       if (app) app.destroy(true, { children: true });
+      destroyTextures(bakedTextures); // baked RenderTextures aren't freed by app.destroy
+      bakedTextures = [];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -329,50 +622,124 @@ function skirtFor(x: number, y: number): number {
   return groundSkirt(pick ?? DISTRICT_GROUND[d]);
 }
 
-const c2 = (x: number, y: number): Cell => ({ x, y });
-
-function legDir(a: Cell, b: Cell): Cardinal {
-  if (b.x > a.x) return "E";
-  if (b.x < a.x) return "W";
-  if (b.y > a.y) return "S";
-  return "N";
-}
-
 // ── Buildings ─────────────────────────────────────────────────────────────────
 
-function makeBuilding(v: CityBuilding): Container {
+interface BuildingParts {
+  root: Container;
+  /** Entrance marker, self-centered so the ticker can pulse its scale. */
+  marker: Graphics;
+  /** Warm window-glow sprites (lit by nightness in the ticker). */
+  lights: Sprite[];
+}
+
+function makeBuilding(v: CityBuilding, windowTex: Texture | null): BuildingParts {
   const visual = VENUE_VISUAL[v.id] ?? FILLER_VISUALS[0];
   const c = makeBuildingVisual(visual, v.footprintTiles, v.kind === "locked" ? 0x9aa0ad : null);
 
-  // Name label above the building.
+  // Night window lights, placed from the visual's bounds (before the label).
+  const lights: Sprite[] = [];
+  if (windowTex && v.kind !== "locked") {
+    const vb = c.getLocalBounds();
+    const height = vb.maxY - vb.minY;
+    const spots =
+      visual.type === "stack"
+        ? [
+            { x: vb.minX * 0.32, y: vb.minY + height * 0.38 },
+            { x: vb.maxX * 0.28, y: vb.minY + height * 0.58 },
+          ]
+        : [{ x: vb.minX * 0.2, y: vb.minY + height * 0.55 }];
+    for (const spot of spots) {
+      const s = new Sprite(windowTex);
+      s.anchor.set(0.5);
+      s.blendMode = "add";
+      s.alpha = 0;
+      s.position.set(spot.x, spot.y);
+      c.addChild(s);
+      lights.push(s);
+    }
+  }
+
+  // Name sign above the building. Was 14px white text with a 3px stroke (a 21%
+  // halo) floating unbacked over tiles — it read as a debug overlay and vanished
+  // over light ground. Now a backed plate with the halo dropped to a hairline.
   const label = new Text({
-    text: v.kind === "locked" ? `${v.displayName} 🔒` : v.displayName,
+    text: v.displayName,
     style: {
-      fill: 0xffffff,
-      stroke: { color: 0x1a1e2a, width: 3 },
+      fill: 0xf3f6fb,
+      stroke: { color: 0x0f121a, width: 1 },
       fontFamily: "Outfit, sans-serif",
-      fontSize: 14,
+      fontSize: 17,
       fontWeight: "600",
     },
+    // Bake above the renderer's own density: this Text is a child of a container
+    // that gets scaled at runtime (hover 1.07x, venue pop 1.035x), and a
+    // rasterised label scaled up is a blurry label.
+    resolution: Math.max(2, Math.ceil(window.devicePixelRatio || 1) * 2),
   });
   label.anchor.set(0.5, 1);
-  const top = c.getLocalBounds();
-  label.position.set(0, top.minY - 6);
-  c.addChild(label);
 
-  // Gold entrance marker on the entrance tile.
+  const sign = new Container();
+  const padX = 9;
+  const padY = 5;
+  const lockW = v.kind === "locked" ? 15 : 0;
+  const plateW = label.width + padX * 2 + lockW;
+  const plateH = label.height + padY * 2;
+  const plate = new Graphics();
+  plate
+    .roundRect(-plateW / 2, -plateH, plateW, plateH, 7)
+    .fill({ color: 0x11151f, alpha: 0.82 })
+    .stroke({ color: 0xe2be78, alpha: v.interactable ? 0.5 : 0.22, width: 1 });
+  sign.addChild(plate);
+  label.position.set(lockW / 2, -padY);
+  sign.addChild(label);
+
+  if (v.kind === "locked") {
+    // A padlock emoji inside a Pixi Text renders as an OS colour emoji that
+    // ignores `fill` and looks different on every platform — use the icon art.
+    const lock = new Sprite(tex("icon_locked"));
+    lock.anchor.set(0.5);
+    lock.width = 11;
+    lock.height = 11;
+    lock.tint = 0xc7cedb;
+    lock.position.set(-plateW / 2 + padX + 4, -plateH / 2);
+    sign.addChild(lock);
+  }
+
+  const top = c.getLocalBounds();
+  sign.position.set(0, top.minY - 8);
+  c.addChild(sign);
+
+  // Entrance affordance. This is the primary "you can enter here" signal, and it
+  // used to be a 5px gold ring floating alone on the ground, visually detached
+  // from its building. Now a grounded plate: a tile-shaped diamond footprint
+  // with a soft glow and a chevron pointing at the door.
   const ent = mapToWorld(v.entranceTile.x, v.entranceTile.y);
   const front = frontVertex(v.footprintTiles);
+  const mx = ent.x - front.x;
+  const my = ent.y - front.y;
+  const strength = v.interactable ? 1 : 0.35;
+
+  const glow = new Sprite(tex("fx_soft"));
+  glow.anchor.set(0.5);
+  glow.width = 96;
+  glow.height = 54;
+  glow.tint = 0xe2be78;
+  glow.alpha = 0.3 * strength;
+  glow.blendMode = "add";
+  glow.position.set(mx, my);
+  c.addChild(glow);
+
   const marker = new Graphics();
+  // Diamond matching the tile grid, so it reads as painted on the pavement.
   marker
-    .circle(ent.x - front.x, ent.y - front.y, 5)
-    .fill({ color: 0xe2be78, alpha: v.interactable ? 0.95 : 0.4 });
-  marker
-    .circle(ent.x - front.x, ent.y - front.y, 8)
-    .stroke({ color: 0xe2be78, alpha: 0.5, width: 2 });
+    .poly([0, -14, 28, 0, 0, 14, -28, 0])
+    .fill({ color: 0xe2be78, alpha: 0.16 * strength })
+    .stroke({ color: 0xe2be78, alpha: 0.7 * strength, width: 2 });
+  marker.poly([0, -5, 7, 1, 0, 7, -7, 1]).fill({ color: 0xe2be78, alpha: 0.95 * strength });
+  marker.position.set(mx, my);
   c.addChild(marker);
 
-  return c;
+  return { root: c, marker, lights };
 }
 
 /** Compose a building visual scaled to its footprint, positioned at the footprint's
@@ -420,6 +787,34 @@ function makeBuildingVisual(
   return container;
 }
 
+/** Radial vignette for the night pass: white centre → dark rim, multiplied. */
+function bakeVignetteTexture(renderer: Renderer): Texture {
+  const g = new Graphics();
+  const R = 128;
+  g.rect(0, 0, R * 2, R * 2).fill(0x0a1020);
+  const steps = 48;
+  for (let i = 0; i < steps; i++) {
+    const k = i / (steps - 1); // 0 = rim, 1 = centre
+    const c = lerpColor(0x0a1020, 0xffffff, k);
+    g.ellipse(R, R, R * (1 - k) + 4, R * (1 - k) + 4).fill(c);
+  }
+  const t = renderer.generateTexture({ target: g });
+  g.destroy();
+  return t;
+}
+
+/** Vertical sky gradient (blue → horizon green), baked once and screen-scaled. */
+function bakeSkyTexture(renderer: Renderer): Texture {
+  const g = new Graphics();
+  const steps = 96; // 24 bands posterised visibly against a flat sky
+  for (let i = 0; i < steps; i++) {
+    g.rect(0, i * 2, 8, 2).fill(lerpColor(0xaee0f2, 0x9dc183, i / (steps - 1)));
+  }
+  const t = renderer.generateTexture({ target: g });
+  g.destroy();
+  return t;
+}
+
 /** World position of a footprint's front (screen-bottom) diamond vertex. */
 function frontVertex(footprint: Cell[]): { x: number; y: number } {
   const maxDepth = Math.max(...footprint.map((t) => t.x + t.y));
@@ -430,26 +825,56 @@ function frontVertex(footprint: Cell[]): { x: number; y: number } {
   return { x: p.x, y: p.y + TILE_H / 2 };
 }
 
-// ── Character & path preview ──────────────────────────────────────────────────
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-function makeCharacter(): Graphics {
-  const g = new Graphics();
-  g.ellipse(0, 2, 11, 5).fill({ color: 0x000000, alpha: 0.3 });
-  g.roundRect(-7, -26, 14, 24, 5).fill(0x3d78d8);
-  g.circle(0, -31, 8).fill(0xf0d9b5);
-  g.circle(0, -31, 8).stroke({ color: 0xffffff, alpha: 0.25, width: 1 });
-  return g;
+function makeProp(p: CityProp): Container {
+  const c = mapToWorld(p.cell.x, p.cell.y);
+  if (p.kind === "plaque") return makePlaque(p, c);
+  const key = PROP_TEXTURE[p.kind] ?? "prop_lamp";
+  const s = new Sprite(tex(key));
+  s.anchor.set(0.5, 1);
+  s.roundPixels = true; // the camera lerps on sub-pixels; without this props shimmer
+  if (GROUND_PROPS.has(p.kind)) {
+    // full ground tile — replace look by drawing over the base tile
+    s.position.set(c.x, c.y + TILE_H / 2 + groundSkirt(key));
+    s.zIndex = p.cell.x + p.cell.y - 0.1;
+  } else {
+    s.scale.set(propScale(p.kind));
+    const tint = PROP_TINT[p.kind];
+    if (tint) s.tint = tint;
+    s.position.set(c.x, c.y + TILE_H / 2);
+    s.zIndex = p.cell.x + p.cell.y;
+  }
+  return s;
 }
 
-function drawPathPreview(line: Graphics, from: { x: number; y: number }, targets: Cell[]): void {
+/** Founders' plaque — procedural stone plinth with a gold face (no sprite). */
+function makePlaque(p: CityProp, c: { x: number; y: number }): Container {
+  const container = new Container();
+  const g = new Graphics();
+  g.ellipse(0, 0, 14, 6).fill({ color: 0x000000, alpha: 0.25 });
+  g.roundRect(-11, -24, 22, 24, 3).fill(0x8b8f9a).stroke({ color: 0x1a1e2a, alpha: 0.5, width: 1 });
+  g.roundRect(-8, -21, 16, 12, 2).fill(0xe2be78);
+  g.rect(-6, -18, 12, 1.5).fill({ color: 0x1a1e2a, alpha: 0.35 });
+  g.rect(-6, -15, 12, 1.5).fill({ color: 0x1a1e2a, alpha: 0.35 });
+  container.addChild(g);
+  container.position.set(c.x, c.y + TILE_H / 2 - 2);
+  container.zIndex = p.cell.x + p.cell.y;
+  return container;
+}
+
+// ── Path preview ──────────────────────────────────────────────────────────────
+
+function drawPathPreview(line: Graphics, _from: { x: number; y: number }, targets: Cell[]): void {
   line.clear();
   if (targets.length === 0) return;
-  line.moveTo(from.x, from.y - TILE_H / 4);
-  for (const cc of targets) {
+  // Gold dotted trail with a ringed destination (the ticker pulses line alpha).
+  targets.forEach((cc, i) => {
     const w = mapToWorld(cc.x, cc.y);
-    line.lineTo(w.x, w.y - TILE_H / 4);
-  }
-  line.stroke({ width: 3, color: 0xffffff, alpha: 0.55 });
+    const fade = 0.4 + 0.5 * (i / Math.max(1, targets.length - 1));
+    line.circle(w.x, w.y - TILE_H / 4, 3).fill({ color: 0xe2be78, alpha: fade });
+  });
   const last = mapToWorld(targets[targets.length - 1].x, targets[targets.length - 1].y);
-  line.circle(last.x, last.y - TILE_H / 4, 5).fill({ color: 0xffffff, alpha: 0.8 });
+  line.circle(last.x, last.y - TILE_H / 4, 8).stroke({ color: 0xe2be78, alpha: 0.9, width: 2 });
+  line.circle(last.x, last.y - TILE_H / 4, 3.5).fill({ color: 0xe2be78, alpha: 1 });
 }

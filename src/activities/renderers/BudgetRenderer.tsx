@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { BudgetContent } from "@/activities/content";
 import { summarizeBudget } from "@/lib/budget";
 import type { ResultPayload } from "@/framework/api/schemas";
+import { Icon } from "@/ui/Icon";
 
 // Budget allocation → `metrics`. Pick what to spend on within a budget. Which
 // items are essential is deliberately NOT shown — working that out IS the
@@ -76,7 +77,7 @@ export function BudgetRenderer({
                 }
                 aria-hidden="true"
               >
-                ✓
+                <Icon name="check" className="h-3 w-3" />
               </span>
               <span className="text-lg" aria-hidden="true">
                 {item.emoji}

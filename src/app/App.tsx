@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { devWorldBypass } from "@/framework/config/appConfig";
 import { AuthProvider, useAuth } from "@/framework/auth/AuthProvider";
 import { Login } from "@/ui/Login";
 import { CityScreen } from "@/ui/CityScreen";
@@ -19,6 +20,7 @@ export function App() {
 
 function Root() {
   const { status } = useAuth();
+  if (devWorldBypass) return <CityScreen />; // dev-only; eliminated from prod builds
   if (status === "loading") return <Splash />;
   if (status === "signedIn") return <CityScreen />;
   return <Login />;

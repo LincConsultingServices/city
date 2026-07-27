@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { SortOrderContent } from "@/activities/content";
 import type { ResultPayload } from "@/framework/api/schemas";
+import { Icon } from "@/ui/Icon";
 
 // SORT_ORDER → order (PRD §8.1). Reorder with up/down (accessible). Always
 // buildable — the current arrangement is the result { order: { sequence } }.
@@ -55,7 +56,7 @@ export function SortOrderRenderer({
                   aria-label={`Move ${item?.label} up`}
                   className="rounded px-2 text-muted hover:bg-surface hover:text-text disabled:opacity-30"
                 >
-                  ▲
+                  <Icon name="arrow-up" className="h-3 w-3" />
                 </button>
                 <button
                   type="button"
@@ -64,7 +65,7 @@ export function SortOrderRenderer({
                   aria-label={`Move ${item?.label} down`}
                   className="rounded px-2 text-muted hover:bg-surface hover:text-text disabled:opacity-30"
                 >
-                  ▼
+                  <Icon name="arrow-down" className="h-3 w-3" />
                 </button>
               </div>
             </li>

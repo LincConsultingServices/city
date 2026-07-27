@@ -1,6 +1,7 @@
 // Typed event bus (PRD §12.1) — decoupled cross-cutting signals (session, toasts,
 // economy celebrations). World ↔ UI communicate via this + stores, never directly.
 import type { Badge, SubmitResponse } from "@/framework/api/schemas";
+import type { EggId } from "@/lib/eggs";
 
 export type ToastKind = "info" | "success" | "error";
 
@@ -10,6 +11,10 @@ export interface EventMap {
   coins_changed: number; // new balance
   badge_awarded: Badge;
   activity_completed: SubmitResponse;
+  egg_found: { id: EggId; title: string }; // easter egg discovered (eggStore)
+  world_interact: { kind: "plaque" | "billboard" }; // Pixi prop click → DOM panel
+  venue_opened: string; // venue id — DOM panel opened → world plays a building pop
+  konami: null; // the code was entered → world throws a block party
 }
 
 type Handler<K extends keyof EventMap> = (payload: EventMap[K]) => void;
