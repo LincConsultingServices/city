@@ -52,6 +52,7 @@ import {
   type VenueVisual,
   type Cardinal,
 } from "./assets";
+import { registerInteriorHost } from "@/framework/building/interiorStage";
 import { useWorldStore } from "./worldStore";
 
 const WALK_SPEED = 175; // px/sec (≈1.3 tiles/sec on the 132px grid)
@@ -576,6 +577,23 @@ export function CityCanvas({
       audio.preload(["step_grass_1", "step_grass_2", "step_hard_1", "step_hard_2"]);
       store.setCharCell(curCell);
       offBus.push(offVenueOpened, offKonami);
+
+      // Lend this Application to building interiors. They must not create their
+      // own: a second Pixi v8 Application corrupts this one's batcher, which
+      // throws out of the ticker and leaves the city rendering nothing but its
+      // clear colour (framework/building/interiorStage.ts).
+      registerInteriorHost({
+        app: application,
+        stage: application.stage,
+        hideWorld: () => {
+          sky.visible = false;
+          world.visible = false;
+        },
+        showWorld: () => {
+          sky.visible = true;
+          world.visible = true;
+        },
+      });
       if (import.meta.env.DEV) {
         // Dev-only QA hook: jump the world clock (day/night) from the console
         // or Playwright. Dead-code-eliminated from production builds.
@@ -591,6 +609,7 @@ export function CityCanvas({
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       store.setNearVenue(null);
+      registerInteriorHost(null);
       offBus.forEach((off) => off());
       offBus.length = 0;
       ambient?.dispose(); // detaches + frees its sprites/textures before the app teardown
