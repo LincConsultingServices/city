@@ -153,14 +153,19 @@ export interface RailPiece {
 /** Placeholder price bands — the economy pass owns the real numbers. */
 const PRICE_BY_TAG: Record<PriceTags, number> = { house: 890, entry: 320, cut: 445 };
 
-interface RailShape {
+export interface RailShape {
   /** [count, label] pairs making up the rail, in hanging order. */
   pieces: [number, string][];
   /** The plain-language line announced on change. */
   line: string;
 }
 
-const RAIL_SHAPE: Record<Rail, RailShape> = {
+/**
+ * What hangs on the rail in each state. Exported because the garments on the
+ * brass and the DOM list a player reads are built from THIS, once — §18.3 warns
+ * those two will drift the moment they are authored twice.
+ */
+export const RAIL_SHAPE: Record<Rail, RailShape> = {
   bold: {
     pieces: [[8, "vermilion"]],
     line: "the rail is eight pieces, all vermilion",
