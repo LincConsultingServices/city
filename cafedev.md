@@ -289,44 +289,50 @@ Populate `hostedActivities`, extract `DecisionTreeRenderer.tsx` and `src/activit
 
 ---
 
-## 9. Known issue — one transient Pixi error per session
+## 9. Why an interior may not create its own Application
 
-**Symptom.** The first time you leave the Café in a session, the console logs one uncaught
-`TypeError: Cannot read properties of null (reading 'geometry' | 'clear')` from inside
-`DefaultBatcher.break` / `BatcherPipe`. It fires once, nothing visibly breaks, the city
-resumes, and re-entering any number of times is clean.
+**The bug.** After leaving the Café, the city never came back. It rendered nothing but its
+green clear colour, forever, and the console carried one uncaught
+`TypeError: Cannot read properties of null (reading 'geometry' | 'clear')` from
+`DefaultBatcher.break` / `BatcherPipe`.
 
-**Diagnosis.** Pixi v8 recycles batch objects through a **process-global pool**. Destroying
-the Café's `Application` while the city's renderer is still alive returns objects whose
-batcher has just been nulled; the city picks one up on its next instruction build and
-dereferences it. It is not the scene code. Ruled out by experiment:
+**Root cause.** Two Pixi v8 `Application`s alive in one page. The second renderer's mere
+existence corrupts the first one's batcher; the first then throws _out of its own ticker
+listener_, so its `requestAnimationFrame` loop never reschedules and the world is dead for
+the rest of the session. It only looked transient because the exception fires once — the
+freeze it leaves behind is permanent.
 
-| Tried                                                          | Result                                                       |
-| -------------------------------------------------------------- | ------------------------------------------------------------ |
-| `autoStart: false`, render only once the scene is built        | no change                                                    |
-| Idempotent `teardown()` closing the StrictMode/Suspense race   | no change                                                    |
-| Disposing baked textures before vs. after `app.destroy()`      | no change (the stack shifts, the error remains)              |
-| `app.destroy(…, { texture: true })` instead of manual disposal | no change, and it strands the eight unassigned walk frames   |
-| `application.stop()` on the city while the interior is open    | **worse** — fires on entry, and on two visits instead of one |
+Everything plausible was eliminated first, in this order:
 
-**Candidate real fixes**, none cheap, in preference order:
+| Tried                                                                 | Result                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `autoStart: false`, render only once the scene is built               | no change                                                    |
+| Idempotent `teardown()` closing the StrictMode/Suspense race          | no change                                                    |
+| Disposing baked textures before vs. after `app.destroy()`             | no change (the stack shifts, the error remains)              |
+| Skipping `destroyTextures()` entirely                                 | no change                                                    |
+| Skipping `app.destroy()` entirely — nothing torn down at all          | no change — so it is not teardown                            |
+| `application.stop()` on the city while the interior is open           | **worse** — fires on entry, and on two visits instead of one |
+| **An empty second Application: no textures, no scene, nothing drawn** | **still killed the city — the second renderer _is_ the bug** |
 
-1. Keep the Café's `Application` alive across visits — create once, stop and hide on exit
-   rather than destroy. Then no renderer is ever destroyed beside a live one. Costs retained
-   GPU memory for a room the player may never revisit.
-2. Render the interior into the city's existing `Application` as a swapped stage. Removes
-   the second renderer entirely, but a building would be reaching into `src/world/`, which
-   CODEOWNERS forbids — it would have to become a framework-provided service first.
-3. Upstream: check whether a later Pixi 8.x scopes the pool per-renderer.
+**The fix.** Buildings borrow the city's renderer instead of making one.
+`framework/building/interiorStage.ts` lets the world layer publish its `Application`; an
+interior awaits it, hides the city's layers, adds its own container and ticker callback, and
+gives all of it back on exit. The city's `Application` is never destroyed, because the
+interior never made it.
 
-Left as-is because the behaviour is correct and the fallout is one console line. Worth
-revisiting at Phase 3, when real textures make the teardown heavier.
+Two consequences worth knowing when writing the next building:
+
+- **Render no DOM of your own.** The room draws into the city's existing canvas, so any
+  element you mount sits on top of it. `CafeCanvas` returns `null`.
+- **The DOM shell must be `pointer-events-none` with no background.** An opaque overlay
+  hides the canvas; a solid hit area swallows every click meant for it. Interactive children
+  opt back in with `pointer-events-auto`.
 
 ## 10. Risks
 
 | Risk                                       | Handling                                                                                                                                                                                                   |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Two Pixi apps** on a low-end laptop      | `interiorOpen` pauses the city ticker; re-measure at Phase 3 when real textures land                                                                                                                       |
+| **A second Pixi Application**              | Never do it — it kills the city's renderer outright (§9). Interiors borrow the city's via `framework/building/interiorStage.ts`                                                                            |
 | **StrictMode double-mount, texture leaks** | Copy `CityCanvas`'s `destroyed` flag and its exact teardown order: `app.destroy(true, { children: true })` → `destroyTextures(baked)`                                                                      |
 | **Closed unions**                          | `SoundName` (`audioManager.ts:19-30`) and `EventMap` (`events.ts`) are closed. The Café uses existing sounds only — a door bell or espresso hiss is a separate framework request, not a Café-folder change |
 | **`origin/cafe` is a trap**                | It forked before the graphics overhaul and **deletes** `ambient.ts`, `characterArt.ts`, `Modal`, `Icon`, `Toaster`, every `fx_*` asset. **Never merge it.** Extract files individually with `git show`     |
