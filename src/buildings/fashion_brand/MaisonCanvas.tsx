@@ -22,6 +22,8 @@ import {
   bakePersonTextures,
   bakeShadowTexture,
   destroyTextures,
+  type PersonPalette,
+  type PersonTextures,
 } from "@/world/characterArt";
 import type { Cardinal } from "@/world/assets";
 import { MAISON_PALETTE, bakeMaisonTextures } from "./props";
@@ -47,11 +49,14 @@ import {
 } from "./room";
 import { useRoomStore } from "./roomStore";
 import { useMaisonStore } from "./maisonStore";
+import { castAt } from "./cast";
 
 const WALK_SPEED = 175; // px/sec — the city's pace, so indoors feels like outdoors
 const STEP_S = 0.18;
 const VIEWPORT_PAD = 48;
 const WALL_LIFT = 46; // half the back wall's height, for visual centring
+const GAZE_RANGE = 3; // cells — how close you get before Élise looks up
+const GAZE_HOLD_S = 2.4; // "a beat longer than is comfortable" (§5.1)
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
 
 export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
@@ -129,6 +134,85 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       const pathLine = new Graphics();
       world.addChild(pathLine);
 
+      // ── The cast (§5) ───────────────────────────────────────────────────────
+      // Same procedural rig as the street, one palette each. Baked on demand and
+      // cached: who is in the building changes with the season, and re-baking a
+      // person every time somebody arrives would stall a frame.
+      const people = new Map<string, PersonTextures>();
+      const personTex = (key: string, palette: PersonPalette): PersonTextures => {
+        let t = people.get(key);
+        if (!t) {
+          t = bakePersonTextures(app.renderer, palette);
+          baked.push(...t.all);
+          people.set(key, t);
+        }
+        return t;
+      };
+      const WORKER_PALETTE: PersonPalette = {
+        shirt: 0x9a958b,
+        legs: 0x4a4741,
+        skin: 0xdcc0a0,
+        hair: 0x3a312a,
+      };
+
+      const castLayer = new Container();
+      castLayer.sortableChildren = true;
+      actors.addChild(castLayer);
+
+      /** Élise looks up when you come near, and holds it (§5.1). */
+      let elise: { body: Sprite; tex: PersonTextures; anchor: Cell; gaze: number } | null = null;
+
+      const placePerson = (
+        tex: PersonTextures,
+        cell: Cell,
+        facing: Cardinal = "S",
+      ): { root: Container; body: Sprite } => {
+        const root = new Container();
+        const shadow = new Sprite(shadowTex);
+        shadow.anchor.set(0.5, 0.5);
+        shadow.position.set(0, 1);
+        const body = new Sprite(tex.idle[facing]);
+        body.anchor.set(0.5, 1);
+        root.addChild(shadow, body);
+        const w = mapToWorld(cell.x, cell.y);
+        root.position.set(w.x, w.y + riseAt(cell));
+        root.zIndex = cell.x + cell.y + Z_PLAYER - 0.05; // just behind the player
+        return { root, body };
+      };
+
+      const rebuildCast = (state = useMaisonStore.getState()) => {
+        castLayer.removeChildren().forEach((c) => c.destroy());
+        elise = null;
+        if (!state.track) return;
+
+        const cast = castAt(state.track, state.decided, state.world);
+        for (const member of cast.named) {
+          const tex = personTex(member.id, member.palette);
+          const { root, body } = placePerson(tex, member.anchor);
+          castLayer.addChild(root);
+          if (member.id === "elise") elise = { body, tex, anchor: member.anchor, gaze: 0 };
+        }
+
+        // The ambient loop: workers at the machines, and one boutique client who
+        // looks at the rail and mostly buys nothing, which is accurate (§5.8).
+        const MACHINE_CELLS: Cell[] = [
+          { x: 2, y: 1 },
+          { x: 6, y: 1 },
+          { x: 8, y: 2 },
+        ];
+        for (let i = 0; i < cast.workers; i++) {
+          castLayer.addChild(
+            placePerson(personTex("worker", WORKER_PALETTE), MACHINE_CELLS[i]).root,
+          );
+        }
+        if (cast.client) {
+          castLayer.addChild(
+            placePerson(personTex("worker", WORKER_PALETTE), { x: 7, y: 9 }, "W").root,
+          );
+        }
+      };
+      rebuildCast();
+
       // ── Input ───────────────────────────────────────────────────────────────
       const onStageDown = (e: FederatedPointerEvent) => {
         if (useRoomStore.getState().inputLocked) return;
@@ -148,8 +232,13 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       // the shelf, the desk or the door does instead (§3.3, §18.2.8). Only on a
       // real change, so a decision that moves nothing costs nothing.
       unsubscribe = useMaisonStore.subscribe((s, prev) => {
-        if (destroyed || s.world === prev.world) return;
-        redress(s.world);
+        if (destroyed) return;
+        if (s.world !== prev.world) redress(s.world);
+        // Who is in the building moves with the season too: the beat you are on
+        // is the beat somebody is standing at (§5, §8).
+        if (s.world !== prev.world || s.decided !== prev.decided || s.track !== prev.track) {
+          rebuildCast(s);
+        }
       });
 
       // ── Ticker ──────────────────────────────────────────────────────────────
@@ -242,6 +331,27 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
           store.setCharCell(curCell);
           store.setNearExit(exitNear(curCell));
           store.setNearStation(stationNear(curCell)?.id ?? null);
+        }
+
+        // §5.1: "She looks up, holds it a beat longer than is comfortable, then
+        // goes back to work. That single behaviour does more characterisation
+        // than any line she has." So the gaze is on a timer, not on your
+        // distance — she stops looking whether or not you have gone away.
+        if (elise) {
+          const near =
+            Math.abs(cell.x - elise.anchor.x) + Math.abs(cell.y - elise.anchor.y) <= GAZE_RANGE;
+          if (near && elise.gaze <= 0) elise.gaze = GAZE_HOLD_S;
+          else if (elise.gaze > 0) elise.gaze -= dt;
+          if (elise.gaze > 0) {
+            const dxc = cell.x - elise.anchor.x;
+            const dyc = cell.y - elise.anchor.y;
+            elise.body.texture =
+              elise.tex.idle[
+                Math.abs(dxc) >= Math.abs(dyc) ? (dxc > 0 ? "E" : "W") : dyc > 0 ? "S" : "N"
+              ];
+          } else {
+            elise.body.texture = elise.tex.idle.S; // back to the seam
+          }
         }
 
         const sw = app.screen.width;

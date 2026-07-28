@@ -36,8 +36,10 @@ export interface Beat {
   /** Competency name as the house would say it, not as a rubric would. */
   competencyName: string;
   station: keyof typeof STATION_NAME | string;
-  /** Who brings it (§8). */
+  /** Who brings it (§8), as prose. */
   host: string;
+  /** …and as cast ids, so the room knows who to put in it (§5). */
+  hosts: string[];
   /** Chalked on the steel column. `after` is the ninth beat — the show happened. */
   countdown: string;
   /** Per-track activity id + title. */
@@ -50,6 +52,7 @@ export interface Beat {
 export const BEATS: Beat[] = [
   {
     order: 1,
+    hosts: ["ines"],
     competency: "C1",
     competencyName: "Problem Sensing",
     station: "st_rail",
@@ -62,6 +65,7 @@ export const BEATS: Beat[] = [
   },
   {
     order: 2,
+    hosts: ["elise", "vera"],
     competency: "C2",
     competencyName: "Learning Agility",
     station: "st_bench",
@@ -74,6 +78,7 @@ export const BEATS: Beat[] = [
   },
   {
     order: 3,
+    hosts: ["helene"],
     competency: "C3",
     competencyName: "Courage to Commit",
     station: "st_rail",
@@ -86,6 +91,7 @@ export const BEATS: Beat[] = [
   },
   {
     order: 4,
+    hosts: ["dov"],
     competency: "C4",
     competencyName: "Financial Discipline",
     station: "st_desk",
@@ -98,6 +104,7 @@ export const BEATS: Beat[] = [
   },
   {
     order: 5,
+    hosts: ["rio"],
     competency: "C5",
     competencyName: "Strategic Thinking",
     station: "st_boutique_floor",
@@ -110,6 +117,7 @@ export const BEATS: Beat[] = [
   },
   {
     order: 6,
+    hosts: ["helene"],
     competency: "C6",
     competencyName: "Power & Influence",
     station: "st_rail",
@@ -122,6 +130,7 @@ export const BEATS: Beat[] = [
   },
   {
     order: 7,
+    hosts: ["elise", "kobby"],
     competency: "C7",
     competencyName: "People Management",
     station: "st_atelier",
@@ -134,6 +143,7 @@ export const BEATS: Beat[] = [
   },
   {
     order: 8,
+    hosts: ["rio"],
     competency: "C8",
     competencyName: "Value Creation",
     station: "st_desk",
@@ -146,6 +156,7 @@ export const BEATS: Beat[] = [
   },
   {
     order: 9,
+    hosts: [],
     competency: "C9",
     competencyName: "Perseverance",
     station: "st_press_wall",
