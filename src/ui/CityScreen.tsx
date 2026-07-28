@@ -3,6 +3,8 @@ import { CityCanvas } from "@/world/CityCanvas";
 import { VENUES, type CityBuilding } from "@/world/cityMap";
 import { useWorldStore } from "@/world/worldStore";
 import { events } from "@/framework/events";
+import { BuildingGate } from "@/framework/building/BuildingGate";
+import { getBuildingManifest } from "@/framework/building/registry";
 import { useEggStore } from "@/framework/eggStore";
 import { EGG_COUNT, KONAMI, konamiStep } from "@/lib/eggs";
 import { audio } from "@/framework/audio/audioManager";
@@ -29,6 +31,7 @@ const PANELLED_KINDS: ReadonlySet<VenueKind> = new Set<VenueKind>([
 export function CityScreen() {
   const nearVenueId = useWorldStore((s) => s.nearVenueId);
   const setInputLocked = useWorldStore((s) => s.setInputLocked);
+  const setInteriorOpen = useWorldStore((s) => s.setInteriorOpen);
   const [openVenue, setOpenVenue] = useState<CityBuilding | null>(null);
   const [playing, setPlaying] = useState<LevelActivity | null>(null);
   const [worldPanel, setWorldPanel] = useState<WorldPanel | null>(null);
@@ -39,6 +42,11 @@ export function CityScreen() {
   const nearVenue = nearVenueId ? (VENUES.find((v) => v.id === nearVenueId) ?? null) : null;
   const panelOpen = openVenue !== null || playing !== null || worldPanel !== null;
 
+  // A venue with a registered building module gets a real walkable interior;
+  // everything else keeps the framework's overlay panels (PRD §7.2).
+  const interior = openVenue ? getBuildingManifest(openVenue.id) : null;
+  const inInterior = interior?.interior != null && !playing;
+
   const enterVenue = useCallback((v: CityBuilding) => {
     audio.play("ui_open");
     setOpenVenue(v);
@@ -48,6 +56,11 @@ export function CityScreen() {
   useEffect(() => {
     setInputLocked(panelOpen);
   }, [panelOpen, setInputLocked]);
+
+  useEffect(() => {
+    setInteriorOpen(inInterior);
+    return () => setInteriorOpen(false);
+  }, [inInterior, setInteriorOpen]);
 
   // World-side prop clicks (billboard headlines, founders' plaque) open DOM panels.
   useEffect(() => events.on("world_interact", ({ kind }) => setWorldPanel(kind)), []);
@@ -64,7 +77,10 @@ export function CityScreen() {
         }
       }
       if (e.key === "Escape") {
+        // An interior owns its own Escape (it has to work standalone per the
+        // InteriorProps contract) — don't close it twice and double the sound.
         if (playing) setPlaying(null);
+        else if (inInterior) return;
         else if (openVenue) setOpenVenue(null);
         else if (worldPanel) setWorldPanel(null);
         return;
@@ -75,7 +91,7 @@ export function CityScreen() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [nearVenue, panelOpen, openVenue, playing, worldPanel, enterVenue]);
+  }, [nearVenue, panelOpen, openVenue, playing, worldPanel, inInterior, enterVenue]);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-ink">
@@ -98,25 +114,30 @@ export function CityScreen() {
         </div>
       )}
 
-      {openVenue && !playing && openVenue.kind === "competency" && (
+      {inInterior && interior && (
+        <BuildingGate manifest={interior} onExit={() => setOpenVenue(null)} />
+      )}
+
+      {!inInterior && openVenue && !playing && openVenue.kind === "competency" && (
         <ActivityListPanel
           venue={openVenue}
           onClose={() => setOpenVenue(null)}
           onPlay={(a) => setPlaying(a)}
         />
       )}
-      {openVenue && !playing && openVenue.kind === "trophy" && (
+      {!inInterior && openVenue && !playing && openVenue.kind === "trophy" && (
         <TrophyHall onClose={() => setOpenVenue(null)} />
       )}
-      {/* A scenario venue owns its own panel — a storyline, not a level list. */}
-      {openVenue && !playing && openVenue.kind === "scenario" && (
+      {/* A scenario venue owns its own panel — a storyline, not a level list —
+          until it registers an interior, at which point the room replaces it. */}
+      {!inInterior && openVenue && !playing && openVenue.kind === "scenario" && (
         <MaisonPanel
           venue={openVenue}
           onClose={() => setOpenVenue(null)}
           onPlay={(a) => setPlaying(a)}
         />
       )}
-      {openVenue && !playing && !PANELLED_KINDS.has(openVenue.kind) && (
+      {!inInterior && openVenue && !playing && !PANELLED_KINDS.has(openVenue.kind) && (
         <InfoPanel venue={openVenue} onClose={() => setOpenVenue(null)} />
       )}
 
@@ -241,10 +262,8 @@ function InfoPanel({ venue, onClose }: { venue: CityBuilding; onClose: () => voi
       title: "Custom venue",
       body: "Paper over the windows, permits on the door. A client-configurable venue — ships disabled until a client is set up.",
     },
-    cafe: {
-      title: "Café",
-      body: "Steam on the espresso machine, jazz on low. The barista is still training — activities for this venue plug in whenever they're ready. Smell the coffee on your way past.",
-    },
+    // No `cafe` entry: the Café is a registered building now and opens its own
+    // walkable interior instead of a panel (framework/building/registry.ts).
   };
   const c = copy[venue.kind] ?? { title: venue.displayName, body: "Coming soon." };
   return (
