@@ -378,6 +378,11 @@ export function CityCanvas({
 
       // ── Ticker ────────────────────────────────────────────────────────────
       application.ticker.add((ticker) => {
+        // A building interior owns the screen and runs its own Application while
+        // it's mounted. Freeze here rather than pay for a world nobody can see —
+        // the last frame stays on the canvas, fully occluded.
+        if (useWorldStore.getState().interiorOpen) return;
+
         const dt = ticker.deltaMS / 1000;
         elapsed += dt;
         const locked = useWorldStore.getState().inputLocked;
