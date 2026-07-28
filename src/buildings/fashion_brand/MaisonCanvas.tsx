@@ -25,7 +25,16 @@ import {
 } from "@/world/characterArt";
 import type { Cardinal } from "@/world/assets";
 import { MAISON_PALETTE, bakeMaisonTextures } from "./props";
-import { Z_PLAYER, buildFloor, buildKeyLight, buildRoom, dressRail, riseAt } from "./scene";
+import { roomDressing } from "./dressing";
+import {
+  Z_PLAYER,
+  buildFloor,
+  buildKeyLight,
+  buildRoom,
+  dressRail,
+  dressRoom,
+  riseAt,
+} from "./scene";
 import {
   ROOM_H,
   ROOM_PX_H,
@@ -93,9 +102,15 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       world.addChild(buildFloor(tex));
       world.addChild(buildKeyLight());
 
-      const { root: actors, rail } = buildRoom(tex);
+      const { root: actors, rail, dressing } = buildRoom(tex);
       world.addChild(actors);
-      dressRail(rail, tex, useMaisonStore.getState().world.rail);
+
+      const redress = (state = useMaisonStore.getState().world) => {
+        const d = roomDressing(state);
+        dressRail(rail, tex, d);
+        dressRoom(dressing, d);
+      };
+      redress();
 
       // ── The player ──────────────────────────────────────────────────────────
       const playerTex = bakePersonTextures(app.renderer, PLAYER_PALETTE);
@@ -127,12 +142,14 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       };
       app.stage.on("pointerdown", onStageDown);
 
-      // ── The rail, reacting to the season ────────────────────────────────────
-      // The building's primary readout is a subscription, not a redraw of the
-      // room: decide a beat, and the collection on the brass changes (§3.3).
+      // ── The house, reacting to the season ───────────────────────────────────
+      // The building's readout is a subscription, not a redraw of the room:
+      // decide a beat, and the collection on the brass changes — or the wall,
+      // the shelf, the desk or the door does instead (§3.3, §18.2.8). Only on a
+      // real change, so a decision that moves nothing costs nothing.
       unsubscribe = useMaisonStore.subscribe((s, prev) => {
-        if (destroyed || s.world.rail === prev.world.rail) return;
-        dressRail(rail, tex, s.world.rail);
+        if (destroyed || s.world === prev.world) return;
+        redress(s.world);
       });
 
       // ── Ticker ──────────────────────────────────────────────────────────────

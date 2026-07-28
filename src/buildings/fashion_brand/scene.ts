@@ -8,12 +8,12 @@
 // it. It is one volume, not two scenes — you can see the atelier from the floor,
 // and that sightline is the reason the platform is raised rather than hidden
 // (§3.2).
-import { Container, Graphics, Sprite } from "pixi.js";
+import { Container, Graphics, Sprite, Text } from "pixi.js";
 import { TILE_H, mapToWorld } from "@/lib/iso";
 import type { Cell } from "@/lib/pathfinding";
-import { GARMENT_NEUTRALS, MAISON_PALETTE, type MaisonTextures } from "./props";
+import { MAISON_PALETTE, type MaisonTextures } from "./props";
 import { FURNITURE, PLATFORM_EDGE_Y, PLATFORM_RISE_PX, ROOM_H, ROOM_W, levelAt } from "./room";
-import { RAIL_SHAPE, type Rail } from "./world";
+import type { RoomDressing } from "./dressing";
 
 const Z_FLAT = -0.1; // the threshold, the ramp — under everything upright
 const Z_LIGHT = -0.05; // the key light pool, over the floor and under the rail
@@ -70,6 +70,8 @@ export interface RoomLayer {
   root: Container;
   /** The garments hanging on the rail, rebuilt whenever the season moves. */
   rail: Container;
+  /** Everything else the world state shows: clippings, bolts, chalk, boxes. */
+  dressing: Container;
 }
 
 export function buildRoom(tex: MaisonTextures): RoomLayer {
@@ -87,8 +89,18 @@ export function buildRoom(tex: MaisonTextures): RoomLayer {
   rail.sortableChildren = true;
   root.addChild(rail);
 
-  return { root, rail };
+  const dressing = new Container();
+  dressing.sortableChildren = true;
+  root.addChild(dressing);
+
+  return { root, rail, dressing };
 }
+
+/** The cells the rail runs across, so the garments read as a run and not a pile. */
+const RAIL_CELLS: Cell[] = [
+  { x: 5, y: 8 },
+  { x: 6, y: 8 },
+];
 
 /**
  * Hang the season on the rail (§3.3). The rail is the building's primary
@@ -98,28 +110,137 @@ export function buildRoom(tex: MaisonTextures): RoomLayer {
  * It reports and never judges — every state is drawn in the same light, at the
  * same size, on the same brass. Nothing here marks one as better.
  */
-export function dressRail(rail: Container, tex: MaisonTextures, state: Rail): void {
+export function dressRail(rail: Container, tex: MaisonTextures, d: RoomDressing): void {
   rail.removeChildren().forEach((c) => c.destroy());
 
-  const pieces = RAIL_SHAPE[state].pieces;
-  // Two cells of rail, so the garments spread across both and read as a run.
-  const cells: Cell[] = [
-    { x: 5, y: 8 },
-    { x: 6, y: 8 },
-  ];
-  let i = 0;
-  for (const [count, label] of pieces) {
-    for (let n = 0; n < count; n++, i++) {
-      const cell = cells[i % cells.length];
-      const color =
-        label === "vermilion"
-          ? MAISON_PALETTE.vermilion
-          : GARMENT_NEUTRALS[i % GARMENT_NEUTRALS.length];
-      const sprite = place(new Sprite(tex.garment(color)), cell.x, cell.y);
-      // Fan them along the rail so eight pieces read as eight, not as one.
-      sprite.position.x += (Math.floor(i / cells.length) - 2) * 9;
-      sprite.zIndex = cell.x + cell.y + 0.1 + i * 0.001;
-      rail.addChild(sprite);
+  d.garments.forEach((g, i) => {
+    const cell = RAIL_CELLS[i % RAIL_CELLS.length];
+    const piece = new Container();
+    const sprite = place(new Sprite(tex.garment(g.color)), cell.x, cell.y);
+    piece.addChild(sprite);
+
+    // The price tag. Its colour is the band; the number is read off the list,
+    // because eight-pixel type is not a readout (§15).
+    const tag = new Graphics();
+    tag.rect(sprite.position.x + 9, sprite.position.y - 44, 7, 9).fill(g.tag);
+    piece.addChild(tag);
+
+    // A second name on the neck, when there is one (§12 `house_mark`).
+    if (g.collabMark) {
+      const mark = new Graphics();
+      mark.rect(sprite.position.x - 4, sprite.position.y - 60, 8, 2).fill(MAISON_PALETTE.steel);
+      piece.addChild(mark);
     }
+
+    // Fan them along the rail so eight pieces read as eight, not as one.
+    piece.position.x = (Math.floor(i / RAIL_CELLS.length) - 2) * 9;
+    piece.zIndex = cell.x + cell.y + 0.1 + i * 0.001;
+    rail.addChild(piece);
+  });
+}
+
+/**
+ * Everything else §12 shows. Rebuilt only when the season moves, never per
+ * frame — this is the rest of the answer to §18.2.8: a decision that does not
+ * change the rail changes the wall, the shelf, the desk or the door instead.
+ */
+export function dressRoom(dressing: Container, d: RoomDressing): void {
+  dressing.removeChildren().forEach((c) => c.destroy());
+
+  const at = (cx: number, cy: number) => {
+    const w = mapToWorld(cx, cy);
+    return { x: w.x, y: w.y + TILE_H / 2 + riseAt({ x: cx, y: cy }) };
+  };
+  const add = (g: Container, cx: number, cy: number, dz = 0.15) => {
+    g.zIndex = cx + cy + dz;
+    dressing.addChild(g);
+  };
+
+  // ── the press wall: filled frames along the stair run (§3.2) ───────────────
+  const pressCells: Cell[] = [
+    { x: 0, y: 6 },
+    { x: 0, y: 7 },
+    { x: 0, y: 8 },
+  ];
+  for (let i = 0; i < d.clippings; i++) {
+    const cell = pressCells[Math.floor(i / 2) % pressCells.length];
+    const p = at(cell.x, cell.y);
+    const g = new Graphics();
+    const lift = i % 2 === 0 ? -66 : -44;
+    g.poly([
+      p.x - 20,
+      p.y + lift,
+      p.x,
+      p.y + lift + 10,
+      p.x,
+      p.y + lift + 26,
+      p.x - 20,
+      p.y + lift + 16,
+    ]).fill(MAISON_PALETTE.bone);
+    add(g, cell.x, cell.y, 0.2 + i * 0.01);
   }
+
+  // ── the atelier shelf: how the money reads (§12 `cash`) ────────────────────
+  for (let i = 0; i < d.bolts; i++) {
+    const p = at(1, 3);
+    const g = new Graphics();
+    const tone = d.boltsPremium ? MAISON_PALETTE.bone : MAISON_PALETTE.oak;
+    g.rect(p.x - 18 + i * 9, p.y - 66, 6, 20).fill(tone);
+    add(g, 1, 3, 0.2 + i * 0.01);
+  }
+
+  // ── the steel column: the countdown, chalked, changed between beats ────────
+  const col = at(0, 4);
+  const chalk = new Text({
+    text: d.chalk,
+    style: {
+      fill: MAISON_PALETTE.chalk,
+      fontFamily: "Outfit, system-ui, sans-serif",
+      fontSize: 13,
+      fontWeight: "600",
+    },
+  });
+  chalk.anchor.set(0.5, 0.5);
+  chalk.position.set(col.x, col.y - 70);
+  add(chalk, 0, 4, 0.25);
+
+  // ── the desk: the resale printout, and whose name is on the paperwork ──────
+  const desk = at(1, 10);
+  const printout = new Graphics();
+  printout
+    .rect(desk.x - 30, desk.y - 52, 14, 18)
+    .fill(d.printoutStrong ? MAISON_PALETTE.bone : MAISON_PALETTE.ash);
+  add(printout, 1, 10, 0.2);
+
+  for (let i = 0; i < d.paperwork; i++) {
+    const g = new Graphics();
+    g.rect(desk.x - 4 + i * 5, desk.y - 40, 12, 8).fill(MAISON_PALETTE.bone);
+    add(g, 1, 10, 0.22 + i * 0.01);
+  }
+
+  // ── the door: whether the buyer's boxes are stacked by it (§12 `buyer`) ────
+  for (let i = 0; i < d.boxes; i++) {
+    const p = at(3, 12);
+    const g = new Graphics();
+    g.rect(p.x - 14 + (i % 2) * 16, p.y - 14 - Math.floor(i / 2) * 13, 15, 13).fill(
+      MAISON_PALETTE.oak,
+    );
+    add(g, 3, 12, 0.2 + i * 0.01);
+  }
+
+  // ── the machines: how many are running is the room's heartbeat (§6) ────────
+  const machineCells: Cell[] = [
+    { x: 3, y: 1 },
+    { x: 4, y: 1 },
+    { x: 5, y: 1 },
+  ];
+  machineCells.forEach((cell, i) => {
+    if (i >= d.machinesRunning) return;
+    const p = at(cell.x, cell.y);
+    const g = new Graphics();
+    // Brass, not vermilion: §4 spends the one saturated colour on the rail and
+    // nowhere else, so that losing it means something.
+    g.circle(p.x + 9, p.y - 54, 2.5).fill({ color: MAISON_PALETTE.brass, alpha: 0.7 });
+    add(g, cell.x, cell.y, 0.2);
+  });
 }

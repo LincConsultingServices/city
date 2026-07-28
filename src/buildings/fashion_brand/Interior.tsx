@@ -13,13 +13,14 @@ import type { LevelActivity } from "@/framework/api/schemas";
 import { audio } from "@/framework/audio/audioManager";
 import { PlayerShell } from "@/activities/PlayerShell";
 import { Icon } from "@/ui/Icon";
+import { Modal, ModalClose } from "@/ui/Modal";
 import { VENUES } from "@/world/cityMap";
 import { MaisonCanvas } from "./MaisonCanvas";
 import { MaisonPanel } from "./MaisonPanel";
 import { resetRoomState, useRoomStore } from "./roomStore";
 import { stationById, zoneAt } from "./room";
 import { useMaisonStore } from "./maisonStore";
-import { describeAtelier, describeCash, describePress, describeRail } from "./world";
+import { describeAtelier, describeCash, describePress, describeRail, railContents } from "./world";
 
 export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
   const [ready, setReady] = useState(false);
@@ -28,6 +29,8 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
   // collection is worked on, which is also where §13 says the lookbook lives.
   const [boardOpen, setBoardOpen] = useState(false);
   const [playing, setPlaying] = useState<LevelActivity | null>(null);
+  /** §15/§18.2.4: looking at the rail yields a readable list, not just a line. */
+  const [railOpen, setRailOpen] = useState(false);
   const charCell = useRoomStore((s) => s.charCell);
   const zoneId = useRoomStore((s) => s.zoneId);
   const nearExit = useRoomStore((s) => s.nearExit);
@@ -78,7 +81,7 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
 
   // A panel over the room freezes the room, exactly as a panel over the city
   // freezes the city — so a click meant for the board never also walks you.
-  const panelOpen = boardOpen || playing !== null;
+  const panelOpen = boardOpen || railOpen || playing !== null;
   useEffect(() => {
     useRoomStore.getState().setInputLocked(panelOpen);
   }, [panelOpen]);
@@ -120,9 +123,17 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
       setBoardOpen(true);
       return;
     }
+    if (id === "st_rail") {
+      // The blocking a11y criterion (§18.2.4): inspecting the rail produces a
+      // complete list of what is on it, with prices and labels. A player who
+      // cannot see the rail reads the same season off it.
+      audio.play("ui_open");
+      setRailOpen(true);
+      say(describeRail(w));
+      return;
+    }
     audio.play("ui_click");
-    if (id === "st_rail") say(describeRail(w));
-    else if (id === "st_press_wall") say(describePress(w));
+    if (id === "st_press_wall") say(describePress(w));
     else if (id === "st_column") say(`The column reads ${w.countdown}.`);
     else if (id === "st_cutting_table" || id === "st_bench") say(describeCash(w));
   }
@@ -175,6 +186,12 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
         WASD or click to move · E to look
       </p>
 
+      {railOpen && (
+        <div className="pointer-events-auto">
+          <RailReader onClose={() => setRailOpen(false)} />
+        </div>
+      )}
+
       {/* The season, worked on at the desk. These are `pointer-events-auto`
           islands over a click-through layer, so the room keeps its own clicks. */}
       {boardOpen && !playing && venue && (
@@ -198,5 +215,50 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
         {announcement.text}
       </p>
     </div>
+  );
+}
+
+/**
+ * Standing in the pool of light, looking at what you have made (§3.3). Every
+ * piece, its price and what its neck says — the same season the brass is
+ * showing, in words, because §18.2.4 makes that blocking.
+ *
+ * It reports. Nothing here is lit, ordered or framed as better than anything
+ * else on the rail (§11).
+ */
+function RailReader({ onClose }: { onClose: () => void }) {
+  const world = useMaisonStore((s) => s.world);
+  const pieces = railContents(world);
+  return (
+    <Modal onClose={onClose} width="sm" labelledBy="rail-title">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted">The collection</p>
+          <h2 id="rail-title" className="font-display text-2xl font-semibold text-gold">
+            On the rail
+          </h2>
+        </div>
+        <ModalClose onClose={onClose} label="Step back" />
+      </div>
+
+      <p className="mt-3 text-sm leading-relaxed text-text">{describeRail(world)}</p>
+
+      <ul className="mt-4 space-y-1.5">
+        {pieces.map((piece, i) => (
+          <li
+            key={i}
+            className="flex items-baseline justify-between gap-3 border-b border-line/60 pb-1.5 text-sm"
+          >
+            <span className="text-text">{piece.label}</span>
+            <span className="text-xs text-muted">{piece.neck}</span>
+            <span className="tabular-nums text-muted">{piece.price}</span>
+          </li>
+        ))}
+      </ul>
+
+      <p className="mt-4 text-xs text-muted">
+        {pieces.length} {pieces.length === 1 ? "piece" : "pieces"} · {world.countdown} to the show
+      </p>
+    </Modal>
   );
 }
