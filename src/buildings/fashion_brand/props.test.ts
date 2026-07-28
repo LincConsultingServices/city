@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { GARMENT_NEUTRALS, MAISON_PALETTE } from "./props";
+import { GARMENT_NEUTRALS, MAISON_PALETTE, shade } from "./props";
 import { riseAt } from "./scene";
 import { PLATFORM_RISE_PX, levelAt } from "./room";
 import { INITIAL_WORLD, RAIL_SHAPE, RAIL_STATES, railContents } from "./world";
@@ -13,6 +13,36 @@ function saturation(hex: number): number {
   const min = Math.min(r, g, b);
   return max === 0 ? 0 : (max - min) / max;
 }
+
+describe("MAISON — shading a colour", () => {
+  it("never produces a number wider than 24 bits", () => {
+    // The bug this exists for: lightening a pale colour overflowed a channel
+    // past 255, which carried into the next one. Pixi threw "Unable to convert
+    // color 16972781" from inside the interior's async build, so the room never
+    // finished loading, the overlay sat there saying "The door is heavy…", and
+    // the city underneath stayed hidden and frozen. One garment highlight.
+    const ks = [0.5, 0.74, 1, 1.06, 1.12, 1.14, 1.35, 1.5, 3];
+    const colours = [...Object.values(MAISON_PALETTE), ...GARMENT_NEUTRALS, 0xffffff, 0x000000];
+    for (const c of colours) {
+      for (const k of ks) {
+        const out = shade(c, k);
+        expect(out, `shade(${c.toString(16)}, ${k})`).toBeGreaterThanOrEqual(0);
+        expect(out, `shade(${c.toString(16)}, ${k})`).toBeLessThanOrEqual(0xffffff);
+      }
+    }
+  });
+
+  it("is the exact case that broke it — a bone garment's shoulder highlight", () => {
+    expect(shade(0xe6e0d4, 1.12)).toBeLessThanOrEqual(0xffffff);
+    expect(shade(0xe6e0d4, 1.12)).not.toBe(16972781);
+  });
+
+  it("still darkens and lightens between the rails", () => {
+    expect(shade(0x808080, 0.5)).toBe(0x404040);
+    expect(shade(0x808080, 1.5)).toBe(0xc0c0c0);
+    expect(shade(0xffffff, 2)).toBe(0xffffff); // clamped, not wrapped
+  });
+});
 
 describe("MAISON palette — §4's one rule", () => {
   it("holds exactly ONE saturated colour, and it is vermilion", () => {

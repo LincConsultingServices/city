@@ -32,6 +32,7 @@ import {
   Z_PLAYER,
   buildFloor,
   buildKeyLight,
+  buildRiser,
   buildRoom,
   dressRail,
   dressRoom,
@@ -102,9 +103,23 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       root.addChild(backdrop, world);
       app.stage.addChild(root);
 
+      // From here on the city is hidden and its ticker is frozen. If the build
+      // throws, the street has to come back — a half-open door that leaves the
+      // city dark and unreachable is a far worse failure than a room that will
+      // not load, and the only way out would be a reload. So `detach` is armed
+      // NOW and upgraded once there is more to give back.
+      detach = () => {
+        app.stage.removeChild(root);
+        root.destroy({ children: true });
+        destroyTextures(baked);
+        baked = [];
+        host.showWorld();
+      };
+
       const tex = bakeMaisonTextures(app.renderer);
       baked.push(...tex.all);
       world.addChild(buildFloor(tex));
+      world.addChild(buildRiser());
       world.addChild(buildKeyLight());
 
       const { root: actors, rail, dressing } = buildRoom(tex);
@@ -393,7 +408,14 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
         return;
       }
       onReady?.();
-    })();
+    })().catch((err) => {
+      // Give the street back, then say what happened. Without this the failure
+      // is silent — the interior's overlay sits there saying "The door is
+      // heavy…" forever and the city underneath stays hidden and frozen.
+      detach?.();
+      detach = null;
+      console.error("MAISON: the room failed to build", err);
+    });
 
     return () => {
       destroyed = true;

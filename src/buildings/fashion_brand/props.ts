@@ -42,10 +42,21 @@ export const MAISON_PALETTE = {
 /** Neutrals a garment can be when it is not vermilion (§3.3: bone, ash, sand). */
 export const GARMENT_NEUTRALS = [0xe6e0d4, 0xa8a49b, 0xcbb694] as const;
 
-function shade(color: number, k: number): number {
-  const r = Math.round(((color >> 16) & 0xff) * k);
-  const g = Math.round(((color >> 8) & 0xff) * k);
-  const b = Math.round((color & 0xff) * k);
+/**
+ * Darken (`k < 1`) or lighten (`k > 1`) a colour, per channel.
+ *
+ * The clamp is load-bearing. Lightening a pale colour overflows a channel past
+ * 255, which carries into the next one and produces a number wider than 24 bits
+ * — Pixi then throws "Unable to convert color", and because that happens inside
+ * the interior's async build, the room never finishes loading and the city has
+ * already been hidden. One highlight on a bone-coloured garment took the whole
+ * building down exactly that way.
+ */
+export function shade(color: number, k: number): number {
+  const ch = (v: number) => Math.max(0, Math.min(255, Math.round(v * k)));
+  const r = ch((color >> 16) & 0xff);
+  const g = ch((color >> 8) & 0xff);
+  const b = ch(color & 0xff);
   return (r << 16) | (g << 8) | b;
 }
 
@@ -291,12 +302,20 @@ const PROP_KINDS: PropKind[] = [
   "press_steam",
 ];
 
-/** One garment on a hanger — the unit the rail is made of. */
+/**
+ * One garment on a hanger — the unit the rail is made of.
+ *
+ * Narrow on purpose. A rail holds its pieces packed, so they overlap; but §3.3
+ * asks a player to read the whole season off it at a glance, and you cannot
+ * count a slab. The body is kept under the hanging pitch and given a darker
+ * leading edge, so eight pieces stay eight pieces even shoulder to shoulder.
+ */
 function drawGarment(color: number): Graphics {
   const g = pin(new Graphics());
   g.rect(-1, -70, 2, 8).fill(shade(P.brass, 0.8)); // the hook
-  g.poly([-13, -62, 13, -62, 9, -18, -9, -18]).fill(color);
-  g.poly([-13, -62, 0, -58, 13, -62, 0, -66]).fill(shade(color, 1.12)); // the shoulder
+  g.poly([-9, -62, 9, -62, 6, -18, -6, -18]).fill(color);
+  g.poly([-9, -62, 0, -58, 9, -62, 0, -66]).fill(shade(color, 1.12)); // the shoulder
+  g.poly([-9, -62, -6, -62, -4, -18, -6, -18]).fill(shade(color, 0.72)); // the fold
   return g;
 }
 
