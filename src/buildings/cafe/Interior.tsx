@@ -67,7 +67,11 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   };
 
   return (
-    <div className="absolute inset-0 z-20 animate-fade-in bg-ink">
+    // Transparent, and click-through by default. The room is drawn into the
+    // city's own canvas underneath this layer, so an opaque background would
+    // hide it and a solid hit area would swallow every click meant for it.
+    // Interactive children opt back in with `pointer-events-auto`.
+    <div className="pointer-events-none absolute inset-0 z-20 animate-fade-in">
       <CafeCanvas onReady={() => setReady(true)} />
 
       {!ready && (
@@ -88,7 +92,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
           audio.play("ui_close");
           onExit();
         }}
-        className="absolute right-5 top-5 z-10 flex items-center gap-2 rounded-full border border-line/70 bg-surface/80 px-4 py-2 text-sm text-text backdrop-blur hover:brightness-110"
+        className="pointer-events-auto absolute right-5 top-5 z-10 flex items-center gap-2 rounded-full border border-line/70 bg-surface/80 px-4 py-2 text-sm text-text backdrop-blur hover:brightness-110"
       >
         <Icon name="home" className="h-4 w-4" />
         Back to the street

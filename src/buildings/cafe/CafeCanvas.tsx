@@ -1,17 +1,24 @@
-// The Café room's renderer — the building's single Pixi↔React seam, and the only
-// place in the module that owns a PIXI.Application. React never re-renders the
-// room; the ticker reads and writes `cafeStore` and the DOM shell reads the same
-// store through selectors (PRD §12.2, mirroring world/CityCanvas.tsx).
+// The Café room's renderer — the building's single Pixi↔React seam. React never
+// re-renders the room; the ticker reads and writes `cafeStore` and the DOM shell
+// reads the same store through selectors (PRD §12.2, mirroring CityCanvas).
+//
+// It does NOT own a PIXI.Application. Two Applications alive at once breaks Pixi
+// v8: the second renderer's mere existence corrupts the city's batcher, the city
+// throws out of its own ticker listener, and its RAF loop never reschedules — so
+// the street never comes back. Verified with an empty second Application and no
+// textures at all. Instead we borrow the city's renderer through the framework's
+// interior stage, hide its layers, and give everything back on the way out.
 //
 // Deliberately unlike the city in one way: there is no follow camera. The whole
-// room fits on one screen, so it is framed once and stays framed — that is the
-// top-view-restaurant read cafe.jpg is going for.
-import { useEffect, useRef } from "react";
-import { Application, Container, Graphics, Sprite, Texture } from "pixi.js";
+// room fits on one screen, so it is framed once and stays framed — the top-view
+// restaurant read cafe.jpg is going for.
+import { useEffect } from "react";
+import { Container, Graphics, Sprite, Texture, type FederatedPointerEvent } from "pixi.js";
 import { TILE_H, TILE_W, mapToWorld, roundCell, worldToMap } from "@/lib/iso";
 import { findPath, type Cell } from "@/lib/pathfinding";
 import { prefersReducedMotion } from "@/lib/motion";
 import { audio } from "@/framework/audio/audioManager";
+import { whenInteriorHost, type InteriorHost } from "@/framework/building/interiorStage";
 import {
   PLAYER_PALETTE,
   bakePersonTextures,
@@ -19,13 +26,13 @@ import {
   destroyTextures,
 } from "@/world/characterArt";
 import type { Cardinal } from "@/world/assets";
-import { bakeCafeTextures } from "./props";
+import { CAFE_PALETTE, bakeCafeTextures } from "./props";
 import { FLAP_OPEN_ROTATION, Z_PLAYER, buildFloor, buildFurniture } from "./scene";
 import {
   GATES,
+  ROOM_H,
   ROOM_PX_H,
   ROOM_PX_W,
-  ROOM_H,
   ROOM_W,
   SPAWN,
   exitNear,
@@ -43,37 +50,12 @@ const WALL_LIFT = 42; // half the back wall's height, for visual centring
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
 
 export function CafeCanvas({ onReady }: { onReady?: () => void }) {
-  const mountRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     let destroyed = false;
-    let app: Application | null = null;
     let baked: Texture[] = [];
     let unsubscribe: (() => void) | null = null;
+    let detach: (() => void) | null = null;
     const reduced = prefersReducedMotion();
-    const mount = mountRef.current;
-    if (!mount) return;
-
-    /**
-     * Idempotent. Both the React cleanup and the async setup call this, because
-     * under StrictMode (and Suspense on the first lazy load) the cleanup can run
-     * while `init()` is still in flight — leaving a built scene with a live store
-     * subscription that nothing would otherwise tear down.
-     */
-    const teardown = () => {
-      unsubscribe?.();
-      unsubscribe = null;
-      if (app) {
-        app.stop(); // drain the render loop before the renderer goes away
-        app.destroy(true, { children: true });
-        app = null;
-      }
-      // Explicit, not via destroy()'s `texture` flag: that only reaches textures
-      // currently assigned to a sprite, which would strand the eight walk frames
-      // the player isn't standing on. Same contract as the city's teardown.
-      destroyTextures(baked);
-      baked = [];
-    };
 
     const store = useCafeStore.getState();
     const keys = new Set<string>();
@@ -101,31 +83,24 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
     };
 
     (async () => {
-      const application = new Application();
-      await application.init({
-        background: 0x140f10, // the dark surround the lit room sits in
-        resizeTo: mount,
-        antialias: true,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true,
-        // Hold the render loop until the scene is built. Under StrictMode the
-        // first mount is thrown away mid-init; letting that throwaway app render
-        // even one frame and then destroying it leaves a queued instruction set
-        // pointing at a freed batcher ("cannot read properties of null").
-        autoStart: false,
-      });
-      if (destroyed) {
-        application.destroy(true);
-        return;
-      }
-      app = application;
-      mount.appendChild(application.canvas);
+      const host: InteriorHost = await whenInteriorHost();
+      if (destroyed) return;
 
-      const tex = bakeCafeTextures(application.renderer);
-      baked.push(...tex.all);
+      const { app } = host;
+      host.hideWorld();
 
+      // Our own root on the city's stage. `backdrop` is screen-space — the room
+      // is a diamond, and without it the city's green sky shows through the
+      // corners; `world` carries the room and takes the fit-to-viewport transform.
+      const root = new Container();
+      const backdrop = new Sprite(Texture.WHITE);
+      backdrop.tint = CAFE_PALETTE.void;
       const world = new Container();
-      application.stage.addChild(world);
+      root.addChild(backdrop, world);
+      app.stage.addChild(root);
+
+      const tex = bakeCafeTextures(app.renderer);
+      baked.push(...tex.all);
       world.addChild(buildFloor(tex));
 
       const { root: actors, flap } = buildFurniture(tex);
@@ -133,8 +108,8 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
 
       // ── The player ──────────────────────────────────────────────────────────
       // Same procedural rig as the street, so it is recognisably you indoors.
-      const playerTex = bakePersonTextures(application.renderer, PLAYER_PALETTE);
-      const shadowTex = bakeShadowTexture(application.renderer);
+      const playerTex = bakePersonTextures(app.renderer, PLAYER_PALETTE);
+      const shadowTex = bakeShadowTexture(app.renderer);
       baked.push(...playerTex.all, shadowTex);
 
       const char = new Container();
@@ -152,15 +127,15 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
       // ── Input ───────────────────────────────────────────────────────────────
       // The flap stops its own click from reaching the stage, or lifting it would
       // also order the player to walk into the counter.
-      flap.children[0].on("pointerdown", (e) => {
+      flap.children[0].on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
         if (useCafeStore.getState().inputLocked) return;
         toggleFlap();
       });
 
-      application.stage.eventMode = "static";
-      application.stage.hitArea = application.screen;
-      application.stage.on("pointerdown", (e) => {
+      // The city has its own stage listener; it no-ops the whole time a venue is
+      // open because the world's `inputLocked` is set. Ours comes off by name.
+      const onStageDown = (e: FederatedPointerEvent) => {
         if (useCafeStore.getState().inputLocked) return;
         const local = world.toLocal(e.global);
         const goal = roundCell(worldToMap(local.x, local.y));
@@ -169,7 +144,8 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
         if (path.length <= 1) return;
         pathTargets = path.slice(1);
         drawPathPreview(pathLine, pathTargets);
-      });
+      };
+      app.stage.on("pointerdown", onStageDown);
 
       // ── The flap, reacting to the store ─────────────────────────────────────
       let flapTarget = 0;
@@ -193,7 +169,7 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
       let lastW = 0;
       let lastH = 0;
 
-      application.ticker.add((ticker) => {
+      const tick = (ticker: { deltaMS: number }) => {
         if (destroyed) return;
         const dt = ticker.deltaMS / 1000;
         elapsed += dt;
@@ -290,11 +266,13 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
 
         // Camera: no follow. Fit the whole room, never upscaling, and re-frame
         // only when the viewport actually changed.
-        const sw = application.screen.width;
-        const sh = application.screen.height;
+        const sw = app.screen.width;
+        const sh = app.screen.height;
         if (sw !== lastW || sh !== lastH) {
           lastW = sw;
           lastH = sh;
+          backdrop.width = sw;
+          backdrop.height = sh;
           const scale = Math.min(
             1,
             (sw - VIEWPORT_PAD) / ROOM_PX_W,
@@ -302,25 +280,37 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
           );
           world.scale.set(scale);
           // Centre on the room's visual mass, not its floor plane: the back wall
-          // stands ~84px above the tiles, so centring on the diamond alone
-          // parks the whole room high with dead space underneath.
+          // stands ~84px above the tiles, so centring on the diamond alone parks
+          // the whole room high with dead space underneath.
           const mid = mapToWorld((ROOM_W - 1) / 2, (ROOM_H - 1) / 2);
           world.position.set(sw / 2 - mid.x * scale, sh / 2 - (mid.y - WALL_LIFT) * scale);
         }
-      });
+      };
+      app.ticker.add(tick);
+
+      // Everything we borrowed, given back. The city's Application is left
+      // running exactly as we found it — we never destroy what we did not make.
+      detach = () => {
+        app.ticker.remove(tick);
+        app.stage.off("pointerdown", onStageDown);
+        app.stage.removeChild(root);
+        root.destroy({ children: true });
+        destroyTextures(baked);
+        baked = [];
+        host.showWorld();
+      };
 
       store.setNearExit(exitNear(curCell));
       store.setNearGate(gateNear(curCell)?.id ?? null);
       audio.preload(["step_hard_1", "step_hard_2"]);
 
-      // The scene is complete — safe to render now. If we were unmounted while
-      // building it, tear the whole thing down rather than just bail: the React
-      // cleanup already ran and saw nothing to clean.
+      // Unmounted while we were building? Hand it all straight back — the React
+      // cleanup already ran and found nothing to clean.
       if (destroyed) {
-        teardown();
+        detach();
+        detach = null;
         return;
       }
-      application.start();
       onReady?.();
     })();
 
@@ -328,12 +318,18 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
       destroyed = true;
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
-      teardown();
+      unsubscribe?.();
+      unsubscribe = null;
+      detach?.();
+      detach = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return <div ref={mountRef} className="absolute inset-0" />;
+  // Renders no DOM at all: the room is drawn into the city's existing canvas, so
+  // there is nothing here to mount. Anything we did render would sit on top of
+  // that canvas and swallow the clicks meant for it.
+  return null;
 }
 
 /** Gold dotted trail to the click target, with a ring on the destination. */
