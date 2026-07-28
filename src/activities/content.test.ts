@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { ACTIVITY_CONTENT } from "./content";
+import { allPaths } from "@/lib/decisionTree";
 
 // Authored content must line up with the server's hidden answer/order keys — a
 // typo in an itemId or option value silently scores 1/3 no matter how well the
@@ -8,8 +9,11 @@ import { ACTIVITY_CONTENT } from "./content";
 describe("authored activity content", () => {
   const entries = Object.entries(ACTIVITY_CONTENT);
 
+  // PRO is the scenario-venue Level B code (docs/maison.md §10.1). The live level
+  // enum is unverified — if the backend calls it ADVANCED this regex and the
+  // season spine's TRACK_LEVEL are the two places that change (§0.4).
   it("keys every entry by a canonical registry id", () => {
-    for (const [id] of entries) expect(id).toMatch(/^C\d-(BEG|MED|HARD)-\d{2}$/);
+    for (const [id] of entries) expect(id).toMatch(/^C\d-(BEG|MED|HARD|PRO)-\d{2}$/);
   });
 
   it("MCQ content uses q-numbered items with unique a–d options", () => {
@@ -59,6 +63,35 @@ describe("authored activity content", () => {
         `${id} needs at least one essential`,
       ).toBe(true);
       for (const i of c.items) expect(i.cost, `${id}.${i.key} cost`).toBeGreaterThan(0);
+    }
+  });
+
+  // A decision tree scores off the PATH, so a structural break here is not a
+  // wrong answer — it is a submission that lands on no rubric terminal at all.
+  it("decision trees terminate, and every branch has a follow-up beat", () => {
+    for (const [id, c] of entries) {
+      if (c.kind !== "decision_tree") continue;
+      const seedKeys = c.seed.choices.map((ch) => ch.key);
+      expect(seedKeys.length, `${id} seed choices`).toBe(3);
+      expect(new Set(seedKeys).size, `${id} duplicate seed keys`).toBe(3);
+      expect(c.seed.stage.length, `${id} seed stage`).toBeGreaterThan(0);
+
+      // Two-beat contract: one follow-up node per seed branch, no orphans.
+      expect(Object.keys(c.followUps).slice().sort(), `${id} follow-up branches`).toEqual(
+        seedKeys.slice().sort(),
+      );
+
+      for (const [branch, node] of Object.entries(c.followUps)) {
+        const keys = node.choices.map((ch) => ch.key);
+        expect(keys.length, `${id}.${branch} choices`).toBe(3);
+        expect(new Set(keys).size, `${id}.${branch} duplicate keys`).toBe(3);
+        expect(node.stage.length, `${id}.${branch} stage`).toBeGreaterThan(0);
+      }
+
+      // Nine leaves, and every constructible path is exactly two beats deep.
+      const paths = allPaths(c);
+      expect(paths.length, `${id} leaf count`).toBe(9);
+      for (const p of paths) expect(p.length, `${id} path ${p.join(".")}`).toBe(2);
     }
   });
 

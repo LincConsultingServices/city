@@ -6,6 +6,8 @@
 // silently scores 1/3 no matter how well the player does. content.test.ts guards
 // the structure; src/lib/budget.test.ts checks the budget activities are winnable.
 import type { SimContent } from "@/lib/sim";
+import type { DecisionTreeContent } from "@/lib/decisionTree";
+import { maisonContent } from "@/buildings/fashion_brand/content";
 
 // MCQ_FEEDBACK → objective. The real C4 activities carry eight questions each.
 // `id` is the server itemId (q1..q8) and `value` the server choice ("a".."d") —
@@ -47,10 +49,18 @@ export interface BudgetContent {
   items: { key: string; label: string; cost: number; essential?: boolean; emoji?: string }[];
 }
 
+// DECISION_TREE → trace. Defined in @/lib/decisionTree alongside its traversal,
+// the way SimContent lives with the sim math. MAISON's eighteen trees are
+// authored in the venue's own folder and merged in below (docs/maison.md §19.2).
 export type ActivityContent =
-  SimContent | McqContent | DragMatchContent | SortOrderContent | BudgetContent;
+  | SimContent
+  | McqContent
+  | DragMatchContent
+  | SortOrderContent
+  | BudgetContent
+  | DecisionTreeContent;
 
-export const ACTIVITY_CONTENT: Record<string, ActivityContent> = {
+const C4_BEGINNER_CONTENT: Record<string, ActivityContent> = {
   // C4-BEG-01 — "Needs vs Wants" (DRAG_MATCH → objective).
   "C4-BEG-01": {
     kind: "drag_match",
@@ -562,4 +572,15 @@ export const ACTIVITY_CONTENT: Record<string, ActivityContent> = {
     weather: ["Slow morning", "A steady trickle", "Busy afternoon rush"],
     goal: "Stay solvent all three days and grow the till.",
   },
+};
+
+/**
+ * The lookup PlayerShell uses. Venues that author a lot of content keep it in
+ * their own folder and merge it here, so shared core does not grow by a thousand
+ * lines every time a venue lands (master PRD §7.3 — a building PR should touch
+ * its own folder).
+ */
+export const ACTIVITY_CONTENT: Record<string, ActivityContent> = {
+  ...C4_BEGINNER_CONTENT,
+  ...maisonContent,
 };

@@ -5,6 +5,7 @@
 // decorative filler buildings and props (trees/lamps/fountain). Building
 // INTERIORS are intentionally not scaffolded yet — main city UI only.
 import type { Grid, Cell } from "@/lib/pathfinding";
+import { MAISON_ACTIVITY_IDS } from "@/buildings/fashion_brand/season";
 
 export const BLOCK = 11; // road every BLOCK cells (1-cell road + 10-cell block interior)
 export const BLOCKS = 4;
@@ -41,7 +42,10 @@ export function districtAt(x: number, y: number): District {
   return DISTRICT_GRID[br][bc];
 }
 
-export type VenueKind = "competency" | "shop" | "trophy" | "locked" | "cafe";
+// "scenario" venues span many competencies instead of one level list — a whole
+// authored storyline with its own panel (MAISON, docs/maison.md). `competency`/
+// `level` are meaningless for them; the venue's own module owns the spine.
+export type VenueKind = "competency" | "shop" | "trophy" | "locked" | "cafe" | "scenario";
 
 export interface CityBuilding {
   id: string;
@@ -114,9 +118,12 @@ export const VENUES: CityBuilding[] = [
     level: "BEGINNER",
     hostedActivities: ["C4-BEG-09", "C4-BEG-11"],
   }),
-  venue("fashion_brand", "Fashion Brand", "market", 3, 0, 2, 2, 2, 2, {
-    competency: "C8",
-    level: "BEGINNER",
+  // MAISON — the fashion house (docs/maison.md). A scenario venue: one season,
+  // nine beats, all nine competencies on the player's track. Wider and one bay
+  // deeper than its neighbours because the boutique is mostly empty on purpose.
+  venue("fashion_brand", "MAISON", "market", 3, 0, 2, 2, 3, 2, {
+    kind: "scenario",
+    hostedActivities: MAISON_ACTIVITY_IDS,
   }),
   venue("cafe", "Café", "market", 2, 0, 0, 5, 2, 2, { kind: "cafe" }), // dedicated stub — build out later
   venue("the_shop", "The Shop", "market", 3, 1, 3, 3, 2, 2, { kind: "shop" }),
