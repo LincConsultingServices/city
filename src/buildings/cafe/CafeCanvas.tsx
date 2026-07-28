@@ -29,7 +29,7 @@ import type { Cardinal } from "@/world/assets";
 import { loadCafeAssets } from "./assets";
 import { createSteam } from "./steam";
 import { CAFE_PALETTE, bakeCafeTextures } from "./props";
-import { FLAP_OPEN_ROTATION, Z_PLAYER, buildFloor, buildFurniture, buildWarmth } from "./scene";
+import { FLAP_OPEN_ROTATION, Z_PLAYER, buildFloor, buildFurniture } from "./scene";
 import {
   GATES,
   ROOM_H,
@@ -108,8 +108,7 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
 
       const tex = bakeCafeTextures(app.renderer);
       baked.push(...tex.all);
-      world.addChild(buildFloor(tex));
-      if (!reduced) world.addChild(buildWarmth(tex));
+      world.addChild(buildFloor());
 
       const { root: actors, flap } = buildFurniture(tex);
       world.addChild(actors);

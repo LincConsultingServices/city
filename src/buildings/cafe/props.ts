@@ -17,8 +17,10 @@ const HH = TILE_H / 2; // 33 — half a tile diamond, on the y axis
 export const CAFE_PALETTE = {
   /** Beyond the walls. The room is a lit island in this. */
   void: 0x140f10,
-  floorLight: 0xd8cfc4,
-  floorDark: 0x2e2a2c,
+  /** Warm putty stone. Lighter than the walls so furniture keeps its silhouette,
+   *  and desaturated so the oxblood counter and rugs stay the loudest thing. */
+  floor: 0xb8a086,
+  floorSeam: 0x9a8168,
   wallPlank: 0x8a6242,
   wallPlankLine: 0x6e4c33,
   oxblood: 0x96453f,
@@ -417,10 +419,6 @@ function drawProp(kind: PropKind): Graphics {
 
 export interface CafeTextures {
   prop: Record<PropKind, Texture>;
-  /** Checkered floor, indexed by `(x + y) % 2`. */
-  floor: [Texture, Texture];
-  /** The warm pool of light the room sits in, laid over the floor. */
-  warmth: Texture;
   /** Every unique texture, for disposal on unmount. */
   all: Texture[];
 }
@@ -458,35 +456,6 @@ function bake(renderer: Renderer, g: Graphics): Texture {
   return texture;
 }
 
-function drawFloor(dark: boolean): Graphics {
-  const g = pin(new Graphics());
-  isoFlat(g, 1, dark ? P.floorDark : P.floorLight);
-  isoFlat(g, 1, 0x000000, 0.06);
-  isoFlat(g, 0.96, dark ? P.floorDark : P.floorLight);
-  return g;
-}
-
-/**
- * A soft warm pool, drawn once and stretched over the floor with additive
- * blending. cafe.jpg is a lit room in a dark surround; an evenly-lit floor reads
- * flat however good the props are, and this does more for that than any prop.
- */
-function drawWarmth(): Graphics {
-  const g = new Graphics();
-  const R = 260;
-  for (let i = 12; i >= 1; i--) {
-    const k = i / 12;
-    g.ellipse(R, R * 0.5, R * k, R * 0.5 * k).fill({ color: P.lamp, alpha: 0.035 });
-  }
-  return g;
-}
-
-/**
- * Bake the room's art. Kinds listed in PROP_SPRITE take their loaded sprite
- * instead of a procedural bake — that is the whole seam, one lookup. Sprites are
- * owned by Pixi's asset cache, so they are deliberately NOT pushed onto `all`;
- * only what we generated here is ours to destroy.
- */
 export function bakeCafeTextures(renderer: Renderer): CafeTextures {
   const all: Texture[] = [];
   const prop = {} as Record<PropKind, Texture>;
@@ -501,11 +470,5 @@ export function bakeCafeTextures(renderer: Renderer): CafeTextures {
     prop[kind] = t;
     all.push(t);
   }
-  const floor: [Texture, Texture] = [
-    bake(renderer, drawFloor(false)),
-    bake(renderer, drawFloor(true)),
-  ];
-  const warmth = bake(renderer, drawWarmth());
-  all.push(...floor, warmth);
-  return { prop, floor, warmth, all };
+  return { prop, all };
 }
