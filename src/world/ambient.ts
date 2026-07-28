@@ -123,6 +123,19 @@ interface Pigeon {
   returnAt: number;
 }
 
+/**
+ * Roads run along the isometric axes — ±26.6° from horizontal on screen — but
+ * the curated vehicle art is flat side-elevation: measured across all twenty
+ * frames, every one sits within ±10° of horizontal. Drawn untilted they read as
+ * sliding sideways across the road instead of driving along it.
+ *
+ * Tilting each sprite onto its lane fixes that. It is a cheat — a rotated side
+ * view is not a true isometric projection — but at 60px on screen it reads
+ * correctly, and the alternative is sourcing a whole new vehicle pack.
+ */
+const ISO_TILT = Math.atan2(TILE_H, TILE_W);
+
+/** Which way a leg runs, and therefore which lane axis the body lies along. */
 const legDir = (a: Cell, b: Cell): Cardinal => {
   if (b.x > a.x) return "E";
   if (b.x < a.x) return "W";
@@ -565,7 +578,10 @@ export function createAmbient(ctx: AmbientContext): Ambient {
       const cx = aa.x + (bb.x - aa.x) * car.t;
       const cy = aa.y + (bb.y - aa.y) * car.t;
       const w = mapToWorld(cx, cy);
-      car.sprite.texture = carTexture(car.kind, legDir(aa, bb));
+      const along = legDir(aa, bb);
+      car.sprite.texture = carTexture(car.kind, along);
+      // East/west legs run down-right on screen, north/south down-left.
+      car.sprite.rotation = along === "E" || along === "W" ? ISO_TILT : -ISO_TILT;
       car.sprite.position.set(w.x, w.y + 14);
       car.sprite.zIndex = cx + cy + 0.3;
       car.sprite.tint = carTint ?? 0xffffff;
