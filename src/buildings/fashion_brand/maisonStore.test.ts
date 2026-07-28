@@ -64,9 +64,24 @@ describe("MAISON season store", () => {
       rail: "tartan",
       vibes: "ominous",
     });
-    // The beat still counts as decided; the house just does not move.
-    expect(useMaisonStore.getState().world).toEqual(before);
-    expect(useMaisonStore.getState().decided.map((d) => d.id)).toEqual(["C1-HARD-03"]);
+
+    // The beat still counts as decided and the season still advances — the
+    // countdown is chalked from the spine, not from the leaf — but nothing the
+    // house shows moved on a delta it does not understand.
+    const after = useMaisonStore.getState();
+    expect({ ...after.world, countdown: before.countdown }).toEqual(before);
+    expect(after.decided.map((d) => d.id)).toEqual(["C1-HARD-03"]);
+  });
+
+  it("advances the countdown as the season is decided (§3.5)", () => {
+    useMaisonStore.getState().chooseTrack("A");
+    expect(useMaisonStore.getState().world.countdown).toBe("11w");
+
+    useMaisonStore.getState().recordDecision("C1-HARD-03", ["a", "a"], { rail: "capsule" });
+    expect(useMaisonStore.getState().world.countdown).toBe("9w");
+
+    useMaisonStore.getState().recordDecision("C2-HARD-03", ["b", "a"], { rail: "mixed" });
+    expect(useMaisonStore.getState().world.countdown).toBe("8w");
   });
 
   it("resets the collection but keeps the track you are on", () => {

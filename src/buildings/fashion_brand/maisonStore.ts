@@ -13,6 +13,7 @@ import { events } from "@/framework/events";
 import { worldDeltaAlong, type DecisionTreeContent } from "@/lib/decisionTree";
 import { applyDelta, initialWorld, WORLD_KEYS, type MaisonWorld } from "./world";
 import { maisonContent } from "./content";
+import { countdownFor } from "./beats";
 import type { Track } from "./season";
 
 const STORAGE_KEY = "city.maison.v1";
@@ -94,10 +95,14 @@ export const useMaisonStore = create<MaisonState>((set, get) => ({
     const decided = prev.decided.some((d) => d.id === activityId)
       ? prev.decided.map((d) => (d.id === activityId ? { id: activityId, path } : d))
       : [...prev.decided, { id: activityId, path }];
+    // The column is chalked with the beat you are ON, so finishing one advances
+    // it (§3.5). The countdown does the pressure work; nothing is ever on a
+    // real timer, and this is the only thing that moves it.
+    const world = applyDelta(prev.world, delta);
     const next: Season = {
       track: prev.track,
       opening: prev.opening,
-      world: applyDelta(prev.world, delta),
+      world: prev.track ? { ...world, countdown: countdownFor(prev.track, decided) } : world,
       decided,
     };
     set(next);

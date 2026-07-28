@@ -1,11 +1,11 @@
-// MAISON — the season board (docs/maison.md §0.1). The venue is a scenario, not
-// a level list, so it gets its own panel instead of the framework's
-// ActivityListPanel: one collection, nine beats, counting down to the show.
+// MAISON — the season board, in OVERLAY MODE.
 //
-// This is the shipping surface for §3–§8 until an interior engine exists.
-// Everything the room would say in geometry it says here in words — which §15
-// requires anyway, and which means the rail is legible to a player who cannot
-// see it at all.
+// This is no longer the venue's main surface: MAISON registers an interior, so
+// walking in gets you the room (§3) and the beats arrive at their stations (§8).
+// The framework still renders this whenever a scenario venue has no interior to
+// open — `enabled: false`, a failed lazy load, or a future scenario building
+// that ships without a room — so it stays the honest fallback rather than dead
+// code, and it keeps saying in words everything the room says in geometry.
 //
 // SILENT TIER (§11): no tier, star, proficiency or pass/fail appears on this
 // board. A decided beat says "decided", not how well. The tier vocabulary lives

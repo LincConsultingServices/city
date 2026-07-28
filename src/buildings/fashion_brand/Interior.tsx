@@ -7,36 +7,59 @@
 // non-verbal channel and must therefore be fully verbal too: every zone you
 // enter, and every change to the collection, reaches the live region in plain
 // language. A player who cannot see the rail reads the same season off it.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { InteriorProps } from "@/framework/building/manifest";
 import type { LevelActivity } from "@/framework/api/schemas";
 import { audio } from "@/framework/audio/audioManager";
 import { PlayerShell } from "@/activities/PlayerShell";
 import { Icon } from "@/ui/Icon";
 import { Modal, ModalClose } from "@/ui/Modal";
-import { VENUES } from "@/world/cityMap";
 import { MaisonCanvas } from "./MaisonCanvas";
-import { MaisonPanel } from "./MaisonPanel";
+import { Lookbook } from "./Lookbook";
 import { resetRoomState, useRoomStore } from "./roomStore";
 import { stationById, zoneAt } from "./room";
 import { useMaisonStore } from "./maisonStore";
+import { beatActivityId, beatPrompt, liveBeatAt, nextBeat, seasonComplete } from "./beats";
+import { SEASON_QUERY_KEY, fetchSeasonActivities } from "./seasonQuery";
+import { TRACK_FRAMING, type Track } from "./season";
+import { veraQuestion } from "./vera";
 import { describeAtelier, describeCash, describePress, describeRail, railContents } from "./world";
 
 export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
   const [ready, setReady] = useState(false);
-  // The season, opened from the desk. M4 moves the beats out to their stations
-  // (§8) so they arrive where they happen; until then the desk is where the
-  // collection is worked on, which is also where §13 says the lookbook lives.
-  const [boardOpen, setBoardOpen] = useState(false);
   const [playing, setPlaying] = useState<LevelActivity | null>(null);
   /** §15/§18.2.4: looking at the rail yields a readable list, not just a line. */
   const [railOpen, setRailOpen] = useState(false);
+  /** The lookbook, on the desk where it has been all along (§13). */
+  const [lookbookOpen, setLookbookOpen] = useState(false);
+  /** The desk phone. Free, unscored, and available at every beat (§9.6). */
+  const [callOpen, setCallOpen] = useState(false);
   const charCell = useRoomStore((s) => s.charCell);
   const zoneId = useRoomStore((s) => s.zoneId);
   const nearExit = useRoomStore((s) => s.nearExit);
   const nearStationId = useRoomStore((s) => s.nearStationId);
   const announcement = useRoomStore((s) => s.announcement);
   const world = useMaisonStore((s) => s.world);
+  const track = useMaisonStore((s) => s.track);
+  const decided = useMaisonStore((s) => s.decided);
+
+  const activities = useQuery({
+    queryKey: SEASON_QUERY_KEY,
+    queryFn: fetchSeasonActivities,
+    staleTime: 60_000,
+  });
+
+  // §8: one collection in order. Exactly one beat is live, and it is waiting at
+  // its own station — Ines at the rail, Élise at her bench, Rio on the floor.
+  // Approaching it is what triggers it; nothing here is on a timer.
+  const liveBeat = useMemo(
+    () => (track ? liveBeatAt(track, decided, nearStationId) : null),
+    [track, decided, nearStationId],
+  );
+  const upNext = track ? nextBeat(track, decided) : null;
+  const liveActivity =
+    liveBeat && track ? activities.data?.get(beatActivityId(liveBeat, track)) : undefined;
 
   // Every visit starts at the desk, facing the rail (§3.2).
   useEffect(() => {
@@ -75,16 +98,37 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
   }, [world]);
 
   const station = nearStationId ? stationById(nearStationId) : undefined;
-  const prompt = nearExit ? "leave MAISON" : (station?.prompt ?? null);
-  /** The city's record of this venue — MaisonPanel wants the same one the street does. */
-  const venue = VENUES.find((v) => v.id === manifest.id) ?? null;
+  // A live beat outranks the station's own prompt: standing at the rail while
+  // Ines is waiting there should say so, not offer to look at the collection.
+  const finished = track ? seasonComplete(track, decided) : false;
+  const prompt = nearExit
+    ? "leave MAISON"
+    : liveBeat && liveActivity
+      ? beatPrompt(liveBeat)
+      : station?.id === "st_desk"
+        ? // §13: it has been on the desk all along. At nine of nine it is printed.
+          finished
+          ? "read the lookbook"
+          : "look at the season so far"
+        : (station?.prompt ?? null);
 
   // A panel over the room freezes the room, exactly as a panel over the city
-  // freezes the city — so a click meant for the board never also walks you.
-  const panelOpen = boardOpen || railOpen || playing !== null;
+  // freezes the city — so a click meant for a panel never also walks you.
+  // §14: Élise asks the threshold question on first entry, once for the whole
+  // city. Until it is answered there is no season to be on, so the room is
+  // walkable and nothing is live.
+  const needsTrack = track === null;
+  const panelOpen = needsTrack || railOpen || lookbookOpen || callOpen || playing !== null;
   useEffect(() => {
     useRoomStore.getState().setInputLocked(panelOpen);
   }, [panelOpen]);
+
+  // `act` closes over which beat is live, which changes as the season moves.
+  // The key listener is bound once, so it has to reach the CURRENT act through
+  // a ref — bound to the first one, pressing E would open whatever beat was
+  // live when you walked in.
+  const actRef = useRef(() => {});
+  actRef.current = act;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -99,7 +143,7 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
       if (useRoomStore.getState().inputLocked) return;
       // The door wins when you are standing in it; otherwise use the station.
       if (useRoomStore.getState().nearExit) leave();
-      else act();
+      else actRef.current();
     }
     function leave() {
       audio.play("ui_close");
@@ -110,17 +154,28 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
   }, [onExit]);
 
   /**
-   * What a station does. M4 hangs the beats off this; for now the readouts —
-   * the rail, the press wall, the countdown — already work, because they are
-   * the building's feedback channel rather than its content (§3.3, §11).
+   * What a station does. A waiting beat wins — walking up to whoever is holding
+   * this week's problem is how the season advances (§8). Everything else is a
+   * readout: the building's feedback channel rather than its content.
    */
   function act() {
     const id = useRoomStore.getState().nearStationId;
     const w = useMaisonStore.getState().world;
     const say = useRoomStore.getState().announce;
+
+    if (liveBeat && liveActivity) {
+      audio.play("ui_open");
+      setPlaying(liveActivity);
+      return;
+    }
+    if (id === "st_phone") {
+      audio.play("ui_open");
+      setCallOpen(true);
+      return;
+    }
     if (id === "st_desk") {
       audio.play("ui_open");
-      setBoardOpen(true);
+      setLookbookOpen(true);
       return;
     }
     if (id === "st_rail") {
@@ -156,6 +211,12 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
         <p className="font-display text-lg font-semibold text-gold">{manifest.displayName}</p>
         <p className="text-xs uppercase tracking-widest text-muted">{zoneAt(charCell).label}</p>
         <p className="mt-1 text-xs tabular-nums text-muted">{world.countdown} to the show</p>
+        {/* Where the season is, in the room's terms — never "3 of 9 complete". */}
+        {upNext && (
+          <p className="mt-0.5 text-xs text-muted">
+            {upNext.host} is at {stationById(upNext.station)?.label ?? "the floor"}
+          </p>
+        )}
       </div>
 
       <button
@@ -186,17 +247,32 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
         WASD or click to move · E to look
       </p>
 
+      {needsTrack && (
+        <div className="pointer-events-auto">
+          <Threshold />
+        </div>
+      )}
+
       {railOpen && (
         <div className="pointer-events-auto">
           <RailReader onClose={() => setRailOpen(false)} />
         </div>
       )}
 
-      {/* The season, worked on at the desk. These are `pointer-events-auto`
-          islands over a click-through layer, so the room keeps its own clicks. */}
-      {boardOpen && !playing && venue && (
+      {/* These are `pointer-events-auto` islands over a click-through layer, so
+          the room keeps its own clicks. */}
+      {callOpen && (
         <div className="pointer-events-auto">
-          <MaisonPanel venue={venue} onClose={() => setBoardOpen(false)} onPlay={setPlaying} />
+          <DeskPhone competency={upNext?.competency ?? null} onClose={() => setCallOpen(false)} />
+        </div>
+      )}
+      {lookbookOpen && track && (
+        <div className="pointer-events-auto">
+          <Lookbook
+            track={track}
+            activities={activities.data}
+            onClose={() => setLookbookOpen(false)}
+          />
         </div>
       )}
       {playing && (
@@ -215,6 +291,76 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
         {announcement.text}
       </p>
     </div>
+  );
+}
+
+/**
+ * The threshold question (§14) — asked by Élise on first entry, once for the
+ * whole city. It picks the framing for the season, not a difficulty, so neither
+ * answer is presented as the harder or the better one.
+ */
+function Threshold() {
+  const chooseTrack = useMaisonStore((s) => s.chooseTrack);
+  return (
+    <Modal onClose={() => {}} width="sm" labelledBy="threshold-title">
+      <p className="text-xs uppercase tracking-[0.2em] text-muted">MAISON</p>
+      <h2 id="threshold-title" className="font-display text-2xl font-semibold text-gold">
+        Élise looks up from her bench
+      </h2>
+      <p className="mt-3 text-sm leading-relaxed text-muted">
+        She holds it a beat longer than is comfortable, then asks the question she asks everyone
+        once.
+      </p>
+      <p className="mt-3 font-display text-lg text-gold">
+        “Is MAISON the label you&apos;re starting, or the one you&apos;re taking over?”
+      </p>
+      <div className="mt-5 space-y-2">
+        {(["A", "B"] as Track[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => {
+              audio.play("ui_confirm");
+              chooseTrack(t);
+            }}
+            className="w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-left text-sm leading-relaxed text-text transition hover:border-gold/50 hover:brightness-110"
+          >
+            {TRACK_FRAMING[t]}
+          </button>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * The desk phone (§9.6). Free, unscored, available at every beat — she asks a
+ * question and never gives an answer, and calling her costs nothing, because a
+ * lifeline that costs something is a lifeline nobody uses.
+ */
+function DeskPhone({ competency, onClose }: { competency: string | null; onClose: () => void }) {
+  return (
+    <Modal onClose={onClose} width="sm" labelledBy="phone-title">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted">The desk phone</p>
+          <h2 id="phone-title" className="font-display text-2xl font-semibold text-gold">
+            Véra
+          </h2>
+        </div>
+        <ModalClose onClose={onClose} label="Hang up" />
+      </div>
+      <p className="mt-4 text-sm leading-relaxed text-text">{veraQuestion(competency)}</p>
+      <p className="mt-4 text-xs text-muted">
+        She waits. Calling her is free, it is not scored, and she is not going to tell you what to
+        do.
+      </p>
+      <button
+        onClick={onClose}
+        className="mt-5 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110"
+      >
+        Put the phone down
+      </button>
+    </Modal>
   );
 }
 
