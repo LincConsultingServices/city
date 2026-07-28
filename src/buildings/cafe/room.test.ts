@@ -4,6 +4,7 @@ import {
   EXIT,
   FURNITURE,
   GATES,
+  HOTSPOTS,
   NO_GATES_OPEN,
   ROOM_H,
   ROOM_W,
@@ -11,6 +12,7 @@ import {
   STAFF_CELLS,
   STATIONS,
   ZONES,
+  hotspotNear,
   makeRoomGrid,
   zoneAt,
   type GateId,
@@ -124,13 +126,46 @@ describe("the Café room", () => {
     }
   });
 
+  it("puts every hotspot somewhere you can stand, and can reach", () => {
+    for (const h of HOTSPOTS) {
+      expect(inBounds(h.cell), `hotspot ${h.id} at ${at(h.cell)} is outside the room`).toBe(true);
+      expect(open.isWalkable(h.cell.x, h.cell.y), `hotspot ${h.id} stands on a blocked cell`).toBe(
+        true,
+      );
+      expect(findPath(open, SPAWN, h.cell).length, `hotspot ${h.id} unreachable`).toBeGreaterThan(
+        0,
+      );
+      expect(hotspotNear(h.cell)?.id, `hotspotNear misses ${h.id} at its own cell`).toBe(h.id);
+    }
+  });
+
+  it("gates the pass-through hotspot behind the flap, like the zone it sits in", () => {
+    const pass = HOTSPOTS.find((h) => h.id === "ht_pass");
+    expect(pass, "the pass-through hotspot should exist").toBeTruthy();
+    expect(findPath(closed, SPAWN, pass!.cell).length, "reachable with the flap down").toBe(0);
+  });
+
+  it("encloses the room — the whole border is solid except the door", () => {
+    for (let x = 0; x < ROOM_W; x++) {
+      for (const y of [0, ROOM_H - 1]) {
+        const isDoor = x === EXIT.x && y === EXIT.y;
+        expect(open.isWalkable(x, y), `border ${at({ x, y })} should be solid`).toBe(isDoor);
+      }
+    }
+    for (let y = 0; y < ROOM_H; y++) {
+      for (const x of [0, ROOM_W - 1]) {
+        expect(open.isWalkable(x, y), `border ${at({ x, y })} should be solid`).toBe(false);
+      }
+    }
+  });
+
   it("names a zone for every cell, most specific first", () => {
     for (const c of everyCell()) {
       expect(zoneAt(c).label, `no zone for ${at(c)}`).toBeTruthy();
     }
-    expect(zoneAt({ x: 0, y: 1 }).id).toBe("z_pass");
-    expect(zoneAt({ x: 4, y: 1 }).id).toBe("z_behind");
-    expect(zoneAt({ x: 8, y: 4 }).id).toBe("z_window");
+    expect(zoneAt({ x: 1, y: 1 }).id).toBe("z_pass");
+    expect(zoneAt({ x: 5, y: 1 }).id).toBe("z_behind");
+    expect(zoneAt({ x: 9, y: 4 }).id).toBe("z_window");
     expect(zoneAt(SPAWN).id).toBe("z_floor");
     expect(ZONES[ZONES.length - 1].contains(SPAWN), "the last zone must be a catch-all").toBe(true);
   });
