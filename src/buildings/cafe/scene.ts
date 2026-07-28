@@ -3,10 +3,11 @@
 // graph. Placement follows the city's own conventions exactly (world/CityCanvas
 // .tsx §makeProp): anchor (0.5, 1) at `mapToWorld(cell) + TILE_H/2`, depth via
 // `zIndex = cell.x + cell.y` plus a per-class epsilon.
-import { Container, Sprite } from "pixi.js";
+import { Container, Graphics, Sprite } from "pixi.js";
 import { TILE_H, TILE_W, mapToWorld } from "@/lib/iso";
 import type { CafeTextures } from "./props";
-import { FURNITURE, GATES, NEAR_EDGE, ROOM_H, ROOM_W, type Gate } from "./room";
+import { PROP_SPRITE } from "./assets";
+import { FURNITURE, GATES, NEAR_EDGE, ROOM_H, ROOM_W, type Gate, type PropKind } from "./room";
 
 /** Depth offsets, so props sharing a cell stack in a sensible order. */
 const Z_FLAT = -0.1; // rugs and the doormat, under everything upright
@@ -45,6 +46,47 @@ export function buildFloor(tex: CafeTextures): Container {
   return ground;
 }
 
+/**
+ * The warm pool of light, laid over the floor and under everything upright.
+ * Additive and low-alpha, so it lifts the middle of the room without washing the
+ * checkerboard out — cafe.jpg is a lit island, not an evenly-lit box.
+ */
+export function buildWarmth(tex: CafeTextures): Container {
+  const layer = new Container();
+
+  const glow = new Sprite(tex.warmth);
+  glow.anchor.set(0.5);
+  glow.blendMode = "add";
+  glow.alpha = 0.85;
+  const mid = mapToWorld((ROOM_W - 1) / 2, (ROOM_H - 1) / 2);
+  glow.position.set(mid.x, mid.y);
+  glow.width = (ROOM_W + ROOM_H) * TILE_W * 0.42;
+  glow.height = (ROOM_W + ROOM_H) * TILE_H * 0.52;
+
+  // Clipped to the floor. A soft pool is wide by nature, and unmasked it spills
+  // past the walls as a halo floating on the dark surround outside the room.
+  const top = mapToWorld(0, 0);
+  const right = mapToWorld(ROOM_W - 1, 0);
+  const bottom = mapToWorld(ROOM_W - 1, ROOM_H - 1);
+  const left = mapToWorld(0, ROOM_H - 1);
+  const mask = new Graphics()
+    .poly([
+      top.x,
+      top.y - TILE_H / 2,
+      right.x + TILE_W / 2,
+      right.y,
+      bottom.x,
+      bottom.y + TILE_H / 2,
+      left.x - TILE_W / 2,
+      left.y,
+    ])
+    .fill(0xffffff);
+
+  layer.addChild(glow, mask);
+  glow.mask = mask;
+  return layer;
+}
+
 export interface FurnitureLayer {
   /** Everything that y-sorts against the player. */
   root: Container;
@@ -63,6 +105,7 @@ export function buildFurniture(tex: CafeTextures): FurnitureLayer {
 
   for (const p of FURNITURE) {
     const sprite = place(new Sprite(tex.prop[p.kind]), p.cell.x, p.cell.y);
+    fitSprite(sprite, p.kind);
     const base = p.cell.x + p.cell.y;
     sprite.zIndex = NEAR_EDGE.has(p.kind)
       ? base + Z_NEAR_EDGE
@@ -99,6 +142,16 @@ function buildFlap(tex: CafeTextures, gate: Gate): Container {
   hinge.addChild(sprite);
 
   return hinge;
+}
+
+/**
+ * Procedural bakes already come out tile-sized; a real sprite arrives at its own
+ * native resolution, so it has to be scaled to the width the layout expects.
+ */
+function fitSprite(sprite: Sprite, kind: PropKind): void {
+  const spec = PROP_SPRITE[kind];
+  if (!spec || !sprite.texture.width) return;
+  sprite.scale.set(spec.width / sprite.texture.width);
 }
 
 /** How far the flap swings when it is up. Negative lifts the free end. */
