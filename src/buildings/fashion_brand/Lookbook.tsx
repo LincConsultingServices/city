@@ -11,8 +11,10 @@
 // someone who was in the building.
 import { useMemo } from "react";
 import type { LevelActivity } from "@/framework/api/schemas";
+import { useAuth } from "@/framework/auth/AuthProvider";
 import { choicesAlong, type DecisionTreeContent } from "@/lib/decisionTree";
 import { Modal, ModalClose } from "@/ui/Modal";
+import { whereNext } from "./whereNext";
 import { maisonContent } from "./content";
 import { useMaisonStore } from "./maisonStore";
 import { BEATS, TRACK_FRAMING, type Track } from "./season";
@@ -34,15 +36,31 @@ export function Lookbook({
 
   const byId = useMemo(() => new Map(decided.map((d) => [d.id, d])), [decided]);
   const rail = railContents(world);
+  const next = useMemo(() => whereNext(track, activities), [track, activities]);
+  const { user } = useAuth();
+  // §13.6 — the cover plate. The one place in the city a player sees the
+  // character they built presented as a person rather than a sprite. The full
+  // cosmetic composition is master PRD §14.3 and does not exist yet, so this is
+  // the same chip the HUD carries, framed as a designer's headshot.
+  const designer = user?.displayName || user?.email?.split("@")[0] || "the designer";
+  const initial = designer.charAt(0).toUpperCase();
 
   return (
     <Modal onClose={onClose} width="lg" labelledBy="lookbook-title">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted">The season</p>
-          <h2 id="lookbook-title" className="font-display text-3xl font-semibold text-gold">
-            The Lookbook
-          </h2>
+        <div className="flex items-center gap-3">
+          <span
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-gold/40 bg-surface-2 font-display text-xl text-gold"
+            aria-hidden="true"
+          >
+            {initial}
+          </span>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-muted">{designer}</p>
+            <h2 id="lookbook-title" className="font-display text-3xl font-semibold text-gold">
+              The Lookbook
+            </h2>
+          </div>
         </div>
         <ModalClose onClose={onClose} label="Close the lookbook" />
       </div>
@@ -112,6 +130,23 @@ export function Lookbook({
         <p className="mt-2 text-sm leading-relaxed text-text">{consistencyLine(decided.length)}</p>
         <p className="mt-2 text-xs text-muted">{TRACK_FRAMING[track]}</p>
       </section>
+
+      {/* 7 — where next. Only ever built from what the server actually said. */}
+      {next.length > 0 && (
+        <section className="mt-5">
+          <h3 className="text-xs uppercase tracking-[0.18em] text-muted">Where next</h3>
+          <ul className="mt-3 space-y-2">
+            {next.map((s) => (
+              <li key={s.competency} className="flex items-baseline gap-3 text-sm">
+                <span className="text-text">{s.venueName}</span>
+                <span className="text-xs text-muted">
+                  presses on {s.competencyName.toLowerCase()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <p className="mt-5 text-xs leading-relaxed text-muted">
         A lookbook is a document a house makes about itself. This one is honest: it is a record of a

@@ -65,7 +65,10 @@ export function PlayerShell({
       applyCoinBalance(resp.coinBalance);
       if (typeof resp.coinBalance === "number") events.emit("coins_changed", resp.coinBalance);
       resp.badgesAwarded?.forEach((b) => events.emit("badge_awarded", b));
-      events.emit("activity_completed", resp);
+      events.emit("activity_completed", {
+        response: resp,
+        silent: SILENT_TIER_KINDS.has(content?.kind ?? ""),
+      });
       // The choice itself, for venues whose world moves on what you decided.
       events.emit("activity_submitted", { activityId: activity.id, result, response: resp });
     } catch (e) {

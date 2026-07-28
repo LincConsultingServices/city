@@ -53,7 +53,12 @@ export function Celebration() {
       audio.play("jingle_badge");
       trigger(b);
     });
-    const offDone = events.on("activity_completed", (r) => {
+    const offDone = events.on("activity_completed", ({ response: r, silent }) => {
+      // A burst that fires on `passed` and stays quiet otherwise is a verdict,
+      // delivered before the player has read the world their decision changed.
+      // Silent-tier venues opt out of it (docs/maison.md §11); the coin tick and
+      // any badge still land, because those are the platform's, not the venue's.
+      if (silent) return;
       if (r.passed && (!r.badgesAwarded || r.badgesAwarded.length === 0)) {
         audio.play("jingle_win");
         trigger(null);

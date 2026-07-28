@@ -10,7 +10,14 @@ export interface EventMap {
   toast: { message: string; kind: ToastKind };
   coins_changed: number; // new balance
   badge_awarded: Badge;
-  activity_completed: SubmitResponse;
+  /**
+   * A submit landed. `silent` marks a venue running the SILENT-TIER contract
+   * (docs/maison.md §11): the coin tick and the badge still happen, because
+   * those are the platform's, but nothing may congratulate the player on the
+   * result — a burst that fires on `passed` and not otherwise IS a verdict, and
+   * a scenario venue does not deliver verdicts.
+   */
+  activity_completed: { response: SubmitResponse; silent: boolean };
   /**
    * What was actually submitted, not just that something was. A venue that has
    * to react to the CHOICE — a scenario moving its world state off the trace it

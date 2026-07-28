@@ -1055,8 +1055,33 @@ engine; these are the phases that actually build MAISON here.
   decided beats and is the only page in this building that repeats a tier — and only for
   beats the server actually scored.
 
-**200 tests, `npm run ci` green.** The venue is playable end to end offline:
+### 19.2.2 The interior (M0–M6)
+
+The interior framework landed upstream while P0–P6 were being built — a building
+registry, a lazy interior gate, and a way for a building to borrow the city's
+renderer, with the Café as its first tenant. That answers §18.5's first open
+decision: **a 2.5D Pixi sub-scene, not R3F.** MAISON was re-cut against it.
+
+| Phase  | Deliverable                                                                                                                                                                                  |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **M0** | Merge (17 commits), one conflict in `CityScreen`, re-baseline                                                                                                                                |
+| **M1** | [`room.ts`](../src/buildings/fashion_brand/room.ts) — two levels, five zones, nine stations                                                                                                  |
+| **M2** | [`props`](../src/buildings/fashion_brand/props.ts)/[`scene`](../src/buildings/fashion_brand/scene.ts)/[`MaisonCanvas`](../src/buildings/fashion_brand/MaisonCanvas.tsx) — the room on screen |
+| **M3** | [`dressing.ts`](../src/buildings/fashion_brand/dressing.ts) — all ten §12 keys visible                                                                                                       |
+| **M4** | [`beats.ts`](../src/buildings/fashion_brand/beats.ts) + [`vera.ts`](../src/buildings/fashion_brand/vera.ts) — beats at their stations, the desk phone                                        |
+| **M5** | [`cast.ts`](../src/buildings/fashion_brand/cast.ts) — the seven, the cap, Élise's gaze                                                                                                       |
+| **M6** | The silent-tier fix, the lookbook's cover plate and where-next                                                                                                                               |
+
+**282 tests, `npm run ci` green.** Walk in from Market Street:
 `VITE_DEV_WORLD=1 npm run dev`.
+
+The acceptance criteria that are now met rather than deferred: **§18.2.4** (the
+rail is fully legible without sight — inspecting it yields the complete list),
+**§18.2.6** (ramp parity, proved by sealing the steps and walking the room),
+**§18.2.8** (consequence visibility, proved by showing each of the ten keys
+reaches a different part of the room), and **§11** — which was being violated:
+completing a beat fired a win jingle and confetti, a verdict delivered before the
+player had read the world their decision changed.
 
 ### 19.2.1 Framework files touched, and why
 
@@ -1078,6 +1103,21 @@ convenience:
 | `src/lib/decisionTree.ts`                    | `presentationOrder()` — the per-beat choice shuffle §9.1 asks for                        |
 
 ### 19.3 Standing debts
+
+- **§6's audio does not exist.** The room tone, the sewing machines' run-and-stop, the
+  steam press, the heavy door with no bell — all §17 lines, none of them recorded. §6's
+  whole conceit is that the atelier's mood is carried by _how much noise the work makes_,
+  so this is a gap rather than a detail. The visual half is in and bound to
+  `atelier_mood`.
+- **The art is procedural.** Every prop is drawn with vector Graphics and baked, so the
+  room ships without waiting on §17. `PROP_SPRITE` is the seam where real art takes over
+  per kind. The garment set — eight silhouettes × four colourways, §18.4's critical path —
+  is not started.
+- **Kobby does not patrol yet** (§5.2). He stands at the cutting table rather than drifting
+  down to look at his own pieces on the rail, which is the detail that makes the C7
+  favouritism land.
+- **No one has seen it render.** Every claim above is backed by the type system and the
+  scene invariants, not by eyes on the room.
 
 - **§3–§7, §16 (the interior).** Blocked on the interior-engine decision in §18.5. The
   season board is the shipping surface until then.
