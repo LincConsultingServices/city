@@ -258,14 +258,20 @@ island in a dark surround; an evenly-lit floor reads flat however good the props
 unmasked the pool spills past the walls as a halo on the black.
 
 **The sprite seam.** `PROP_SPRITE` in `assets.ts` maps a kind to a sprite and its draw
-width; `bakeCafeTextures` consults it before falling back to the procedural bake. Two of the
-six legacy sprites are adopted — the back-bar shelving and the pendant — where drawn detail
-beats geometry. The counter, tables, chairs and rugs stay procedural: that pack is wood-toned
-_library_ furniture and swapping them would pull the room off its oxblood reference.
+width; `bakeCafeTextures` consults it before falling back to the procedural bake.
 
-Sprites arrive at native resolution rather than tile-sized, so they are scaled on placement,
-and they are **not** added to the disposal list — Pixi's asset cache owns them, we destroy
-only what we generated.
+**It currently carries nothing.** Kenney's Isometric Miniature Library was tried and
+rejected: its "shelf" is a library bookcase — books, an open volume on a stand, two lecterns
+— and its "lamp" is a three-candle candelabra with a hard drop shadow baked into the PNG.
+Both are drawn nearly front-on rather than on this room's 2:1 isometric axes, so they sit
+visibly skewed against everything around them, and both are light oak where the room is
+oxblood and dark wood. Wrong subject, wrong projection, wrong palette — the procedural
+back-bar shelving and hanging pendant beat them on all three. The seam stays because it is
+built and tested; the next sprite that genuinely helps drops in with one line.
+
+If sprites are revisited: they arrive at native resolution rather than tile-sized, so they
+are scaled on placement, and they must **not** go on the disposal list — Pixi's asset cache
+owns them, we destroy only what we generated.
 
 **Its own density guard**, because the city's `spriteDensity.test.ts` cannot see this
 directory: it hard-codes `public/assets/city` and iterates the city's own `PropKind`.

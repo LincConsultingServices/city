@@ -11,9 +11,8 @@ packs below (full packs are not committed).
 | Isometric Roads | https://kenney.nl/assets/isometric-roads | Kenney (kenney.nl) | CC0 1.0 | 2026-07-23 | standalone trees (`tree_*`, `conifer_*`) |
 | Isometric Tiles Landscape | https://kenney.nl/assets/isometric-tiles-landscape | Kenney (kenney.nl) | CC0 1.0 | 2026-07-23, expanded 2026-07-25 | grass/dirt ground (`ground_grass*`, `ground_dirt*`) |
 | Isometric Tiles Vehicles | https://kenney.nl/assets/isometric-tiles-vehicles | Kenney (kenney.nl) | CC0 1.0 | 2026-07-23, expanded 2026-07-25 | ambient traffic (`car_*`) and parked cars (`parked_*`) |
-| Isometric Miniature Library | https://kenney.nl/assets/isometric-miniature-library | Kenney (kenney.nl) | CC0 1.0 | 2026-07-28 | Café interior sprites, cropped to bbox under `public/assets/cafe/` (`cafe_shelf`, `cafe_lamp`) — no dedicated café pack exists in Kenney's isometric series, so this is a kitbash per PRD §14.2; the rest of the Café's furniture is drawn procedurally to hold the reference's oxblood palette |
 
-**License:** all six packs are Creative Commons CC0 1.0 Universal — free for
+**License:** all five packs are Creative Commons CC0 1.0 Universal — free for
 personal and commercial use, no permission or attribution required. Attribution
 is given anyway, and in-game on the founders' plaque: thanks, Kenney!
 
