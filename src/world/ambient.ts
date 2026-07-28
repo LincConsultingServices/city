@@ -123,24 +123,6 @@ interface Pigeon {
   returnAt: number;
 }
 
-/**
- * Roads run along the isometric axes but the curated vehicle art is flat
- * side-elevation — every frame's wheel line is horizontal — so untransformed the
- * cars read as sliding sideways across the road.
- *
- * The fix is a SHEAR, not a rotation. Rotating tilts the vehicle's vertical axis
- * with the road, which reads as the thing tipping over; on a level street an
- * isometric vehicle stays upright and only its footprint follows the lane.
- * Pixi's `skew.y` gives exactly that — verticals stay vertical, horizontals take
- * the lane's slope (and x picks up a cos() foreshortening, which is if anything
- * more correct).
- *
- * Still a cheat, because a sheared side elevation is not a true isometric
- * projection; the honest fix is isometric vehicle art.
- */
-const ISO_SKEW = Math.atan2(TILE_H, TILE_W);
-
-/** Which way a leg runs, and therefore which lane axis the body lies along. */
 const legDir = (a: Cell, b: Cell): Cardinal => {
   if (b.x > a.x) return "E";
   if (b.x < a.x) return "W";
@@ -583,10 +565,7 @@ export function createAmbient(ctx: AmbientContext): Ambient {
       const cx = aa.x + (bb.x - aa.x) * car.t;
       const cy = aa.y + (bb.y - aa.y) * car.t;
       const w = mapToWorld(cx, cy);
-      const along = legDir(aa, bb);
-      car.sprite.texture = carTexture(car.kind, along);
-      // East/west legs run down-right on screen, north/south down-left.
-      car.sprite.skew.y = along === "E" || along === "W" ? ISO_SKEW : -ISO_SKEW;
+      car.sprite.texture = carTexture(car.kind, legDir(aa, bb));
       car.sprite.position.set(w.x, w.y + 14);
       car.sprite.zIndex = cx + cy + 0.3;
       car.sprite.tint = carTint ?? 0xffffff;

@@ -851,21 +851,6 @@ function frontVertex(footprint: Cell[]): { x: number; y: number } {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-/**
- * Parked cars share the ambient traffic's problem: the art is flat side-elevation
- * while the kerb they sit on runs along an isometric axis. Shear them onto it —
- * see world/ambient.ts for why this is a shear and not a rotation. Every parked
- * car in the map sits beside an east–west road (world/cityMap.ts), the +26.6°
- * lane.
- */
-const TILTED_PROPS = new Set<CityProp["kind"]>([
-  "parked_blue",
-  "parked_red",
-  "parked_silver",
-  "parked_green",
-]);
-const ISO_SKEW = Math.atan2(TILE_H, TILE_W);
-
 function makeProp(p: CityProp): Container {
   const c = mapToWorld(p.cell.x, p.cell.y);
   if (p.kind === "plaque") return makePlaque(p, c);
@@ -883,7 +868,6 @@ function makeProp(p: CityProp): Container {
     if (tint) s.tint = tint;
     s.position.set(c.x, c.y + TILE_H / 2);
     s.zIndex = p.cell.x + p.cell.y;
-    if (TILTED_PROPS.has(p.kind)) s.skew.y = ISO_SKEW;
   }
   return s;
 }
