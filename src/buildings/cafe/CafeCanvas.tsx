@@ -26,8 +26,9 @@ import {
   destroyTextures,
 } from "@/world/characterArt";
 import type { Cardinal } from "@/world/assets";
+import { loadCafeAssets } from "./assets";
 import { CAFE_PALETTE, bakeCafeTextures } from "./props";
-import { FLAP_OPEN_ROTATION, Z_PLAYER, buildFloor, buildFurniture } from "./scene";
+import { FLAP_OPEN_ROTATION, Z_PLAYER, buildFloor, buildFurniture, buildWarmth } from "./scene";
 import {
   GATES,
   ROOM_H,
@@ -86,6 +87,10 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
       const host: InteriorHost = await whenInteriorHost();
       if (destroyed) return;
 
+      // Sprite-backed props need their bundle in Pixi's cache before we bake.
+      await loadCafeAssets();
+      if (destroyed) return;
+
       const { app } = host;
       host.hideWorld();
 
@@ -102,6 +107,7 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
       const tex = bakeCafeTextures(app.renderer);
       baked.push(...tex.all);
       world.addChild(buildFloor(tex));
+      if (!reduced) world.addChild(buildWarmth(tex));
 
       const { root: actors, flap } = buildFurniture(tex);
       world.addChild(actors);

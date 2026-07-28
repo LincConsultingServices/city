@@ -88,10 +88,13 @@ export function CityScreen() {
     <div className="relative h-screen w-screen overflow-hidden bg-ink">
       <CityCanvas onReady={() => setWorldReady(true)} onProgress={setLoadPct} />
       {!worldReady && <CityLoader pct={loadPct} />}
-      <Hud />
+      {/* An interior owns the whole screen and brings its own chrome, so the
+          street's HUD and control hint step aside rather than sit on top of it.
+          Toasts and celebrations stay — they are about the player, not the view. */}
+      {!inInterior && <Hud />}
       <Toaster />
       <Celebration />
-      <ControlsHint />
+      {!inInterior && <ControlsHint />}
 
       {nearVenue && !panelOpen && (
         <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 animate-slide-up">
