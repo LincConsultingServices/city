@@ -90,6 +90,16 @@ export interface Furniture {
   blocking: boolean;
 }
 
+/**
+ * Kinds that must never draw over the player — the near edge of the room.
+ *
+ * The shopfront is the frontmost row, so by depth alone it would clip the feet
+ * of anyone walking the front of the boutique. There is nothing between it and
+ * the camera for it to occlude anyway. (The Café solved this same bug with the
+ * same set; MAISON had it.)
+ */
+export const NEAR_EDGE: ReadonlySet<PropKind> = new Set<PropKind>(["shopfront_glass", "door"]);
+
 const f = (kind: PropKind, x: number, y: number, blocking = true): Furniture => ({
   kind,
   cell: { x, y },
@@ -152,13 +162,39 @@ const BLOCKED: ReadonlySet<string> = new Set(
   FURNITURE.filter((p) => p.blocking).map((p) => key(p.cell.x, p.cell.y)),
 );
 
+/**
+ * Every cell a given prop stands on. `room.ts` is the single source of layout
+ * truth, so anything that needs to draw at a prop — or stand in front of one —
+ * derives its coordinates from here rather than restating them. Three separate
+ * lists of "where the machines are" had already drifted apart before this.
+ */
+export const cellsOf = (kind: PropKind): Cell[] =>
+  FURNITURE.filter((p) => p.kind === kind).map((p) => p.cell);
+
 /** Cells you cross to change level — the steps and the ramp (§3.1, §15). */
-export const STEP_CELLS: readonly Cell[] = FURNITURE.filter((p) => p.kind === "steps").map(
-  (p) => p.cell,
-);
-export const RAMP_CELLS: readonly Cell[] = FURNITURE.filter((p) => p.kind === "ramp").map(
-  (p) => p.cell,
-);
+export const STEP_CELLS: readonly Cell[] = cellsOf("steps");
+export const RAMP_CELLS: readonly Cell[] = cellsOf("ramp");
+
+/** The brass the season hangs on (§3.3). */
+export const RAIL_CELLS: readonly Cell[] = cellsOf("rail");
+/** The frames along the stair run, filled from `press` (§12). */
+export const PRESS_CELLS: readonly Cell[] = cellsOf("press_frame");
+/** The shelf the cloth bolts sit on — how `cash` reads in the room (§12). */
+export const SHELF_CELL: Cell = cellsOf("shelving")[0];
+/** The steel column the countdown is chalked on (§3.5). */
+export const COLUMN_CELL: Cell = cellsOf("column")[0];
+/** The desk: the lookbook, the resale printout and the paperwork (§12, §13). */
+export const DESK_CELLS: readonly Cell[] = cellsOf("desk");
+
+/**
+ * Where the ambient workers stand — one step in FRONT of the machine each is
+ * running, because the machines themselves are solid. Derived, so a machine
+ * that moves takes its operator with it (§5.8).
+ */
+export const WORKER_CELLS: readonly Cell[] = cellsOf("machine").map((c) => ({
+  x: c.x,
+  y: c.y + 1,
+}));
 
 /**
  * The room's collision grid. Satisfies the `Grid` interface `findPath` takes

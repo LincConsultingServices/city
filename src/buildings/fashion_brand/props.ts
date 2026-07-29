@@ -322,7 +322,10 @@ function drawGarment(color: number): Graphics {
 export function bakeMaisonTextures(renderer: Renderer): MaisonTextures {
   const all: Texture[] = [];
   const bake = (g: Graphics) => {
-    const t = renderer.generateTexture(g);
+    // resolution: 2, as the Café bakes. These are vector shapes rasterised
+    // once; at resolution 1 every edge in the room is half the density of the
+    // city's own art around it, which reads as softness rather than style.
+    const t = renderer.generateTexture({ target: g, resolution: 2 });
     g.destroy();
     all.push(t);
     return t;

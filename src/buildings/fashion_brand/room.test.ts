@@ -1,8 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { findPath } from "@/lib/pathfinding";
 import {
+  COLUMN_CELL,
+  DESK_CELLS,
   EXIT,
   FURNITURE,
+  NEAR_EDGE,
+  PRESS_CELLS,
+  RAIL_CELLS,
+  SHELF_CELL,
+  WORKER_CELLS,
+  cellsOf,
   PLATFORM_EDGE_Y,
   RAMP_CELLS,
   ROOM_H,
@@ -176,5 +184,92 @@ describe("MAISON room — the house in its own words (§15)", () => {
     expect(prompts).toContain("look at the collection");
     expect(prompts).toContain("call Véra");
     for (const p of prompts) expect(p, p).toMatch(/^[a-z]/); // "read the press wall", not "Read"
+  });
+});
+
+// The invariants below are the ones the Café's room test proves and MAISON's did
+// not. They are the difference between "the eleven stations are reachable" and
+// "the room is sound" — a walled-off pocket of floor, a prop stacked on a prop,
+// or a cell no zone claims would all have shipped silently before.
+describe("MAISON room — the invariants", () => {
+  const everyCell = (): Cell[] => {
+    const out: Cell[] = [];
+    for (let y = 0; y < ROOM_H; y++) for (let x = 0; x < ROOM_W; x++) out.push({ x, y });
+    return out;
+  };
+  const at = (c: Cell) => `(${c.x},${c.y})`;
+
+  it("hands back a grid that reports the room's own dimensions", () => {
+    expect(grid.width).toBe(ROOM_W);
+    expect(grid.height).toBe(ROOM_H);
+  });
+
+  it("keeps the spawn, the exit and every station inside the room", () => {
+    const inside = (c: Cell) => c.x >= 0 && c.y >= 0 && c.x < ROOM_W && c.y < ROOM_H;
+    expect(inside(SPAWN), `spawn ${at(SPAWN)}`).toBe(true);
+    expect(inside(EXIT), `exit ${at(EXIT)}`).toBe(true);
+    for (const s of STATIONS) expect(inside(s.cell), `${s.id} ${at(s.cell)}`).toBe(true);
+  });
+
+  it("strands no walkable cell — the whole floor is one room, not two", () => {
+    // Stations being reachable proves the route to the content. This proves there
+    // is no pocket of floor you can see, walk toward, and never arrive at.
+    for (const c of everyCell()) {
+      if (!grid.isWalkable(c.x, c.y)) continue;
+      expect(reachable(SPAWN, c), `${at(c)} is walkable but unreachable from spawn`).toBe(true);
+    }
+  });
+
+  it("stands no prop on another prop, flat ones included", () => {
+    // Deliberately wider than the blocking-only check: two sets of steps on one
+    // cell, or a door under the shopfront, are layout bugs the narrow filter
+    // could not see, because neither prop blocks.
+    const seen = new Map<string, string>();
+    for (const p of FURNITURE) {
+      const key = at(p.cell);
+      expect(seen.has(key), `${p.kind} and ${seen.get(key)} both claim ${key}`).toBe(false);
+      seen.set(key, p.kind);
+    }
+  });
+
+  it("gives every cell in the room a zone, and ends on a catch-all", () => {
+    for (const c of everyCell()) expect(zoneAt(c).label, `no zone for ${at(c)}`).toBeTruthy();
+    // zoneAt falls through to the last zone. That fallback must be unreachable —
+    // a zone list whose tail is conditional would leave cells nameless in §15.
+    const last = ZONES[ZONES.length - 1];
+    for (const c of everyCell()) {
+      if (ZONES.some((z) => z !== last && z.contains(c))) continue;
+      expect(last.contains(c), `the last zone must catch ${at(c)}`).toBe(true);
+    }
+  });
+
+  it("keeps the shopfront off the player's feet", () => {
+    // The frontmost row draws over anyone standing in front of it unless it is
+    // pushed behind on its own row. NEAR_EDGE is what does that in scene.ts.
+    const front = FURNITURE.filter((p) => p.cell.y >= ROOM_H - 2 && p.blocking);
+    expect(front.length, "the room has a front row to get wrong").toBeGreaterThan(0);
+    for (const p of front) expect(NEAR_EDGE.has(p.kind), `${p.kind} at ${at(p.cell)}`).toBe(true);
+  });
+
+  it("stands each worker on open floor in front of the machine they run", () => {
+    expect(WORKER_CELLS.length).toBe(cellsOf("machine").length);
+    for (const c of WORKER_CELLS) {
+      expect(grid.isWalkable(c.x, c.y), `worker at ${at(c)} is inside a wall`).toBe(true);
+      expect(levelAt(c), `worker at ${at(c)} fell off the platform`).toBe("atelier");
+    }
+  });
+
+  it("derives the props the room dresses itself by, rather than restating them", () => {
+    // Three separate lists of "where the machines are" had already drifted apart.
+    for (const [name, cells] of [
+      ["rail", RAIL_CELLS],
+      ["press", PRESS_CELLS],
+      ["desk", DESK_CELLS],
+    ] as const) {
+      expect(cells.length, `${name} has no cells`).toBeGreaterThan(0);
+    }
+    expect(SHELF_CELL).toBeDefined();
+    expect(COLUMN_CELL).toBeDefined();
+    expect(cellsOf("nothing_here" as never)).toEqual([]);
   });
 });

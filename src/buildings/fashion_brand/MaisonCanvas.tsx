@@ -30,6 +30,7 @@ import { MAISON_PALETTE, bakeMaisonTextures } from "./props";
 import { roomDressing } from "./dressing";
 import {
   Z_PLAYER,
+  buildCast,
   buildFloor,
   buildKeyLight,
   buildRiser,
@@ -37,6 +38,7 @@ import {
   dressRail,
   dressRoom,
   riseAt,
+  type GazeSubject,
 } from "./scene";
 import {
   ROOM_H,
@@ -163,68 +165,22 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
         }
         return t;
       };
-      const WORKER_PALETTE: PersonPalette = {
-        shirt: 0x9a958b,
-        legs: 0x4a4741,
-        skin: 0xdcc0a0,
-        hair: 0x3a312a,
-      };
 
       const castLayer = new Container();
       castLayer.sortableChildren = true;
       actors.addChild(castLayer);
 
       /** Élise looks up when you come near, and holds it (§5.1). */
-      let elise: { body: Sprite; tex: PersonTextures; anchor: Cell; gaze: number } | null = null;
-
-      const placePerson = (
-        tex: PersonTextures,
-        cell: Cell,
-        facing: Cardinal = "S",
-      ): { root: Container; body: Sprite } => {
-        const root = new Container();
-        const shadow = new Sprite(shadowTex);
-        shadow.anchor.set(0.5, 0.5);
-        shadow.position.set(0, 1);
-        const body = new Sprite(tex.idle[facing]);
-        body.anchor.set(0.5, 1);
-        root.addChild(shadow, body);
-        const w = mapToWorld(cell.x, cell.y);
-        root.position.set(w.x, w.y + riseAt(cell));
-        root.zIndex = cell.x + cell.y + Z_PLAYER - 0.05; // just behind the player
-        return { root, body };
-      };
-
+      let elise: GazeSubject | null = null;
       const rebuildCast = (state = useMaisonStore.getState()) => {
-        castLayer.removeChildren().forEach((c) => c.destroy());
-        elise = null;
-        if (!state.track) return;
-
-        const cast = castAt(state.track, state.decided, state.world);
-        for (const member of cast.named) {
-          const tex = personTex(member.id, member.palette);
-          const { root, body } = placePerson(tex, member.anchor);
-          castLayer.addChild(root);
-          if (member.id === "elise") elise = { body, tex, anchor: member.anchor, gaze: 0 };
-        }
-
-        // The ambient loop: workers at the machines, and one boutique client who
-        // looks at the rail and mostly buys nothing, which is accurate (§5.8).
-        const MACHINE_CELLS: Cell[] = [
-          { x: 2, y: 1 },
-          { x: 6, y: 1 },
-          { x: 8, y: 2 },
-        ];
-        for (let i = 0; i < cast.workers; i++) {
-          castLayer.addChild(
-            placePerson(personTex("worker", WORKER_PALETTE), MACHINE_CELLS[i]).root,
-          );
-        }
-        if (cast.client) {
-          castLayer.addChild(
-            placePerson(personTex("worker", WORKER_PALETTE), { x: 7, y: 9 }, "W").root,
-          );
-        }
+        elise = state.track
+          ? buildCast(
+              castLayer,
+              castAt(state.track, state.decided, state.world),
+              shadowTex,
+              personTex,
+            )
+          : (castLayer.removeChildren().forEach((c) => c.destroy()), null);
       };
       rebuildCast();
 

@@ -8,14 +8,39 @@
 // it. It is one volume, not two scenes — you can see the atelier from the floor,
 // and that sightline is the reason the platform is raised rather than hidden
 // (§3.2).
-import { Container, Graphics, Sprite, Text } from "pixi.js";
+import { Container, Graphics, Sprite, Text, type Texture } from "pixi.js";
 import { TILE_H, TILE_W, mapToWorld } from "@/lib/iso";
 import type { Cell } from "@/lib/pathfinding";
+import type { PersonPalette, PersonTextures } from "@/world/characterArt";
+import type { Cardinal } from "@/world/assets";
 import { MAISON_PALETTE, shade as shadeHex, type MaisonTextures } from "./props";
-import { FURNITURE, PLATFORM_EDGE_Y, PLATFORM_RISE_PX, ROOM_H, ROOM_W, levelAt } from "./room";
+import type { RoomCast } from "./cast";
+import {
+  COLUMN_CELL,
+  DESK_CELLS,
+  FURNITURE,
+  NEAR_EDGE,
+  PLATFORM_EDGE_Y,
+  PLATFORM_RISE_PX,
+  PRESS_CELLS,
+  RAIL_CELLS,
+  ROOM_H,
+  ROOM_W,
+  SHELF_CELL,
+  WORKER_CELLS,
+  cellsOf,
+  levelAt,
+} from "./room";
 import type { RoomDressing } from "./dressing";
 
 const Z_FLAT = -0.1; // the threshold, the ramp — under everything upright
+/**
+ * The shopfront sorts BEHIND everything on its own row. It is the frontmost row
+ * in the room, so by depth alone it would clip the feet of anyone walking the
+ * front of the boutique — and there is nothing between it and the camera for it
+ * to occlude anyway.
+ */
+const Z_NEAR_EDGE = -0.5;
 const Z_LIGHT = -0.05; // the key light pool, over the floor and under the rail
 export const Z_PLAYER = 0.6; // matches the city's own player offset
 
@@ -90,10 +115,11 @@ export function buildRiser(): Container {
 export function buildKeyLight(): Container {
   const light = new Container();
   const g = new Graphics();
-  const w = mapToWorld(5.5, 8.5);
+  const centre = { x: RAIL_CELLS[0].x + 0.5, y: RAIL_CELLS[0].y + 0.5 };
+  const w = mapToWorld(centre.x, centre.y);
   g.ellipse(w.x, w.y + TILE_H / 2, 150, 76).fill({ color: MAISON_PALETTE.bone, alpha: 0.16 });
   g.ellipse(w.x, w.y + TILE_H / 2, 92, 46).fill({ color: MAISON_PALETTE.bone, alpha: 0.14 });
-  g.zIndex = 5.5 + 8.5 + Z_LIGHT;
+  g.zIndex = centre.x + centre.y + Z_LIGHT;
   light.addChild(g);
   return light;
 }
@@ -114,7 +140,7 @@ export function buildRoom(tex: MaisonTextures): RoomLayer {
   for (const p of FURNITURE) {
     const sprite = place(new Sprite(tex.prop[p.kind]), p.cell.x, p.cell.y);
     const base = p.cell.x + p.cell.y;
-    sprite.zIndex = p.blocking ? base : base + Z_FLAT;
+    sprite.zIndex = NEAR_EDGE.has(p.kind) ? base + Z_NEAR_EDGE : p.blocking ? base : base + Z_FLAT;
     root.addChild(sprite);
   }
 
@@ -137,7 +163,7 @@ export function buildRoom(tex: MaisonTextures): RoomLayer {
  * so eight pieces read as two. §3.3's whole premise is that you can look at the
  * rail and read the season off it in five seconds, and you cannot count a pile.
  */
-const RAIL_ANCHOR: Cell = { x: 5, y: 8 };
+const RAIL_ANCHOR: Cell = RAIL_CELLS[0];
 /** Wider than the garment body, so a packed rail is still a countable one. */
 const GARMENT_SPACING = 15;
 /** Half a tile, to centre the run between the rail's two cells. */
@@ -182,6 +208,84 @@ export function dressRail(rail: Container, tex: MaisonTextures, d: RoomDressing)
   });
 }
 
+// ── The cast (§5) ────────────────────────────────────────────────────────────
+
+/** Muted enough to read as background — the ambient loop, not the cast. */
+export const WORKER_PALETTE: PersonPalette = {
+  shirt: 0x9a958b,
+  legs: 0x4a4741,
+  skin: 0xdcc0a0,
+  hair: 0x3a312a,
+};
+
+/** The boutique client, looking at the rail and mostly buying nothing (§5.8). */
+const CLIENT_CELL: Cell = { x: 7, y: 9 };
+
+/** One person standing somewhere, shadow and all. */
+export function placePerson(
+  tex: PersonTextures,
+  shadowTex: Texture,
+  cell: Cell,
+  facing: Cardinal = "S",
+): { root: Container; body: Sprite } {
+  const root = new Container();
+  const shadow = new Sprite(shadowTex);
+  shadow.anchor.set(0.5, 0.5);
+  shadow.position.set(0, 1);
+  const body = new Sprite(tex.idle[facing]);
+  body.anchor.set(0.5, 1);
+  root.addChild(shadow, body);
+  const w = mapToWorld(cell.x, cell.y);
+  root.position.set(w.x, w.y + riseAt(cell));
+  root.zIndex = cell.x + cell.y + Z_PLAYER - 0.05; // just behind the player
+  return { root, body };
+}
+
+/** Élise, once she is in the room — the only one the ticker has to keep hold of. */
+export interface GazeSubject {
+  body: Sprite;
+  tex: PersonTextures;
+  anchor: Cell;
+  /** Seconds of looking left. §5.1's hold runs on a timer, not on your distance. */
+  gaze: number;
+}
+
+/**
+ * Fill the room with whoever is in it. Returns Élise if she is placed, because
+ * her gaze is the one thing about the cast the ticker has to drive (§5.1).
+ *
+ * Named characters are placed first and never cut; the ambient loop is what
+ * gives way to the five-on-screen cap, which `castAt` has already applied.
+ */
+export function buildCast(
+  layer: Container,
+  cast: RoomCast,
+  shadowTex: Texture,
+  personTex: (key: string, palette: PersonPalette) => PersonTextures,
+): GazeSubject | null {
+  layer.removeChildren().forEach((c) => c.destroy());
+  let elise: GazeSubject | null = null;
+
+  for (const member of cast.named) {
+    const tex = personTex(member.id, member.palette);
+    const { root, body } = placePerson(tex, shadowTex, member.anchor);
+    layer.addChild(root);
+    if (member.id === "elise") elise = { body, tex, anchor: member.anchor, gaze: 0 };
+  }
+
+  for (let i = 0; i < cast.workers; i++) {
+    layer.addChild(
+      placePerson(personTex("worker", WORKER_PALETTE), shadowTex, WORKER_CELLS[i]).root,
+    );
+  }
+  if (cast.client) {
+    layer.addChild(
+      placePerson(personTex("worker", WORKER_PALETTE), shadowTex, CLIENT_CELL, "W").root,
+    );
+  }
+  return elise;
+}
+
 /**
  * Everything else §12 shows. Rebuilt only when the season moves, never per
  * frame — this is the rest of the answer to §18.2.8: a decision that does not
@@ -200,13 +304,8 @@ export function dressRoom(dressing: Container, d: RoomDressing): void {
   };
 
   // ── the press wall: filled frames along the stair run (§3.2) ───────────────
-  const pressCells: Cell[] = [
-    { x: 0, y: 6 },
-    { x: 0, y: 7 },
-    { x: 0, y: 8 },
-  ];
   for (let i = 0; i < d.clippings; i++) {
-    const cell = pressCells[Math.floor(i / 2) % pressCells.length];
+    const cell = PRESS_CELLS[Math.floor(i / 2) % PRESS_CELLS.length];
     const p = at(cell.x, cell.y);
     const g = new Graphics();
     const lift = i % 2 === 0 ? -66 : -44;
@@ -225,15 +324,15 @@ export function dressRoom(dressing: Container, d: RoomDressing): void {
 
   // ── the atelier shelf: how the money reads (§12 `cash`) ────────────────────
   for (let i = 0; i < d.bolts; i++) {
-    const p = at(1, 3);
+    const p = at(SHELF_CELL.x, SHELF_CELL.y);
     const g = new Graphics();
     const tone = d.boltsPremium ? MAISON_PALETTE.bone : MAISON_PALETTE.oak;
     g.rect(p.x - 18 + i * 9, p.y - 66, 6, 20).fill(tone);
-    add(g, 1, 3, 0.2 + i * 0.01);
+    add(g, SHELF_CELL.x, SHELF_CELL.y, 0.2 + i * 0.01);
   }
 
   // ── the steel column: the countdown, chalked, changed between beats ────────
-  const col = at(0, 4);
+  const col = at(COLUMN_CELL.x, COLUMN_CELL.y);
   const chalk = new Text({
     text: d.chalk,
     style: {
@@ -245,20 +344,21 @@ export function dressRoom(dressing: Container, d: RoomDressing): void {
   });
   chalk.anchor.set(0.5, 0.5);
   chalk.position.set(col.x, col.y - 70);
-  add(chalk, 0, 4, 0.25);
+  add(chalk, COLUMN_CELL.x, COLUMN_CELL.y, 0.25);
 
   // ── the desk: the resale printout, and whose name is on the paperwork ──────
-  const desk = at(1, 10);
+  const deskCell = DESK_CELLS[DESK_CELLS.length - 1];
+  const desk = at(deskCell.x, deskCell.y);
   const printout = new Graphics();
   printout
     .rect(desk.x - 30, desk.y - 52, 14, 18)
     .fill(d.printoutStrong ? MAISON_PALETTE.bone : MAISON_PALETTE.ash);
-  add(printout, 1, 10, 0.2);
+  add(printout, deskCell.x, deskCell.y, 0.2);
 
   for (let i = 0; i < d.paperwork; i++) {
     const g = new Graphics();
     g.rect(desk.x - 4 + i * 5, desk.y - 40, 12, 8).fill(MAISON_PALETTE.bone);
-    add(g, 1, 10, 0.22 + i * 0.01);
+    add(g, deskCell.x, deskCell.y, 0.22 + i * 0.01);
   }
 
   // ── the door: whether the buyer's boxes are stacked by it (§12 `buyer`) ────
@@ -272,12 +372,7 @@ export function dressRoom(dressing: Container, d: RoomDressing): void {
   }
 
   // ── the machines: how many are running is the room's heartbeat (§6) ────────
-  const machineCells: Cell[] = [
-    { x: 3, y: 1 },
-    { x: 4, y: 1 },
-    { x: 5, y: 1 },
-  ];
-  machineCells.forEach((cell, i) => {
+  cellsOf("machine").forEach((cell, i) => {
     if (i >= d.machinesRunning) return;
     const p = at(cell.x, cell.y);
     const g = new Graphics();
