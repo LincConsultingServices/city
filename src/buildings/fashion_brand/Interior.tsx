@@ -10,29 +10,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { InteriorProps } from "@/framework/building/manifest";
-import type { LevelActivity } from "@/framework/api/schemas";
 import { audio } from "@/framework/audio/audioManager";
 import { PlayerShell } from "@/activities/PlayerShell";
 import { Icon } from "@/ui/Icon";
 import { MaisonCanvas } from "./MaisonCanvas";
 import { Lookbook } from "./Lookbook";
-import { DeskPhone, RailReader, Threshold } from "./panels";
-import { resetRoomState, useRoomStore } from "./roomStore";
+import { DeskPhone, Mirror, RailReader, Threshold } from "./panels";
+import { actHere, resetRoomState, useRoomStore } from "./roomStore";
 import { stationById, zoneAt } from "./room";
 import { useMaisonStore } from "./maisonStore";
 import { beatActivityId, beatPrompt, liveBeatAt, nextBeat, seasonComplete } from "./beats";
 import { SEASON_QUERY_KEY, fetchSeasonActivities } from "./seasonQuery";
-import { describeAtelier, describeCash, describePress, describeRail } from "./world";
+import { describeAtelier, describePress, describeRail } from "./world";
 
 export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
   const [ready, setReady] = useState(false);
-  const [playing, setPlaying] = useState<LevelActivity | null>(null);
-  /** §15/§18.2.4: looking at the rail yields a readable list, not just a line. */
-  const [railOpen, setRailOpen] = useState(false);
-  /** The lookbook, on the desk where it has been all along (§13). */
-  const [lookbookOpen, setLookbookOpen] = useState(false);
-  /** The desk phone. Free, unscored, and available at every beat (§9.6). */
-  const [callOpen, setCallOpen] = useState(false);
+  // Which reader is up lives in the store, not here, so a click on the rail in
+  // the room and the E key open it by the same path (§18.2.5).
+  const panel = useRoomStore((s) => s.panel);
   const charCell = useRoomStore((s) => s.charCell);
   const zoneId = useRoomStore((s) => s.zoneId);
   const nearExit = useRoomStore((s) => s.nearExit);
@@ -63,6 +58,12 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
   useEffect(() => {
     resetRoomState();
   }, []);
+
+  // The season query lives here, so the room learns from here whether the beat
+  // standing in front of you is one it can actually open.
+  useEffect(() => {
+    useRoomStore.getState().setBeatReady(Boolean(liveBeat && liveActivity));
+  }, [liveBeat, liveActivity]);
 
   // §15: entering a zone announces the zone AND its state — the atelier's mood
   // is carried by how much noise the work makes, so it has to be said in words
@@ -116,17 +117,10 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
   // city. Until it is answered there is no season to be on, so the room is
   // walkable and nothing is live.
   const needsTrack = track === null;
-  const panelOpen = needsTrack || railOpen || lookbookOpen || callOpen || playing !== null;
+  const panelOpen = needsTrack || panel !== null;
   useEffect(() => {
     useRoomStore.getState().setInputLocked(panelOpen);
   }, [panelOpen]);
-
-  // `act` closes over which beat is live, which changes as the season moves.
-  // The key listener is bound once, so it has to reach the CURRENT act through
-  // a ref — bound to the first one, pressing E would open whatever beat was
-  // live when you walked in.
-  const actRef = useRef(() => {});
-  actRef.current = act;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -141,7 +135,7 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
       if (useRoomStore.getState().inputLocked) return;
       // The door wins when you are standing in it; otherwise use the station.
       if (useRoomStore.getState().nearExit) leave();
-      else actRef.current();
+      else actHere();
     }
     function leave() {
       audio.play("ui_close");
@@ -151,45 +145,7 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onExit]);
 
-  /**
-   * What a station does. A waiting beat wins — walking up to whoever is holding
-   * this week's problem is how the season advances (§8). Everything else is a
-   * readout: the building's feedback channel rather than its content.
-   */
-  function act() {
-    const id = useRoomStore.getState().nearStationId;
-    const w = useMaisonStore.getState().world;
-    const say = useRoomStore.getState().announce;
-
-    if (liveBeat && liveActivity) {
-      audio.play("ui_open");
-      setPlaying(liveActivity);
-      return;
-    }
-    if (id === "st_phone") {
-      audio.play("ui_open");
-      setCallOpen(true);
-      return;
-    }
-    if (id === "st_desk") {
-      audio.play("ui_open");
-      setLookbookOpen(true);
-      return;
-    }
-    if (id === "st_rail") {
-      // The blocking a11y criterion (§18.2.4): inspecting the rail produces a
-      // complete list of what is on it, with prices and labels. A player who
-      // cannot see the rail reads the same season off it.
-      audio.play("ui_open");
-      setRailOpen(true);
-      say(describeRail(w));
-      return;
-    }
-    audio.play("ui_click");
-    if (id === "st_press_wall") say(describePress(w));
-    else if (id === "st_column") say(`The column reads ${w.countdown}.`);
-    else if (id === "st_cutting_table" || id === "st_bench") say(describeCash(w));
-  }
+  const close = () => useRoomStore.getState().setPanel(null);
 
   return (
     // Transparent and click-through by default: the room is drawn into the
@@ -234,7 +190,7 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
           <button
             onClick={() => {
               // The same door as the key and the button, so it sounds the same.
-              if (!nearExit) return act();
+              if (!nearExit) return void actHere();
               audio.play("ui_close");
               onExit();
             }}
@@ -256,35 +212,21 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
         </div>
       )}
 
-      {railOpen && (
-        <div className="pointer-events-auto">
-          <RailReader onClose={() => setRailOpen(false)} />
-        </div>
-      )}
-
       {/* These are `pointer-events-auto` islands over a click-through layer, so
           the room keeps its own clicks. */}
-      {callOpen && (
+      {panel && (
         <div className="pointer-events-auto">
-          <DeskPhone competency={upNext?.competency ?? null} onClose={() => setCallOpen(false)} />
-        </div>
-      )}
-      {lookbookOpen && track && (
-        <div className="pointer-events-auto">
-          <Lookbook
-            track={track}
-            activities={activities.data}
-            onClose={() => setLookbookOpen(false)}
-          />
-        </div>
-      )}
-      {playing && (
-        <div className="pointer-events-auto">
-          <PlayerShell
-            activity={playing}
-            venueName={manifest.displayName}
-            onClose={() => setPlaying(null)}
-          />
+          {panel === "rail" && <RailReader onClose={close} />}
+          {panel === "mirror" && <Mirror onClose={close} />}
+          {panel === "phone" && (
+            <DeskPhone competency={upNext?.competency ?? null} onClose={close} />
+          )}
+          {panel === "lookbook" && track && (
+            <Lookbook track={track} activities={activities.data} onClose={close} />
+          )}
+          {panel === "beat" && liveActivity && (
+            <PlayerShell activity={liveActivity} venueName={manifest.displayName} onClose={close} />
+          )}
         </div>
       )}
 

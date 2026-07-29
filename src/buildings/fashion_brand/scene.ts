@@ -30,6 +30,7 @@ import {
   WORKER_CELLS,
   cellsOf,
   levelAt,
+  stationForProp,
 } from "./room";
 import type { RoomDressing } from "./dressing";
 
@@ -124,6 +125,12 @@ export function buildKeyLight(): Container {
   return light;
 }
 
+/** A prop you can click, and the station clicking it takes you to. */
+export interface Hotspot {
+  sprite: Sprite;
+  stationId: string;
+}
+
 export interface RoomLayer {
   /** Everything that y-sorts against the player. */
   root: Container;
@@ -131,16 +138,31 @@ export interface RoomLayer {
   rail: Container;
   /** Everything else the world state shows: clippings, bolts, chalk, boxes. */
   dressing: Container;
+  /**
+   * The props that answer to the mouse. The canvas wires the listeners, because
+   * what a click DOES is store business and this file has no store.
+   */
+  hotspots: Hotspot[];
 }
 
 export function buildRoom(tex: MaisonTextures): RoomLayer {
   const root = new Container();
   root.sortableChildren = true;
 
+  const hotspots: Hotspot[] = [];
   for (const p of FURNITURE) {
     const sprite = place(new Sprite(tex.prop[p.kind]), p.cell.x, p.cell.y);
     const base = p.cell.x + p.cell.y;
     sprite.zIndex = NEAR_EDGE.has(p.kind) ? base + Z_NEAR_EDGE : p.blocking ? base : base + Z_FLAT;
+    // §18.2.5: the room answers the mouse as well as the key. A prop that
+    // belongs to a station takes the pointer; everything else stays scenery, so
+    // clicking bare floor still means "walk here".
+    const station = stationForProp(p.kind);
+    if (station) {
+      sprite.eventMode = "static";
+      sprite.cursor = "pointer";
+      hotspots.push({ sprite, stationId: station.id });
+    }
     root.addChild(sprite);
   }
 
@@ -152,7 +174,7 @@ export function buildRoom(tex: MaisonTextures): RoomLayer {
   dressing.sortableChildren = true;
   root.addChild(dressing);
 
-  return { root, rail, dressing };
+  return { root, rail, dressing, hotspots };
 }
 
 /**

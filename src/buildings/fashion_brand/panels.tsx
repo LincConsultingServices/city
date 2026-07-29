@@ -132,3 +132,64 @@ export function RailReader({ onClose }: { onClose: () => void }) {
     </Modal>
   );
 }
+
+/**
+ * The fitting alcove (§3.4). One dress form, one full-length mirror, and
+ * whatever the season actually made — the first piece off the rail, worn.
+ *
+ * The mirror is the one place in the building that shows you the collection on a
+ * body instead of on brass, and it still only reports: it names the piece, its
+ * price and what its neck says, and it does not tell you whether any of that was
+ * the right call (§11). An empty rail gets an empty form, which is its own kind
+ * of answer.
+ */
+export function Mirror({ onClose }: { onClose: () => void }) {
+  const world = useMaisonStore((s) => s.world);
+  const pieces = railContents(world);
+  const hero = pieces[0];
+  return (
+    <Modal onClose={onClose} width="sm" labelledBy="mirror-title">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted">The fitting alcove</p>
+          <h2 id="mirror-title" className="font-display text-2xl font-semibold text-gold">
+            On the form
+          </h2>
+        </div>
+        <ModalClose onClose={onClose} label="Step away" />
+      </div>
+
+      {hero ? (
+        <>
+          <p className="mt-4 text-sm leading-relaxed text-text">
+            The form is wearing {hero.label.toLowerCase()}. In the mirror it is just cloth on a
+            shoulder — the price tag is turned to the wall, and from here you can only see the
+            shape.
+          </p>
+          <dl className="mt-4 space-y-1.5 text-sm">
+            <div className="flex items-baseline justify-between gap-3 border-b border-line/60 pb-1.5">
+              <dt className="text-muted">The piece</dt>
+              <dd className="text-text">{hero.label}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-3 border-b border-line/60 pb-1.5">
+              <dt className="text-muted">The neck label</dt>
+              <dd className="text-text">{hero.neck}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-3 border-b border-line/60 pb-1.5">
+              <dt className="text-muted">The tag</dt>
+              <dd className="tabular-nums text-text">{hero.price}</dd>
+            </div>
+          </dl>
+          <p className="mt-4 text-xs text-muted">
+            {pieces.length} {pieces.length === 1 ? "piece" : "pieces"} on the rail behind you.
+          </p>
+        </>
+      ) : (
+        <p className="mt-4 text-sm leading-relaxed text-text">
+          The form is bare. Nothing has come off the rail yet, so the mirror has nothing to show you
+          but the alcove and the back of the shop.
+        </p>
+      )}
+    </Modal>
+  );
+}

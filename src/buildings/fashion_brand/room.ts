@@ -266,20 +266,39 @@ export interface Station {
   cell: Cell;
   /** The diegetic prompt, when this station is one you can act on. */
   prompt?: string;
+  /**
+   * The prop you click in the room to come here. Every sprite of this kind
+   * becomes a hotspot, so any of the three press frames walks you to the press
+   * wall. Stations reached on foot alone leave this off (§7).
+   */
+  prop?: PropKind;
 }
 
 export const STATIONS: readonly Station[] = [
   // The six the scenario spine stages its beats at (§8).
-  { id: "st_desk", label: "the desk", cell: { x: 2, y: 10 }, prompt: "read the lookbook" },
-  { id: "st_rail", label: "the rail", cell: { x: 5, y: 9 }, prompt: "look at the collection" },
+  {
+    id: "st_desk",
+    label: "the desk",
+    cell: { x: 2, y: 10 },
+    prompt: "read the lookbook",
+    prop: "desk",
+  },
+  {
+    id: "st_rail",
+    label: "the rail",
+    cell: { x: 5, y: 9 },
+    prompt: "look at the collection",
+    prop: "rail",
+  },
   { id: "st_boutique_floor", label: "the floor", cell: { x: 6, y: 11 } },
-  { id: "st_bench", label: "Élise's bench", cell: { x: 7, y: 2 } },
+  { id: "st_bench", label: "Élise's bench", cell: { x: 7, y: 2 }, prop: "bench" },
   { id: "st_atelier", label: "the atelier", cell: { x: 5, y: 3 } },
   {
     id: "st_press_wall",
     label: "the press wall",
     cell: { x: 1, y: 7 },
     prompt: "read the press wall",
+    prop: "press_frame",
   },
   // The rest of §7's guided-navigation list.
   {
@@ -287,15 +306,31 @@ export const STATIONS: readonly Station[] = [
     label: "the fitting alcove",
     cell: { x: 9, y: 8 },
     prompt: "look in the mirror",
+    prop: "mirror",
   },
   { id: "st_stair", label: "the stair", cell: { x: 3, y: 6 } },
-  { id: "st_cutting_table", label: "the cutting table", cell: { x: 1, y: 2 } },
-  { id: "st_column", label: "the column", cell: { x: 1, y: 4 }, prompt: "read the countdown" },
+  {
+    id: "st_cutting_table",
+    label: "the cutting table",
+    cell: { x: 1, y: 2 },
+    prop: "cutting_table",
+  },
+  {
+    id: "st_column",
+    label: "the column",
+    cell: { x: 1, y: 4 },
+    prompt: "read the countdown",
+    prop: "column",
+  },
   // §9.6 — the phone is at the desk, and it works at every beat, always, free.
   { id: "st_phone", label: "the desk phone", cell: { x: 1, y: 11 }, prompt: "call Véra" },
 ];
 
 export const stationById = (id: string): Station | undefined => STATIONS.find((s) => s.id === id);
+
+/** The station a given prop belongs to — how a click in the room finds a target. */
+export const stationForProp = (kind: PropKind): Station | undefined =>
+  STATIONS.find((s) => s.prop === kind);
 
 /** The station you are close enough to use, if any. */
 export function stationNear(cell: Cell): Station | null {

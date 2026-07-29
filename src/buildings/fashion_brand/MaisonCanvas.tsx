@@ -48,9 +48,10 @@ import {
   SPAWN,
   exitNear,
   makeRoomGrid,
+  stationById,
   stationNear,
 } from "./room";
-import { useRoomStore } from "./roomStore";
+import { actHere, useRoomStore } from "./roomStore";
 import { useMaisonStore } from "./maisonStore";
 import { castAt } from "./cast";
 
@@ -124,7 +125,7 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       world.addChild(buildRiser());
       world.addChild(buildKeyLight());
 
-      const { root: actors, rail, dressing } = buildRoom(tex);
+      const { root: actors, rail, dressing, hotspots } = buildRoom(tex);
       world.addChild(actors);
 
       const redress = (state = useMaisonStore.getState().world) => {
@@ -185,17 +186,42 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       rebuildCast();
 
       // ── Input ───────────────────────────────────────────────────────────────
+      /** Walk to a cell, if there is a way. Returns whether a route was found. */
+      const walkTo = (goal: Cell): boolean => {
+        if (!grid.isWalkable(goal.x, goal.y)) return false;
+        const path = findPath(grid, curCell, goal);
+        if (path.length <= 1) return false;
+        pathTargets = path.slice(1);
+        drawPathPreview(pathLine, pathTargets);
+        return true;
+      };
+
       const onStageDown = (e: FederatedPointerEvent) => {
         if (useRoomStore.getState().inputLocked) return;
         const local = world.toLocal(e.global);
-        const goal = roundCell(worldToMap(local.x, local.y));
-        if (!grid.isWalkable(goal.x, goal.y)) return;
-        const path = findPath(grid, curCell, goal);
-        if (path.length <= 1) return;
-        pathTargets = path.slice(1);
-        drawPathPreview(pathLine, pathTargets);
+        walkTo(roundCell(worldToMap(local.x, local.y)));
       };
       app.stage.on("pointerdown", onStageDown);
+
+      // §18.2.5: everything the E key reaches, the mouse reaches too. Clicking a
+      // prop walks you to its station; clicking it once you are there does what
+      // standing there and pressing E does — the same guarded path in the store,
+      // so the two cannot drift apart.
+      const onHotspot = (stationId: string) => (e: FederatedPointerEvent) => {
+        // Without this, clicking the rail ALSO orders a walk to whatever floor
+        // tile happens to be under it.
+        e.stopPropagation();
+        if (useRoomStore.getState().inputLocked) return;
+        if (useRoomStore.getState().nearStationId === stationId) {
+          actHere();
+          return;
+        }
+        const station = stationById(stationId);
+        if (!station || walkTo(station.cell)) return;
+        // Already standing on it, or walled off from it. Either way, try to act.
+        actHere();
+      };
+      for (const h of hotspots) h.sprite.on("pointerdown", onHotspot(h.stationId));
 
       // ── The house, reacting to the season ───────────────────────────────────
       // The building's readout is a subscription, not a redraw of the room:
@@ -347,6 +373,7 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       detach = () => {
         app.ticker.remove(tick);
         app.stage.off("pointerdown", onStageDown);
+        for (const h of hotspots) h.sprite.removeAllListeners();
         app.stage.removeChild(root);
         root.destroy({ children: true });
         destroyTextures(baked);
