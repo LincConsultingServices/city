@@ -26,6 +26,8 @@ import {
   destroyTextures,
 } from "@/world/characterArt";
 import type { Cardinal } from "@/world/assets";
+import { loadCafeAssets } from "./assets";
+import { createSteam } from "./steam";
 import { CAFE_PALETTE, bakeCafeTextures } from "./props";
 import { FLAP_OPEN_ROTATION, Z_PLAYER, buildFloor, buildFurniture } from "./scene";
 import {
@@ -37,6 +39,7 @@ import {
   SPAWN,
   exitNear,
   gateNear,
+  hotspotNear,
   makeRoomGrid,
   type GateId,
 } from "./room";
@@ -86,6 +89,10 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
       const host: InteriorHost = await whenInteriorHost();
       if (destroyed) return;
 
+      // Sprite-backed props need their bundle in Pixi's cache before we bake.
+      await loadCafeAssets();
+      if (destroyed) return;
+
       const { app } = host;
       host.hideWorld();
 
@@ -101,10 +108,17 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
 
       const tex = bakeCafeTextures(app.renderer);
       baked.push(...tex.all);
-      world.addChild(buildFloor(tex));
+      world.addChild(buildFloor());
 
       const { root: actors, flap } = buildFurniture(tex);
       world.addChild(actors);
+
+      // Steam off the espresso machine. Sits on the machine's own cell, lifted
+      // to the top of its body so the wisp starts at the group head.
+      const machine = mapToWorld(4, 0);
+      const steam = createSteam({ x: machine.x, y: machine.y - 46 }, reduced);
+      steam.view.zIndex = 4 + 0 + 0.3;
+      actors.addChild(steam.view);
 
       // ── The player ──────────────────────────────────────────────────────────
       // Same procedural rig as the street, so it is recognisably you indoors.
@@ -174,6 +188,20 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
         const dt = ticker.deltaMS / 1000;
         elapsed += dt;
         const locked = useCafeStore.getState().inputLocked;
+
+        // A station button asking the room to walk somewhere. Polled rather than
+        // subscribed: the ticker is already reading this store every frame, and a
+        // re-entrant setState inside a subscriber is a needless puzzle.
+        const want = useCafeStore.getState().walkTo;
+        if (want) {
+          store.setWalkTo(null);
+          const path = findPath(grid, curCell, want);
+          if (path.length > 1) {
+            pathTargets = path.slice(1);
+            drawPathPreview(pathLine, pathTargets);
+          }
+        }
+
         const prevX = charPixel.x;
         const prevY = charPixel.y;
 
@@ -253,7 +281,10 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
           store.setCharCell(curCell);
           store.setNearExit(exitNear(curCell));
           store.setNearGate(gateNear(curCell)?.id ?? null);
+          store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
         }
+
+        steam.update(dt);
 
         // The flap swing. Linear over FLAP_SWING_S so it reads as a hinge rather
         // than a spring; reduced motion snapped it already, above.
@@ -302,6 +333,7 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
 
       store.setNearExit(exitNear(curCell));
       store.setNearGate(gateNear(curCell)?.id ?? null);
+      store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
       audio.preload(["step_hard_1", "step_hard_2"]);
 
       // Unmounted while we were building? Hand it all straight back — the React

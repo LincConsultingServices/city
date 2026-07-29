@@ -3,10 +3,11 @@
 // graph. Placement follows the city's own conventions exactly (world/CityCanvas
 // .tsx §makeProp): anchor (0.5, 1) at `mapToWorld(cell) + TILE_H/2`, depth via
 // `zIndex = cell.x + cell.y` plus a per-class epsilon.
-import { Container, Sprite } from "pixi.js";
+import { Container, Graphics, Sprite } from "pixi.js";
 import { TILE_H, TILE_W, mapToWorld } from "@/lib/iso";
-import type { CafeTextures } from "./props";
-import { FURNITURE, GATES, NEAR_EDGE, ROOM_H, ROOM_W, type Gate } from "./room";
+import { CAFE_PALETTE, type CafeTextures } from "./props";
+import { PROP_SPRITE } from "./assets";
+import { FURNITURE, GATES, NEAR_EDGE, ROOM_H, ROOM_W, type Gate, type PropKind } from "./room";
 
 /** Depth offsets, so props sharing a cell stack in a sensible order. */
 const Z_FLAT = -0.1; // rugs and the doormat, under everything upright
@@ -28,21 +29,73 @@ function place(sprite: Sprite, cx: number, cy: number): Sprite {
 }
 
 /**
- * The checkered floor. Static, so it goes in its own container sorted once —
- * the same split the city uses between `ground` and `actors`.
+ * The whole floor as a single Graphics: one filled diamond, a warm pool drawn
+ * into it, and grid seams for scale.
+ *
+ * It used to be ROOM_W × ROOM_H individual Sprites (120 of them) in a sorted
+ * container, plus a separate warmth Sprite with a Graphics mask on top. That
+ * shape only earns its keep if tiles differ from each other or need to y-sort —
+ * a flat single-colour surface under everything does neither. One Graphics is
+ * one geometry and one draw call, the sorted container is gone, the mask's
+ * stencil pass is gone, and two baked textures no longer exist to allocate or
+ * dispose.
+ *
+ * The pool is clipped for free here: we only ever draw inside the floor's own
+ * polygons, so nothing can spill onto the dark surround the way the masked
+ * sprite did.
  */
-export function buildFloor(tex: CafeTextures): Container {
-  const ground = new Container();
-  ground.sortableChildren = true;
-  for (let y = 0; y < ROOM_H; y++) {
-    for (let x = 0; x < ROOM_W; x++) {
-      const tile = place(new Sprite(tex.floor[(x + y) % 2]), x, y);
-      tile.zIndex = x + y;
-      ground.addChild(tile);
-    }
+export function buildFloor(): Graphics {
+  const g = new Graphics();
+
+  // Outer edge of the floor: the four corners of the room's diamond.
+  const t = mapToWorld(0, 0);
+  const r = mapToWorld(ROOM_W - 1, 0);
+  const b = mapToWorld(ROOM_W - 1, ROOM_H - 1);
+  const l = mapToWorld(0, ROOM_H - 1);
+  g.poly([
+    t.x,
+    t.y - TILE_H / 2,
+    r.x + TILE_W / 2,
+    r.y,
+    b.x,
+    b.y + TILE_H / 2,
+    l.x - TILE_W / 2,
+    l.y,
+  ]).fill(CAFE_PALETTE.floor);
+
+  // The warm pool the room sits in — concentric diamonds shrinking toward the
+  // middle. cafe.jpg is a lit island in a dark surround; an evenly-lit floor
+  // reads flat however good the props are.
+  const mid = mapToWorld((ROOM_W - 1) / 2, (ROOM_H - 1) / 2);
+  for (let i = 10; i >= 1; i--) {
+    const k = i / 10;
+    g.poly([
+      mid.x,
+      mid.y - (ROOM_H + ROOM_W) * (TILE_H / 4) * k,
+      mid.x + (ROOM_W + ROOM_H) * (TILE_W / 4) * k,
+      mid.y,
+      mid.x,
+      mid.y + (ROOM_H + ROOM_W) * (TILE_H / 4) * k,
+      mid.x - (ROOM_W + ROOM_H) * (TILE_W / 4) * k,
+      mid.y,
+    ]).fill({ color: CAFE_PALETTE.lamp, alpha: 0.022 });
   }
-  ground.sortChildren();
-  return ground;
+
+  // Grid seams, so the floor still has a sense of scale without a pattern
+  // competing with the furniture. Half-cell offsets put them on tile edges.
+  const seam = { color: CAFE_PALETTE.floorSeam, width: 1.5, alpha: 0.5 };
+  for (let x = 0; x <= ROOM_W; x++) {
+    const a = mapToWorld(x - 0.5, -0.5);
+    const b = mapToWorld(x - 0.5, ROOM_H - 0.5);
+    g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke(seam);
+  }
+  for (let y = 0; y <= ROOM_H; y++) {
+    const a = mapToWorld(-0.5, y - 0.5);
+    const b = mapToWorld(ROOM_W - 0.5, y - 0.5);
+    g.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke(seam);
+  }
+
+  return g;
 }
 
 export interface FurnitureLayer {
@@ -63,6 +116,7 @@ export function buildFurniture(tex: CafeTextures): FurnitureLayer {
 
   for (const p of FURNITURE) {
     const sprite = place(new Sprite(tex.prop[p.kind]), p.cell.x, p.cell.y);
+    fitSprite(sprite, p.kind);
     const base = p.cell.x + p.cell.y;
     sprite.zIndex = NEAR_EDGE.has(p.kind)
       ? base + Z_NEAR_EDGE
@@ -99,6 +153,16 @@ function buildFlap(tex: CafeTextures, gate: Gate): Container {
   hinge.addChild(sprite);
 
   return hinge;
+}
+
+/**
+ * Procedural bakes already come out tile-sized; a real sprite arrives at its own
+ * native resolution, so it has to be scaled to the width the layout expects.
+ */
+function fitSprite(sprite: Sprite, kind: PropKind): void {
+  const spec = PROP_SPRITE[kind];
+  if (!spec || !sprite.texture.width) return;
+  sprite.scale.set(spec.width / sprite.texture.width);
 }
 
 /** How far the flap swings when it is up. Negative lifts the free end. */
