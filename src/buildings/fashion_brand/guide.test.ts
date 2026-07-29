@@ -1,12 +1,12 @@
 // §18.2.5 is blocking: the season must be completable on a keyboard alone. That
-// is a property of this list, not of the key handler — if the next beat is not
-// reachable from it, no amount of Tab gets you there.
+// is a property of this list, not of the nav that renders it — if the next beat
+// is not on the list, no amount of tabbing through the buttons gets you there.
 import { describe, it, expect } from "vitest";
 import { findPath } from "@/lib/pathfinding";
 import { SPAWN, makeRoomGrid, stationById } from "./room";
 import { BEATS, type Track } from "./season";
 import { beatActivityId } from "./beats";
-import { guideTargets, stepGuide, GUIDE_NAMED_IDS } from "./guide";
+import { guideTargets, GUIDE_NAMED_IDS } from "./guide";
 import type { Decision } from "./maisonStore";
 
 const grid = makeRoomGrid();
@@ -75,20 +75,5 @@ describe("MAISON guided navigation", () => {
     const list = guideTargets("A", []);
     const ids = list.map((t) => t.stationId);
     expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  it("wraps in both directions and never lands outside the list", () => {
-    const n = 5;
-    expect(stepGuide(-1, 1, n)).toBe(0); // a fresh visit steps to the head
-    expect(stepGuide(4, 1, n)).toBe(0);
-    expect(stepGuide(0, -1, n)).toBe(4);
-    for (let i = -3; i < 12; i++) {
-      for (const d of [1, -1]) {
-        const next = stepGuide(i, d, n);
-        expect(next).toBeGreaterThanOrEqual(0);
-        expect(next).toBeLessThan(n);
-      }
-    }
-    expect(stepGuide(0, 1, 0)).toBe(0); // an empty list is not a crash
   });
 });

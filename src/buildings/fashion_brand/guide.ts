@@ -2,10 +2,10 @@
 // eleven stations; finding Rio on the boutique floor by walking WASD into him is
 // a fine way to play and a poor way to be the only way to play.
 //
-// This is the list Tab cycles: where the season goes next, then the seven
-// stations §7 names, then the phone and the door. It is ordered rather than
-// alphabetical because the first entry is the one that moves the season, so
-// Tab-once-and-walk is the whole keyboard path through a beat.
+// This is the list the room's "go to" nav renders: where the season goes next,
+// then the seven stations §7 names, then the phone and the door. It is ordered
+// rather than alphabetical because the first entry is the one that moves the
+// season, so the first button is the whole path through a beat.
 //
 // Pure. It knows the season and the room, and nothing about React or Pixi.
 import type { Cell } from "@/lib/pathfinding";
@@ -72,12 +72,6 @@ export function guideTargets(track: Track | null, decided: readonly Decision[]):
   // Always last, and always there: §7 makes the shopfront door permanent.
   out.push({ stationId: null, cell: EXIT, label: "the shopfront door" });
   return out;
-}
-
-/** Step through the list, wrapping both ways. */
-export function stepGuide(index: number, delta: number, length: number): number {
-  if (length <= 0) return 0;
-  return (((index + delta) % length) + length) % length;
 }
 
 /** Every station is on the list, or reachable from one that is (§18.2.5). */

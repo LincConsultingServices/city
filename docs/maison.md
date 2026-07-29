@@ -1093,7 +1093,7 @@ it line by line. Four rounds followed.
 | **R1** | One source of layout truth, `NEAR_EDGE`, `resolution: 2`, [`panels.tsx`](../src/buildings/fashion_brand/panels.tsx), [`index.ts`](../src/buildings/fashion_brand/index.ts), six geometry invariants |
 | **R2** | `actHere()` in [`roomStore.ts`](../src/buildings/fashion_brand/roomStore.ts) — one guarded path, and props that answer the mouse                                                                    |
 | **R3** | The mirror (§3.4), which had been a prompt that did nothing since the stations were authored                                                                                                        |
-| **R4** | [`guide.ts`](../src/buildings/fashion_brand/guide.ts) — Tab walks the room, closing §18.2.5                                                                                                         |
+| **R4** | [`guide.ts`](../src/buildings/fashion_brand/guide.ts) — a "go to" nav that crosses the room, closing §18.2.5                                                                                        |
 
 Two rendering bugs came out of the comparison rather than out of play:
 
@@ -1109,6 +1109,27 @@ Two rendering bugs came out of the comparison rather than out of play:
 The criteria that moved from deferred to met: **§18.2.5** (keyboard-only completion —
 stated as a property in [`guide.test.ts`](../src/buildings/fashion_brand/guide.test.ts)
 and walked in the e2e) and **§3.4** (the fitting alcove now shows the season on a body).
+
+### 19.2.3 Converging with the Café on guided navigation
+
+The Café landed guided navigation on `main` at the same time, independently, and
+the two arrived at the same store shape — a one-shot `walkTo: Cell | null` that
+the canvas paths to and clears. MAISON's field was renamed to match, because two
+interiors should not each invent a vocabulary for the same idea.
+
+They diverged on the surface, and **the Café's was right**. MAISON first bound
+Tab to cycle the list. That is worse accessibility than the thing it was meant to
+serve: hijacking Tab strips DOM focus navigation out of the interior entirely.
+The Café renders real `<button>`s inside a labelled `<nav>`, so the browser's own
+Tab reaches them and a screen reader reads them as a list of places. MAISON now
+does the same, and keeps only what is genuinely its own: the first entry is
+wherever the season is waiting, named by whoever is holding it.
+
+Merging the two surfaced a real bug in MAISON's key handling. The room treated
+**Enter** as "act", so activating a nav button by keyboard both walked you and
+acted on wherever you were still standing — and the act won, because opening a
+panel locks the room before the walk order lands. Enter now belongs to whatever
+control has focus; **E** stays the room's own key whatever has focus.
 
 ### 19.2.1 Framework files touched, and why
 
@@ -1159,8 +1180,8 @@ convenience:
 - **The Véra desk phone (§9.6).** Present as a _choice_ in the C2 trees, which is the whole
   scored mechanic. Absent as a _free, unscored, always-available call_ — that needs a room
   to put a phone in.
-- **The Café owes MAISON three things back**, since it is the same standard: MAISON's
-  clamped, exported and tested `shade()` (the Café's would blow up on the same input that
-  killed this room); the early-armed `detach` and the `.catch` on the async build (without
-  them a bake that throws leaves the city hidden and frozen); and the label/prompt linting
-  tests.
+- **The Café still owes MAISON two things**, since it is the same standard: the early-armed
+  `detach` and the `.catch` on the async build (without them a bake that throws leaves the
+  city hidden and frozen, which is exactly how this room failed), and the label/prompt
+  linting tests. Its unclamped `shade()` — the third — was fixed upstream on `main` before
+  this merge.

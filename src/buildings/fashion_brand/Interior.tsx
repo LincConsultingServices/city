@@ -17,7 +17,7 @@ import { MaisonCanvas } from "./MaisonCanvas";
 import { Lookbook } from "./Lookbook";
 import { DeskPhone, Mirror, RailReader, Threshold } from "./panels";
 import { actHere, resetRoomState, travelTo, useRoomStore } from "./roomStore";
-import { guideTargets, stepGuide } from "./guide";
+import { guideTargets } from "./guide";
 import { stationById, zoneAt } from "./room";
 import { useMaisonStore } from "./maisonStore";
 import { beatActivityId, beatPrompt, liveBeatAt, nextBeat, seasonComplete } from "./beats";
@@ -124,32 +124,11 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
   }, [panelOpen]);
 
   // §7's guided-navigation list, recomputed as the season moves so the head of
-  // it is always where the next beat is waiting. The key handler reaches it
-  // through a ref because it is bound once and this changes every beat.
+  // it is always where the next beat is waiting.
   const guide = useMemo(() => guideTargets(track, decided), [track, decided]);
-  const guideRef = useRef(guide);
-  guideRef.current = guide;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      // §18.2.5: Tab walks the room. Eleven stations in a twelve-by-fourteen
-      // room is not something to find by nudging WASD into the furniture, and
-      // keyboard-only completion is a blocking criterion. While a panel is up
-      // the guard below returns first, so Tab stays the browser's own key and
-      // the modal keeps its focus trap.
-      if (e.key === "Tab") {
-        if (useRoomStore.getState().inputLocked) return;
-        const list = guideRef.current;
-        if (list.length === 0) return;
-        e.preventDefault();
-        const next = stepGuide(
-          useRoomStore.getState().guideIndex,
-          e.shiftKey ? -1 : 1,
-          list.length,
-        );
-        travelTo(list[next], next);
-        return;
-      }
       if (e.key === "Escape") {
         // The panels own Escape while they are up; the door only wins when
         // there is nothing between you and it.
@@ -158,6 +137,11 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
         return;
       }
       if (e.key !== "e" && e.key !== "E" && e.key !== "Enter") return;
+      // Enter belongs to whatever control has focus — it is how a button is
+      // pressed. Without this, walking somewhere from the "go to" nav would
+      // also act on wherever you are still standing, and the act would win.
+      // E stays ours whatever has focus, so the room keeps a key of its own.
+      if (e.key === "Enter" && document.activeElement instanceof HTMLButtonElement) return;
       if (useRoomStore.getState().inputLocked) return;
       // The door wins when you are standing in it; otherwise use the station.
       if (useRoomStore.getState().nearExit) leave();
@@ -228,8 +212,29 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
         </div>
       )}
 
-      <p className="pointer-events-none absolute bottom-4 left-5 z-10 text-xs text-muted">
-        WASD or click to move · Tab to walk the room · E to look
+      {/* Guided navigation (§7, §18.2.5). Real buttons in a real nav, so the
+          browser's own Tab reaches them and a screen reader reads them as a
+          list of places — which is the whole point, and is why this is not a
+          custom key. The first entry is wherever the season is waiting, named
+          by whoever is holding it, so completing a beat never needs steering. */}
+      <nav
+        aria-label="Places in MAISON"
+        className="pointer-events-auto absolute bottom-4 left-5 z-10 flex flex-wrap items-center gap-1.5"
+      >
+        <span className="mr-1 text-xs uppercase tracking-widest text-muted">go to</span>
+        {guide.map((t) => (
+          <button
+            key={t.stationId ?? "exit"}
+            onClick={() => travelTo(t)}
+            className="rounded-full border border-line/70 bg-surface/70 px-2.5 py-1 text-xs text-muted backdrop-blur hover:border-gold/60 hover:text-text"
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      <p className="pointer-events-none absolute bottom-4 right-5 z-10 text-xs text-muted">
+        WASD or click to move · E to look
       </p>
 
       {needsTrack && (

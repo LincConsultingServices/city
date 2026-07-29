@@ -188,7 +188,7 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
 
       // ── Input ───────────────────────────────────────────────────────────────
       /** Walk to a cell, if there is a way. Returns whether a route was found. */
-      const walkTo = (goal: Cell): boolean => {
+      const walkToCell = (goal: Cell): boolean => {
         if (!grid.isWalkable(goal.x, goal.y)) return false;
         const path = findPath(grid, curCell, goal);
         if (path.length <= 1) return false;
@@ -200,7 +200,7 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       const onStageDown = (e: FederatedPointerEvent) => {
         if (useRoomStore.getState().inputLocked) return;
         const local = world.toLocal(e.global);
-        walkTo(roundCell(worldToMap(local.x, local.y)));
+        walkToCell(roundCell(worldToMap(local.x, local.y)));
       };
       app.stage.on("pointerdown", onStageDown);
 
@@ -218,7 +218,7 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
           return;
         }
         const station = stationById(stationId);
-        if (!station || walkTo(station.cell)) return;
+        if (!station || walkToCell(station.cell)) return;
         // Already standing on it, or walled off from it. Either way, try to act.
         actHere();
       };
@@ -228,10 +228,10 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       // there. A one-shot order, cleared the moment it is taken, so a second Tab
       // to the same station still moves you.
       unsubscribeWalk = useRoomStore.subscribe((st) => {
-        if (destroyed || !st.walkTarget) return;
-        const goal = st.walkTarget;
-        useRoomStore.getState().setWalkTarget(null);
-        walkTo(goal);
+        if (destroyed || !st.walkTo) return;
+        const goal = st.walkTo;
+        useRoomStore.getState().setWalkTo(null);
+        walkToCell(goal);
       });
 
       // ── The house, reacting to the season ───────────────────────────────────

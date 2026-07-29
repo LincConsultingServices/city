@@ -6,27 +6,35 @@
 // @/lib/iso) so walking in from Market Street never changes the camera angle.
 // Contents, palette and prop list come from cafe.jpg — see cafedev.md §2-3.
 //
-//        x0    x1    x2    x3    x4    x5    x6    x7    x8    x9
-//  y0    ▓W    ▓W    ▓M    ▓W    ▓A    ▓A    ▓W    ▓A    ▓T    ▓T   back wall
-//  y1    ·p    ·p    ·     ·     ·     ·     ▓P    ·     ·     ·    STAFF ZONE
-//  y2    ▓C    ▓C    ▓C    ╪F    ▓C    ▓C    ·     ·     ▓X    ▓X   counter run
-//  y3    ▓s    ▓s    ·     ·     ▓s    ·     ·     ▓J    ·     ▓X
-//  y4    ·     ·     ·     ▒r    ▒r    ·     ▒o    ·     ·     ▓R   open lane
-//  y5    ▓1    ▓c    ·     ▒r    ▒r    ▓2    ·     ·     ·     ·
-//  y6    ▓c    ·     ·     ·     ·     ▓c    ·     ▓3    ▓c    ·
-//  y7    ▓w    ▓w    ▓w    ▒D    ▓w    ▓w    ▓w    ▓w    ▓w    ▓w   front wall
+// A one-cell wall ring encloses the play area, because cafe.jpg is a closed room.
+// The two FAR edges (y0, x0) are full-height walls and carry the windows, menu
+// board, framed art and stairs. The two NEAR edges (y9, x11) are low sills: a
+// full wall there would stand between the camera and anyone walking along the
+// front of the room.
+//
+//        x0  x1  x2  x3  x4  x5  x6  x7  x8  x9 x10 x11
+//  y0    ▓▓  ▓W  ▓P  ▓M  ▓E  ▓▓  ▓A  ▓T  ▓T  ▓W  ▓A  ▓▓   far wall
+//  y1    ▓▓  ·p  ·p  ·   ·   ·   ·   ▓L  ·   ·   ·   ▒▒   STAFF ZONE
+//  y2    ▓▓  ▓C  ▓C  ▓C  ╪F  ▓C  ▓C  ·   ·   ▓X  ▓X  ▒▒   counter run
+//  y3    ▓▓  ▓s  ▓s  ·   ·   ▓s  ·   ·   ▓J  ·   ▓X  ▒▒
+//  y4    ▓▓  ·   ·   ·   ▒r  ▒r  ·   ▒o  ·   ·   ▓R  ▒▒   open lane
+//  y5    ▓▓  ▓1  ▓c  ·   ▒r  ▒r  ▓2  ·   ·   ·   ·   ▒▒
+//  y6    ▓▓  ▓c  ·   ·   ·   ·   ▓c  ·   ▓3  ▓c  ·   ▒▒
+//  y7    ▓▓  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ▒▒
+//  y8    ▓▓  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ▒▒
+//  y9    ▒▒  ▒▒  ▒▒  ▒▒  ▒D  ▒▒  ▒▒  ▒▒  ▒▒  ▒▒  ▒▒  ▒▒   near sill + door
 import { TILE_W, TILE_H } from "@/lib/iso";
 import type { Cell, Grid } from "@/lib/pathfinding";
 
-export const ROOM_W = 10;
-export const ROOM_H = 8;
+export const ROOM_W = 12;
+export const ROOM_H = 10;
 
 /** On-screen size of the whole room, in world pixels — drives the fit-to-viewport camera. */
 export const ROOM_PX_W = (ROOM_W + ROOM_H) * (TILE_W / 2);
 export const ROOM_PX_H = (ROOM_W + ROOM_H) * (TILE_H / 2);
 
-export const SPAWN: Cell = { x: 3, y: 6 }; // just inside the door, facing into the room
-export const EXIT: Cell = { x: 3, y: 7 }; // the door threshold
+export const SPAWN: Cell = { x: 4, y: 8 }; // just inside the door, facing into the room
+export const EXIT: Cell = { x: 4, y: 9 }; // the door threshold, in the near sill
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -36,6 +44,7 @@ export type PropKind =
   | "wall_window"
   | "wall_menu"
   | "wall_art"
+  | "wall_board"
   /**
    * The near edge of the room. Kept low on purpose: a full-height wall between
    * the camera and the floor would stand in front of the player every time they
@@ -51,6 +60,7 @@ export type PropKind =
   | "table"
   | "chair"
   | "dresser"
+  | "shelf"
   | "jukebox"
   | "radiator"
   | "plant"
@@ -61,7 +71,8 @@ export type PropKind =
   // overlays — drawn on a host cell without claiming it
   | "pastry_case"
   | "espresso_machine"
-  | "till";
+  | "till"
+  | "pendant";
 
 export interface Furniture {
   kind: PropKind;
@@ -88,74 +99,85 @@ const over = (kind: PropKind, x: number, y: number): Furniture => ({
   overlay: true,
 });
 
+/** The far wall runs along y0 and down x0; the near sill along y9 and down x11. */
+function ring(): Furniture[] {
+  const out: Furniture[] = [];
+  for (let x = 0; x < ROOM_W; x++) out.push(f("wall_plank", x, 0));
+  for (let y = 1; y < ROOM_H; y++) out.push(f("wall_plank", 0, y));
+  for (let x = 1; x < ROOM_W; x++) out.push(f("wall_sill", x, ROOM_H - 1));
+  for (let y = 1; y < ROOM_H - 1; y++) out.push(f("wall_sill", ROOM_W - 1, y));
+  return out;
+}
+
+/** Cells on the far wall that carry something other than bare planking. */
+const FAR_WALL_FEATURES: Array<[PropKind, number]> = [
+  ["wall_window", 1],
+  ["wall_menu", 3],
+  ["wall_art", 6],
+  ["stairs", 7],
+  ["stairs", 8],
+  ["wall_window", 9],
+  ["wall_art", 10],
+];
+
 export const FURNITURE: readonly Furniture[] = [
-  // y0 — the plank back wall: windows with blinds, the menu board, framed art,
-  // and the stairs in the far corner (decorative; never climbed).
-  f("wall_window", 0, 0),
-  f("wall_plank", 1, 0),
-  f("wall_menu", 2, 0),
-  f("wall_plank", 3, 0),
-  f("wall_art", 4, 0),
-  f("wall_art", 5, 0),
-  f("wall_window", 6, 0),
-  f("wall_art", 7, 0),
-  f("stairs", 8, 0),
-  f("stairs", 9, 0),
-  // …with the tall units standing in front of it, drawn but not blocking.
-  over("pastry_case", 1, 0),
-  over("espresso_machine", 3, 0),
+  // The enclosing ring, then the cells that override bare planking.
+  ...ring().filter(
+    (p) =>
+      !(p.cell.y === 0 && FAR_WALL_FEATURES.some(([, x]) => x === p.cell.x)) &&
+      !(p.cell.x === 0 && p.cell.y === 4) &&
+      !(p.cell.y === ROOM_H - 1 && p.cell.x === 4),
+  ),
+  ...FAR_WALL_FEATURES.map(([kind, x]) => f(kind, x, 0)),
+  // The community noticeboard, on the far-left wall where the lane passes it.
+  f("wall_board", 0, 4),
+  // The door and its mat, in the near sill.
+  f("door_mat", 4, ROOM_H - 1, false),
+
+  // …with the tall units standing in front of the far wall, drawn but not blocking.
+  over("pastry_case", 2, 0),
+  over("espresso_machine", 4, 0),
+  over("shelf", 5, 0),
 
   // y1 — the staff zone. Walkable, and sealed except through the flap. The plant
-  // at (6,1) is what closes the right-hand approach; see the reachability tests.
-  f("plant", 6, 1),
+  // at (7,1) is what closes the right-hand approach; see the reachability tests.
+  f("plant", 7, 1),
 
-  // y2 — the counter run. (3,2) is the flap: a gate, not furniture — see GATES.
-  f("counter", 0, 2),
+  // y2 — the counter run. (4,2) is the flap: a gate, not furniture — see GATES.
   f("counter", 1, 2),
   f("counter", 2, 2),
-  f("counter", 4, 2),
+  f("counter", 3, 2),
   f("counter", 5, 2),
-  over("till", 1, 2),
-  f("dresser", 8, 2),
+  f("counter", 6, 2),
+  over("till", 2, 2),
+  over("pendant", 3, 2),
   f("dresser", 9, 2),
+  f("dresser", 10, 2),
 
   // y3 — stools along the bar, the jukebox against the wall, cabinets right.
-  f("stool", 0, 3),
   f("stool", 1, 3),
-  f("stool", 4, 3),
-  f("jukebox", 7, 3),
-  f("dresser", 9, 3),
+  f("stool", 2, 3),
+  f("stool", 5, 3),
+  f("jukebox", 8, 3),
+  f("dresser", 10, 3),
 
   // y4 — the open lane. Rugs are walk-over; the radiator is not.
-  f("rug_persian", 3, 4, false),
   f("rug_persian", 4, 4, false),
-  f("rug_oval", 6, 4, false),
-  f("radiator", 9, 4),
+  f("rug_persian", 5, 4, false),
+  f("rug_oval", 7, 4, false),
+  f("radiator", 10, 4),
 
-  // y5 / y6 — the dining floor. Table 3's chair sits at (8,6) rather than (6,5)
-  // so the (6,6) corner keeps a way out; room.test.ts locks that in.
-  f("table", 0, 5),
-  f("chair", 1, 5),
-  f("rug_persian", 3, 5, false),
+  // y5 / y6 — the dining floor. Table 3's chair sits at (9,6) rather than (7,5)
+  // so the (7,6) corner keeps a way out; room.test.ts locks that in.
+  f("table", 1, 5),
+  f("chair", 2, 5),
   f("rug_persian", 4, 5, false),
-  f("table", 5, 5),
-  f("chair", 0, 6),
-  f("chair", 5, 6),
-  f("table", 7, 6),
-  f("chair", 8, 6),
-
-  // y7 — the near edge, with the door and its mat at (3,7). Low sills, not walls:
-  // this row sits between the camera and the floor.
-  f("wall_sill", 0, 7),
-  f("wall_sill", 1, 7),
-  f("wall_sill", 2, 7),
-  f("door_mat", 3, 7, false),
-  f("wall_sill", 4, 7),
-  f("wall_sill", 5, 7),
-  f("wall_sill", 6, 7),
-  f("wall_sill", 7, 7),
-  f("wall_sill", 8, 7),
-  f("wall_sill", 9, 7),
+  f("rug_persian", 5, 5, false),
+  f("table", 6, 5),
+  f("chair", 1, 6),
+  f("chair", 6, 6),
+  f("table", 8, 6),
+  f("chair", 9, 6),
 ];
 
 /** Kinds that must never draw over the player — the near edge of the room. */
@@ -179,7 +201,7 @@ export interface Gate {
 export const GATES: readonly Gate[] = [
   {
     id: "counter_flap",
-    cell: { x: 3, y: 2 },
+    cell: { x: 4, y: 2 },
     openPrompt: "lift the counter flap",
     closePrompt: "lower the counter flap",
     openedSays: "The counter flap is up. You can get behind the bar.",
@@ -230,9 +252,9 @@ export interface Zone {
 
 /** Ordered — first match wins, so the pass-through beats the wider staff zone. */
 export const ZONES: readonly Zone[] = [
-  { id: "z_pass", label: "the pass-through", contains: (c) => c.y === 1 && c.x <= 1 },
-  { id: "z_behind", label: "behind the counter", contains: (c) => c.y === 1 && c.x <= 5 },
-  { id: "z_window", label: "by the window", contains: (c) => c.x >= 8 },
+  { id: "z_pass", label: "the pass-through", contains: (c) => c.y === 1 && c.x <= 2 },
+  { id: "z_behind", label: "behind the counter", contains: (c) => c.y === 1 && c.x <= 6 },
+  { id: "z_window", label: "by the window", contains: (c) => c.x >= 9 },
   { id: "z_floor", label: "the floor", contains: () => true },
 ];
 
@@ -241,7 +263,53 @@ export function zoneAt(cell: Cell): Zone {
 }
 
 /** Every cell the flap gates access to — the sealed side of the counter. */
-export const STAFF_CELLS: readonly Cell[] = Array.from({ length: 6 }, (_, x) => ({ x, y: 1 }));
+export const STAFF_CELLS: readonly Cell[] = Array.from({ length: 6 }, (_, i) => ({
+  x: i + 1,
+  y: 1,
+}));
+
+// ── Hotspots ──────────────────────────────────────────────────────────────────
+
+export interface Hotspot {
+  id: string;
+  /** Prompt verb, in the room's own words. */
+  prompt: string;
+  /** The walkable cell you stand on; the prompt fires within one cell of it. */
+  cell: Cell;
+  title: string;
+  body: string;
+}
+
+export const HOTSPOTS: readonly Hotspot[] = [
+  {
+    id: "ht_chalkboard",
+    prompt: "read the board",
+    cell: { x: 3, y: 3 },
+    title: "The chalkboard",
+    body: "Everything this place sells, in Priya's handwriting, rewritten whenever you change your mind about something. Right now it is the menu you inherited: house blend, a flat white nobody orders, and a cortado somebody has already tried to correct the spelling of.",
+  },
+  {
+    id: "ht_board",
+    prompt: "read the noticeboard",
+    cell: { x: 1, y: 4 },
+    title: "The community board",
+    body: "Cork, and four layers of other people's lives. A lost cat from a fortnight ago, a bassist wanted, two flyers for the same open mic, and a card for the place across the road that you did not pin there.",
+  },
+  {
+    id: "ht_window",
+    prompt: "look out the window",
+    cell: { x: 9, y: 1 },
+    title: "Market Street",
+    body: "The street goes on without you: the ice cream cart, someone's bike against the railing, the awning opposite catching the light. Everything that happens to this café happens out there first.",
+  },
+  {
+    id: "ht_pass",
+    prompt: "check the pass-through",
+    cell: { x: 1, y: 1 },
+    title: "The pass-through",
+    body: "Two metres out of earshot of the floor, which is the whole reason it matters. The rota is pinned here with three corrections in pencil, and the supplier's price letter is still where you left it, unopened.",
+  },
+];
 
 // ── Proximity ─────────────────────────────────────────────────────────────────
 
@@ -257,6 +325,11 @@ export function gateNear(cell: Cell): Gate | null {
   return GATES.find((g) => manhattan(cell, g.cell) <= 1) ?? null;
 }
 
+/** The hotspot you are close enough to read, if any. */
+export function hotspotNear(cell: Cell): Hotspot | null {
+  return HOTSPOTS.find((h) => manhattan(cell, h.cell) <= 1) ?? null;
+}
+
 // ── Guided navigation (PRD §14.2) ─────────────────────────────────────────────
 
 export interface Station {
@@ -267,10 +340,10 @@ export interface Station {
 }
 
 export const STATIONS: readonly Station[] = [
-  { id: "st_counter", label: "the counter", cell: { x: 2, y: 3 } },
-  { id: "st_flap", label: "the counter flap", cell: { x: 3, y: 3 } },
-  { id: "st_jukebox", label: "the jukebox", cell: { x: 6, y: 3 } },
-  { id: "st_tables", label: "the tables", cell: { x: 2, y: 5 } },
-  { id: "st_window", label: "by the window", cell: { x: 8, y: 4 } },
-  { id: "st_door", label: "the door", cell: { x: 3, y: 6 } },
+  { id: "st_counter", label: "the counter", cell: { x: 3, y: 3 } },
+  { id: "st_flap", label: "the counter flap", cell: { x: 4, y: 3 } },
+  { id: "st_jukebox", label: "the jukebox", cell: { x: 7, y: 3 } },
+  { id: "st_tables", label: "the tables", cell: { x: 3, y: 5 } },
+  { id: "st_window", label: "by the window", cell: { x: 9, y: 4 } },
+  { id: "st_door", label: "the door", cell: { x: 4, y: 8 } },
 ];

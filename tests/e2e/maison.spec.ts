@@ -92,29 +92,28 @@ test.describe("MAISON (dev world bypass)", () => {
     await page.waitForTimeout(600);
     await page.screenshot({ path: "test-results/maison-04-floor.png" });
 
-    // §18.2.5, the blocking one: the room is walkable on a keyboard alone.
-    // Tab takes the head of the guided-navigation list, which is wherever the
-    // season is waiting — and the walk is announced before it starts, because on
-    // a keyboard the announcement is the view.
-    await page.keyboard.press("Tab");
+    // §18.2.5, the blocking one: the room is crossable on a keyboard alone.
+    // The "go to" nav is real buttons in a real <nav>, so the browser's own Tab
+    // reaches them — no custom key, and a screen reader reads them as a list of
+    // places. `.press()` focuses first, so this is genuine keyboard operation.
+    const goTo = page.getByRole("navigation", { name: /Places in MAISON/i });
+    await expect(goTo).toBeVisible();
+
+    // The first entry is wherever the season is waiting, named by whoever is
+    // holding it — so reaching the next beat never needs steering.
+    await goTo.getByRole("button", { name: /Ines, at the rail/i }).press("Enter");
     await expect(page.locator("[aria-live=polite]")).toContainText(/Walking to Ines, at the rail/, {
       timeout: 5_000,
     });
-    await page.waitForTimeout(2_500); // let the walk finish
+    await page.waitForTimeout(2_500);
     await page.screenshot({ path: "test-results/maison-05-guided.png" });
 
     // Arrived, and the beat waiting there outranks the rail's own readout: the
-    // house offers Ines, not the collection. One Tab from anywhere in the room
-    // reaches the season, which is what makes §18.2.5 hold.
+    // house offers Ines, not the collection.
     await expect(page.getByText(/talk to Ines/)).toBeVisible({ timeout: 10_000 });
 
-    // On down the list, still on the keyboard: the desk, then the alcove.
-    await page.keyboard.press("Tab");
-    await expect(page.locator("[aria-live=polite]")).toContainText(/Walking to the desk/, {
-      timeout: 5_000,
-    });
-    await page.waitForTimeout(2_500);
-    await page.keyboard.press("Tab");
+    // On to the alcove, still on the keyboard.
+    await goTo.getByRole("button", { name: /the fitting alcove/i }).press("Enter");
     await expect(page.locator("[aria-live=polite]")).toContainText(
       /Walking to the fitting alcove/,
       { timeout: 5_000 },

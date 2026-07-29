@@ -8,7 +8,7 @@
 import { create } from "zustand";
 import type { Cell } from "@/lib/pathfinding";
 import { audio } from "@/framework/audio/audioManager";
-import { GATES, SPAWN, zoneAt, type GateId, type ZoneId } from "./room";
+import { GATES, HOTSPOTS, SPAWN, zoneAt, type GateId, type ZoneId } from "./room";
 
 export interface Announcement {
   text: string;
@@ -23,7 +23,16 @@ interface CafeState {
   nearExit: boolean;
   /** The gate you are close enough to work, if any. */
   nearGateId: GateId | null;
+  /** The hotspot you are close enough to read, if any. */
+  nearHotspotId: string | null;
+  /** The hotspot whose panel is open, if any. */
+  openHotspotId: string | null;
   flapOpen: boolean;
+  /**
+   * A request from the DOM for the room to walk somewhere — the keyboard station
+   * list. The canvas paths there and clears it, the same shape `flapOpen` uses.
+   */
+  walkTo: Cell | null;
   /** True while a DOM panel is up — the room ignores clicks and WASD. */
   inputLocked: boolean;
   announcement: Announcement;
@@ -31,7 +40,10 @@ interface CafeState {
   setCharCell: (cell: Cell) => void;
   setNearExit: (near: boolean) => void;
   setNearGate: (id: GateId | null) => void;
+  setNearHotspot: (id: string | null) => void;
+  setOpenHotspot: (id: string | null) => void;
   setFlapOpen: (open: boolean) => void;
+  setWalkTo: (cell: Cell | null) => void;
   setInputLocked: (locked: boolean) => void;
   announce: (text: string) => void;
 }
@@ -41,7 +53,10 @@ export const useCafeStore = create<CafeState>((set) => ({
   zoneId: zoneAt(SPAWN).id,
   nearExit: false,
   nearGateId: null,
+  nearHotspotId: null,
+  openHotspotId: null,
   flapOpen: false,
+  walkTo: null,
   inputLocked: false,
   announcement: { text: "", seq: 0 },
 
@@ -53,6 +68,15 @@ export const useCafeStore = create<CafeState>((set) => ({
     }),
   setNearExit: (nearExit) => set((s) => (s.nearExit === nearExit ? s : { nearExit })),
   setNearGate: (nearGateId) => set((s) => (s.nearGateId === nearGateId ? s : { nearGateId })),
+  setNearHotspot: (nearHotspotId) =>
+    set((s) => (s.nearHotspotId === nearHotspotId ? s : { nearHotspotId })),
+  setOpenHotspot: (openHotspotId) =>
+    set((s) =>
+      s.openHotspotId === openHotspotId
+        ? s
+        : { openHotspotId, inputLocked: openHotspotId !== null },
+    ),
+  setWalkTo: (walkTo) => set({ walkTo }),
   setFlapOpen: (flapOpen) => set((s) => (s.flapOpen === flapOpen ? s : { flapOpen })),
   setInputLocked: (inputLocked) =>
     set((s) => (s.inputLocked === inputLocked ? s : { inputLocked })),
@@ -96,8 +120,30 @@ export function resetCafeState(): void {
     zoneId: zoneAt(SPAWN).id,
     nearExit: false,
     nearGateId: null,
+    nearHotspotId: null,
+    openHotspotId: null,
     flapOpen: false,
+    walkTo: null,
     inputLocked: false,
     announcement: { text: "", seq: 0 },
   });
+}
+
+/**
+ * Open a hotspot's panel. Locks the room's input while it is up, exactly as the
+ * world does behind its own panels, so a click on the modal cannot also order
+ * the player to walk somewhere.
+ */
+export function openHotspot(id: string): void {
+  const s = useCafeStore.getState();
+  const spot = HOTSPOTS.find((h) => h.id === id);
+  if (!spot) return;
+  audio.play("ui_open");
+  s.setOpenHotspot(id);
+  s.announce(`${spot.title}. ${spot.body}`);
+}
+
+export function closeHotspot(): void {
+  audio.play("ui_close");
+  useCafeStore.getState().setOpenHotspot(null);
 }

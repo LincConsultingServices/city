@@ -39,12 +39,12 @@ interface RoomState {
   /** The reader currently over the room, if any. */
   panel: PanelId | null;
   /**
-   * Where guided navigation has been asked to walk you (§7). The canvas paths
-   * there and clears it — a one-shot order, not a destination that persists.
+   * A request from the DOM for the room to walk somewhere — the station list
+   * (§7). The canvas paths there and clears it. Named and shaped to match the
+   * Café's, because it is the same idea and interiors should not each invent
+   * their own vocabulary for it.
    */
-  walkTarget: Cell | null;
-  /** Which guided-navigation station Tab last landed on. */
-  guideIndex: number;
+  walkTo: Cell | null;
   /**
    * Whether the beat waiting at this station is actually openable — the row has
    * loaded and has content. The season query lives in React, so the shell
@@ -58,8 +58,7 @@ interface RoomState {
   setNearStation: (id: string | null) => void;
   setInputLocked: (locked: boolean) => void;
   setPanel: (panel: PanelId | null) => void;
-  setWalkTarget: (cell: Cell | null) => void;
-  setGuideIndex: (index: number) => void;
+  setWalkTo: (cell: Cell | null) => void;
   setBeatReady: (ready: boolean) => void;
   announce: (text: string) => void;
 }
@@ -71,8 +70,7 @@ export const useRoomStore = create<RoomState>((set) => ({
   nearStationId: null,
   inputLocked: false,
   panel: null,
-  walkTarget: null,
-  guideIndex: -1,
+  walkTo: null,
   beatReady: false,
   announcement: { text: "", seq: 0 },
 
@@ -88,8 +86,7 @@ export const useRoomStore = create<RoomState>((set) => ({
   setInputLocked: (inputLocked) =>
     set((s) => (s.inputLocked === inputLocked ? s : { inputLocked })),
   setPanel: (panel) => set((s) => (s.panel === panel ? s : { panel })),
-  setWalkTarget: (walkTarget) => set({ walkTarget }),
-  setGuideIndex: (guideIndex) => set((s) => (s.guideIndex === guideIndex ? s : { guideIndex })),
+  setWalkTo: (walkTo) => set({ walkTo }),
   setBeatReady: (beatReady) => set((s) => (s.beatReady === beatReady ? s : { beatReady })),
   announce: (text) => set((s) => ({ announcement: { text, seq: s.announcement.seq + 1 } })),
 }));
@@ -103,8 +100,7 @@ export function resetRoomState(): void {
     nearStationId: null,
     inputLocked: false,
     panel: null,
-    walkTarget: null,
-    guideIndex: -1,
+    walkTo: null,
     beatReady: false,
     announcement: { text: "", seq: 0 },
   });
@@ -117,11 +113,10 @@ export function resetRoomState(): void {
  * announcement IS the view — a walk that starts silently is a walk to nowhere
  * you can name. Returns false if the room is frozen under a panel.
  */
-export function travelTo(target: GuideTarget, index: number): boolean {
+export function travelTo(target: GuideTarget): boolean {
   const s = useRoomStore.getState();
   if (s.inputLocked) return false;
-  s.setGuideIndex(index);
-  s.setWalkTarget(target.cell);
+  s.setWalkTo(target.cell);
   s.announce(`Walking to ${target.label}.`);
   return true;
 }

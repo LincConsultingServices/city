@@ -97,15 +97,9 @@ export function CityScreen() {
     <div className="relative h-screen w-screen overflow-hidden bg-ink">
       <CityCanvas onReady={() => setWorldReady(true)} onProgress={setLoadPct} />
       {!worldReady && <CityLoader pct={loadPct} />}
-
-      {/* An interior owns the screen. It has already hidden the world and frozen
-          the ticker, it draws its own identity where the avatar chip sits and
-          its own way out where the HUD controls sit, and the street's hint reads
-          "E to enter" — which is wrong once you are inside. Leaving the city's
-          chrome up stacks two sets of labels in the same two corners.
-
-          Toasts and the celebration layer stay: an error still has to reach you
-          indoors, and a badge is the platform's to announce wherever you are. */}
+      {/* An interior owns the whole screen and brings its own chrome, so the
+          street's HUD and control hint step aside rather than sit on top of it.
+          Toasts and celebrations stay — they are about the player, not the view. */}
       {!inInterior && <Hud />}
       <Toaster />
       <Celebration />

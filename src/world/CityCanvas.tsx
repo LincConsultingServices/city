@@ -226,6 +226,9 @@ export function CityCanvas({
       // above ground/actors but below fx so lamp glows stay warm. Applied as an
       // explicit overlay because Container.tint propagation proved unreliable
       // on this pixi build (verified: children rendered untinted at night).
+      // Slack on each side so the quad still covers the viewport when the
+      // camera lerp outruns the position it was sized from (see the ticker).
+      const NIGHT_PAD = 96;
       const nightOverlay = new Sprite(Texture.WHITE);
       nightOverlay.blendMode = "multiply";
       world.addChild(nightOverlay);
@@ -486,13 +489,18 @@ export function CityCanvas({
         sky.height = application.screen.height;
         if (!reduced) {
           const phase = dayPhase(elapsed + BOOT_PHASE_OFFSET_S);
+          // Overpainted by NIGHT_PAD on every side: `view` is read from the
+          // camera *before* this frame's follow-lerp moves it, so a quad sized
+          // exactly to the screen leaves the trailing edges unlit while walking.
+          const nw = application.screen.width + NIGHT_PAD * 2;
+          const nh = application.screen.height + NIGHT_PAD * 2;
           nightOverlay.tint = phase.ambient;
-          nightOverlay.position.set(view.left, view.top);
-          nightOverlay.width = application.screen.width;
-          nightOverlay.height = application.screen.height;
-          vignette.position.set(view.left, view.top);
-          vignette.width = application.screen.width;
-          vignette.height = application.screen.height;
+          nightOverlay.position.set(view.left - NIGHT_PAD, view.top - NIGHT_PAD);
+          nightOverlay.width = nw;
+          nightOverlay.height = nh;
+          vignette.position.set(view.left - NIGHT_PAD, view.top - NIGHT_PAD);
+          vignette.width = nw;
+          vignette.height = nh;
           vignette.alpha = phase.nightness * 0.65;
           sky.tint = phase.ambient;
           amb.setNight(phase.nightness);

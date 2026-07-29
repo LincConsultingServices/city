@@ -84,50 +84,53 @@ All of it is enumerated as data in `room.ts`. Nothing is hardcoded in the render
 
 ## 3. The room
 
-`10 cols (x) × 8 rows (y)`, defined once in `src/buildings/cafe/room.ts`.
+`12 cols (x) × 10 rows (y)`, defined once in `src/buildings/cafe/room.ts`, with a one-cell
+wall ring enclosing a 10×8 play area.
 
 ```
-       x0    x1    x2    x3    x4    x5    x6    x7    x8    x9
- y0    ▓W    ▓W    ▓M    ▓W    ▓A    ▓A    ▓W    ▓A    ▓T    ▓T    back wall
- y1    ·p    ·p    ·     ·     ·     ·     ▓P    ·     ·     ·     STAFF ZONE
- y2    ▓C    ▓C    ▓C    ╪F    ▓C    ▓C    ·     ·     ▓X    ▓X    counter run
- y3    ▓s    ▓s    ·     ·     ▓s    ·     ·     ▓J    ·     ▓X
- y4    ·     ·     ·     ▒r    ▒r    ·     ▒o    ·     ·     ▓R    open lane
- y5    ▓1    ▓c    ·     ▒r    ▒r    ▓2    ·     ·     ·     ·
- y6    ▓c    ·     ·     ·     ·     ▓c    ·     ▓3    ▓c    ·
- y7    ▓w    ▓w    ▓w    ▒D    ▓w    ▓w    ▓w    ▓w    ▓w    ▓w    front wall
+        x0  x1  x2  x3  x4  x5  x6  x7  x8  x9 x10 x11
+  y0    ▓▓  ▓W  ▓P  ▓M  ▓E  ▓▓  ▓A  ▓T  ▓T  ▓W  ▓A  ▓▓   far wall
+  y1    ▓▓  ·p  ·p  ·   ·   ·   ·   ▓L  ·   ·   ·   ▒▒   STAFF ZONE
+  y2    ▓▓  ▓C  ▓C  ▓C  ╪F  ▓C  ▓C  ·   ·   ▓X  ▓X  ▒▒   counter run
+  y3    ▓▓  ▓s  ▓s  ·   ·   ▓s  ·   ·   ▓J  ·   ▓X  ▒▒
+  y4    ▓▓  ·   ·   ·   ▒r  ▒r  ·   ▒o  ·   ·   ▓R  ▒▒   open lane
+  y5    ▓▓  ▓1  ▓c  ·   ▒r  ▒r  ▓2  ·   ·   ·   ·   ▒▒
+  y6    ▓▓  ▓c  ·   ·   ·   ·   ▓c  ·   ▓3  ▓c  ·   ▒▒
+  y7    ▓▓  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ▒▒
+  y8    ▓▓  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ▒▒
+  y9    ▒▒  ▒▒  ▒▒  ▒▒  ▒D  ▒▒  ▒▒  ▒▒  ▒▒  ▒▒  ▒▒  ▒▒   near sill + door
 ```
 
-`▓` blocked · `·` walkable · `▒` walkable decoration · `╪` dynamic gate
+`▓` blocked · `·` walkable · `▒` walk-over · `╪` dynamic gate
 
-|                               |                        |                                  |                         |
-| ----------------------------- | ---------------------- | -------------------------------- | ----------------------- |
-| `W` plank wall + blind window | `M` framed menu board  | `A` framed art / chalkboard sign | `T` stairs              |
-| `C` counter (oxblood)         | `F` **the flap**       | `s` bar stool                    | `P` potted plant        |
-| `J` jukebox                   | `X` dresser + cabinets | `R` radiator                     | `p` pass-through corner |
-| `1` `2` `3` tables            | `c` chairs             | `r` Persian rug · `o` oval rug   | `D` door + mat          |
+|                  |                      |                |              |
+| ---------------- | -------------------- | -------------- | ------------ |
+| `W` window       | `M` chalkboard       | `A` framed art | `T` stairs   |
+| `P` pastry case  | `E` espresso machine | `L` plant      | `C` counter  |
+| `F` **the flap** | `s` bar stool        | `J` jukebox    | `X` dresser  |
+| `R` radiator     | `1` `2` `3` tables   | `c` chairs     | `r`/`o` rugs |
+| `D` door + mat   | `p` pass-through     | `▒▒` low sill  | `▓▓` wall    |
 
-- **Spawn** `(3,6)` facing `N` — you walk in through the door.
-- **Exit** `(3,7)`, the door threshold. Prompt at manhattan ≤ 1.
-- **Flap** `(3,2)`, the only break in the counter run.
+- **Spawn** `(4,8)`, facing `N` — you walk in through the door.
+- **Exit** `(4,9)`, the door threshold in the near sill.
+- **Flap** `(4,2)`, the only break in the counter run.
 
-Two invariants that are **load-bearing**, not decorative — both locked by `room.test.ts`:
+Two invariants that are **load-bearing**, both locked by `room.test.ts`:
 
-1. **The staff zone `y1, x0..x5` is sealed.** `y0` is wall, `y2` is counter, and the plant at `(6,1)` closes the right-hand approach. The only route in is the flap. This is the whole mechanic.
-2. **`y4` is a fully open lane** and every walkable cell reaches it. The chair beside table 3 sits at `(8,6)` rather than `(6,5)` precisely so the `(6,6)` corner does not seal itself off — a layout tweak could silently break that, so a test catches it.
+1. **The staff zone `y1, x1..x6` is sealed.** `y0` is wall, `y2` is counter, `x0` is wall,
+   and the plant at `(7,1)` closes the right-hand approach. The flap is the only route in.
+2. **`y4` is an open lane** every walkable cell reaches, and the border is solid except for
+   exactly one hole — the door.
 
-Counter-top and wall props — pastry case, espresso machine, till, hanging frames — are **drawn on** their host cell and never block, which is what keeps the staff zone navigable.
+Counter-top and wall props (pastry case, espresso machine, till, pendant, shelving) are
+**drawn on** their host cell and never block, which is what keeps the staff zone navigable.
 
-**Zones** (ordered, first match wins), for announcements and audio:
+**Zones** (ordered, first match wins): `z_pass` `(x≤2, y1)` → `z_behind` `(x≤6, y1)` →
+`z_window` `(x≥9)` → `z_floor`.
 
-| id         | cells           | label              |
-| ---------- | --------------- | ------------------ |
-| `z_pass`   | `(0..1, 1)`     | the pass-through   |
-| `z_behind` | `(0..5, 1)`     | behind the counter |
-| `z_window` | `(8..9, *)`     | by the window      |
-| `z_floor`  | everything else | the floor          |
-
----
+**Hotspots** stand at `(3,3)` the chalkboard, `(1,4)` the noticeboard, `(9,1)` the window,
+`(1,1)` the pass-through. **Stations** are the counter, the flap, the jukebox, the tables,
+the window and the door.
 
 ## 4. The lift-up flap
 
@@ -212,12 +215,12 @@ That last one is the perf mitigation: two live `PIXI.Application`s on the 2019 i
 
 ## 7. Phases
 
-### Phase 0 · Framework seam
+### Phase 0 · Framework seam ✅
 
 The shared diff above, plus this document.
 **Gate:** pressing `E` at the Café opens a blank full-bleed layer; Esc and the exit button return to the street; the city ticker pauses while it is open; `npm run ci` green.
 
-### Phase 1 · Walkable room, procedural art
+### Phase 1 · Walkable room, procedural art ✅
 
 `room.ts` + `room.test.ts` + `props.ts` + `scene.ts` + `CafeCanvas.tsx` + `Interior.tsx` + `manifest.ts`. Checkered floor, plank walls, blocking furniture in the reference palette, the player from `bakePersonTextures`, click-to-move via `findPath`, WASD with per-axis slide, footsteps, y-sort (`zIndex = x + y`, player `+0.6`), fit-to-viewport camera.
 
@@ -225,40 +228,78 @@ Procedural is not a throwaway gray-box. Flat-shaded iso volumes in the right pal
 
 **Gate:** walk every reachable cell; you cannot pass through a table, chair, counter or wall; the whole room is visible without scrolling at 1280×720.
 
-### Phase 2 · Door and flap
+### Phase 2 · Door and flap ✅
 
 Exit proximity + prompt + `onExit()`. The flap gate: click and `E` triggers, rotation animation, dynamic walkability, path invalidation, step-off guard. Zone tracking.
 
 **Gate:** the staff zone is unreachable until you lift the flap and reachable the moment you do; leaving by the door puts you back on Market Street on the tile you left from.
 
-### Phase 3 · Hero-prop sprites
+### Phase 3 · The room reads like `cafe.jpg` ✅
 
-The props procedural geometry cannot sell: **jukebox, espresso machine, pastry case, potted plant, stairs**, plus the framed art and blind windows.
+**Enclosed.** Grid grew 10×8 → 12×10 with a wall ring. Far edges (`y0`, `x0`) are
+full-height and carry the windows, chalkboard, framed art, noticeboard and stairs; near
+edges (`y9`, `x11`) stay low sills, because a full wall between the camera and the floor
+stands in front of anyone walking along the front. Every interior cell shifted by one; the
+tests carried the remap.
 
-Start with the 6 CC0 Kenney _Isometric Miniature Library_ sprites already sitting on the `origin/cafe` branch:
+**Wall furniture is on the wall.** Hung things were drawn in flat screen space, so every
+window and picture collapsed into a small triangle. They are now drawn on the wall's
+projected face — a face is parametrised (`u` along, `v` down) and a frame is a rectangle in
+that space. The visible face follows from where the room is: from the `y0` row it lies
+down-left (LEFT face), from the `x0` column down-right (RIGHT face).
 
-```sh
-git show origin/cafe:public/assets/cafe/cafe_counter.png > public/assets/cafe/cafe_counter.png
-```
+**Five hero props rebuilt** — jukebox with its lit arch and grille, espresso machine with a
+group head, steam wand and cups warming on top, pastry case with glass and shelves, plant
+with layered fronds, stairs with a newel post. (A climbing rail spans two tiles and this
+bakes per-cell, so it drew twice and read as stray bars.)
 
-| File               | Size    |
-| ------------------ | ------- |
-| `cafe_counter.png` | 234×148 |
-| `cafe_shelf.png`   | 256×275 |
-| `cafe_table.png`   | 226×168 |
-| `cafe_chair.png`   | 68×92   |
-| `cafe_rug.png`     | 256×101 |
-| `cafe_lamp.png`    | 112×128 |
+**Warmth.** A soft pool of light over the floor, masked to the room. `cafe.jpg` is a lit
+island in a dark surround; an evenly-lit floor reads flat however good the props are, and
+unmasked the pool spills past the walls as a halo on the black.
 
-That covers roughly a third of the reference's prop list. Add a building-owned `assets.ts` bundle from `/assets/cafe`, flip those kinds in `props.ts`, log the pack in `public/assets/ASSETS_LICENSES.md` (the mandatory 6-column table). The remaining hero props are a sourcing or kitbash task — `origin/cafe`'s own note records that **no dedicated Kenney isometric café pack exists**, which is why that branch kitbashed a library pack.
+**The sprite seam.** `PROP_SPRITE` in `assets.ts` maps a kind to a sprite and its draw
+width; `bakeCafeTextures` consults it before falling back to the procedural bake.
 
-**Gate:** the room reads like `cafe.jpg`; every sprite is downscaled, never upscaled; `spriteDensity.test.ts` still green.
+**It currently carries nothing.** Kenney's Isometric Miniature Library was tried and
+rejected: its "shelf" is a library bookcase — books, an open volume on a stand, two lecterns
+— and its "lamp" is a three-candle candelabra with a hard drop shadow baked into the PNG.
+Both are drawn nearly front-on rather than on this room's 2:1 isometric axes, so they sit
+visibly skewed against everything around them, and both are light oak where the room is
+oxblood and dark wood. Wrong subject, wrong projection, wrong palette — the procedural
+back-bar shelving and hanging pendant beat them on all three. The seam stays because it is
+built and tested; the next sprite that genuinely helps drops in with one line.
 
-### Phase 4 · Life and accessibility
+If sprites are revisited: they arrive at native resolution rather than tile-sized, so they
+are scaled on placement, and they must **not** go on the disposal list — Pixi's asset cache
+owns them, we destroy only what we generated.
 
-Hotspots (chalkboard, community board, window, pass-through) as prompt + panel. Steam over the espresso machine using the existing greyscale `fx_smoke` / `fx_dust` textures, tinted in code. An `aria-live="polite"` region for zone changes, flap toggles and exit proximity — **the repo has no live region anywhere today**, so the Café introduces its own using Tailwind's built-in `sr-only`. A keyboard station list that paths the player to _the counter · the flap · the window · the tables · the door_. Full `prefersReducedMotion()` respect.
+**Its own density guard**, because the city's `spriteDensity.test.ts` cannot see this
+directory: it hard-codes `public/assets/city` and iterates the city's own `PropKind`.
 
-**Gate:** a keyboard-only player tours every station and hears every state change announced.
+### Phase 4 · Life and accessibility ✅
+
+**Four hotspots** — chalkboard, community board, window, pass-through — reusing the
+proximity prompt the flap and door already share. Three things now compete for that slot,
+ordered deliberately: **exit → flap → hotspot**. The door wins when you are standing in it,
+because leaving must never be harder than anything else in the room. Opening a panel locks
+the room's input the way the world locks behind its own, and Escape closes the panel before
+it means "leave". The pass-through sits inside the staff zone, so reading it is something
+the flap earns you.
+
+**Steam** off the espresso machine, room-local. `world/ambient.ts` is not reusable here —
+constructing it unconditionally builds 14 pedestrians, 6 cars, a cat pathfinding on the
+45×45 city grid, pigeons and every lamp glow, in city coordinates, with no way to disable a
+subsystem. The texture is free though: Pixi's `Assets` cache is global and the city always
+finishes loading before an interior can mount, so `tex("fx_smoke")` just works.
+
+**Station navigation.** `STATIONS` had been sitting tested and unused since phase 2. The
+shell now renders the six places as buttons and the room paths there, so a keyboard-only
+player crosses the floor without steering. The request is **polled in the ticker**, not
+handled in a store subscriber — the ticker already reads the store every frame, and a
+re-entrant `setState` inside a subscriber is a puzzle for no gain.
+
+**The live region** carries zone changes, flap transitions, hotspot text and arrivals.
+Reduced motion drops the steam and the warmth entirely.
 
 ### Phase 5 · Activity binding _(stretch)_
 
