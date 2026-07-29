@@ -1072,7 +1072,7 @@ decision: **a 2.5D Pixi sub-scene, not R3F.** MAISON was re-cut against it.
 | **M5** | [`cast.ts`](../src/buildings/fashion_brand/cast.ts) — the seven, the cap, Élise's gaze                                                                                                       |
 | **M6** | The silent-tier fix, the lookbook's cover plate and where-next                                                                                                                               |
 
-**282 tests, `npm run ci` green.** Walk in from Market Street:
+**311 tests, `npm run ci` green.** Walk in from Market Street:
 `VITE_DEV_WORLD=1 npm run dev`.
 
 The acceptance criteria that are now met rather than deferred: **§18.2.4** (the
@@ -1082,6 +1082,33 @@ rail is fully legible without sight — inspecting it yields the complete list),
 reaches a different part of the room), and **§11** — which was being violated:
 completing a beat fired a win jingle and confetti, a verdict delivered before the
 player had read the world their decision changed.
+
+### 19.2.2 R1–R4 — the Café pass
+
+The Café module is the house standard for an interior, so MAISON was read against
+it line by line. Four rounds followed.
+
+| Round  | What it did                                                                                                                                                                                         |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **R1** | One source of layout truth, `NEAR_EDGE`, `resolution: 2`, [`panels.tsx`](../src/buildings/fashion_brand/panels.tsx), [`index.ts`](../src/buildings/fashion_brand/index.ts), six geometry invariants |
+| **R2** | `actHere()` in [`roomStore.ts`](../src/buildings/fashion_brand/roomStore.ts) — one guarded path, and props that answer the mouse                                                                    |
+| **R3** | The mirror (§3.4), which had been a prompt that did nothing since the stations were authored                                                                                                        |
+| **R4** | [`guide.ts`](../src/buildings/fashion_brand/guide.ts) — Tab walks the room, closing §18.2.5                                                                                                         |
+
+Two rendering bugs came out of the comparison rather than out of play:
+
+- **Three lists of "where the machines are" had drifted apart.** `room.ts` said
+  `(3,1)(4,1)(5,1)`, `scene.ts` restated the same three, and `MaisonCanvas` stood the
+  ambient workers at `(2,1)(6,1)(8,2)` — so the people running the machines were nowhere
+  near them. Everything that draws at a prop, or stands in front of one, now derives its
+  cells from `FURNITURE`.
+- **The shopfront was drawing over the player.** It is the frontmost row, so by depth
+  alone it clipped the feet of anyone walking the front of the boutique. The Café had
+  designed this out with `NEAR_EDGE`; MAISON had not.
+
+The criteria that moved from deferred to met: **§18.2.5** (keyboard-only completion —
+stated as a property in [`guide.test.ts`](../src/buildings/fashion_brand/guide.test.ts)
+and walked in the e2e) and **§3.4** (the fitting alcove now shows the season on a body).
 
 ### 19.2.1 Framework files touched, and why
 
@@ -1116,8 +1143,10 @@ convenience:
 - **Kobby does not patrol yet** (§5.2). He stands at the cutting table rather than drifting
   down to look at his own pieces on the rail, which is the detail that makes the C7
   favouritism land.
-- **No one has seen it render.** Every claim above is backed by the type system and the
-  scene invariants, not by eyes on the room.
+- **The room has no moving part.** The Café's counter flap is a reduced-motion-aware
+  affordance with a sound and an announcement; MAISON animates only the player and the
+  people. Nothing in the room itself moves when you act on it.
+- **Kobby does not patrol yet** — see below; unchanged by the Café pass.
 
 - **§3–§7, §16 (the interior).** Blocked on the interior-engine decision in §18.5. The
   season board is the shipping surface until then.
@@ -1130,3 +1159,8 @@ convenience:
 - **The Véra desk phone (§9.6).** Present as a _choice_ in the C2 trees, which is the whole
   scored mechanic. Absent as a _free, unscored, always-available call_ — that needs a room
   to put a phone in.
+- **The Café owes MAISON three things back**, since it is the same standard: MAISON's
+  clamped, exported and tested `shade()` (the Café's would blow up on the same input that
+  killed this room); the early-armed `detach` and the `.catch` on the async build (without
+  them a bake that throws leaves the city hidden and frozen); and the label/prompt linting
+  tests.
