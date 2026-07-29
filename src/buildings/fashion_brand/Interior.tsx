@@ -16,7 +16,8 @@ import { Icon } from "@/ui/Icon";
 import { MaisonCanvas } from "./MaisonCanvas";
 import { Lookbook } from "./Lookbook";
 import { DeskPhone, Mirror, RailReader, Threshold } from "./panels";
-import { actHere, resetRoomState, useRoomStore } from "./roomStore";
+import { actHere, resetRoomState, travelTo, useRoomStore } from "./roomStore";
+import { guideTargets, stepGuide } from "./guide";
 import { stationById, zoneAt } from "./room";
 import { useMaisonStore } from "./maisonStore";
 import { beatActivityId, beatPrompt, liveBeatAt, nextBeat, seasonComplete } from "./beats";
@@ -122,8 +123,33 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
     useRoomStore.getState().setInputLocked(panelOpen);
   }, [panelOpen]);
 
+  // §7's guided-navigation list, recomputed as the season moves so the head of
+  // it is always where the next beat is waiting. The key handler reaches it
+  // through a ref because it is bound once and this changes every beat.
+  const guide = useMemo(() => guideTargets(track, decided), [track, decided]);
+  const guideRef = useRef(guide);
+  guideRef.current = guide;
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // §18.2.5: Tab walks the room. Eleven stations in a twelve-by-fourteen
+      // room is not something to find by nudging WASD into the furniture, and
+      // keyboard-only completion is a blocking criterion. While a panel is up
+      // the guard below returns first, so Tab stays the browser's own key and
+      // the modal keeps its focus trap.
+      if (e.key === "Tab") {
+        if (useRoomStore.getState().inputLocked) return;
+        const list = guideRef.current;
+        if (list.length === 0) return;
+        e.preventDefault();
+        const next = stepGuide(
+          useRoomStore.getState().guideIndex,
+          e.shiftKey ? -1 : 1,
+          list.length,
+        );
+        travelTo(list[next], next);
+        return;
+      }
       if (e.key === "Escape") {
         // The panels own Escape while they are up; the door only wins when
         // there is nothing between you and it.
@@ -203,7 +229,7 @@ export default function MaisonInterior({ manifest, onExit }: InteriorProps) {
       )}
 
       <p className="pointer-events-none absolute bottom-4 left-5 z-10 text-xs text-muted">
-        WASD or click to move · E to look
+        WASD or click to move · Tab to walk the room · E to look
       </p>
 
       {needsTrack && (

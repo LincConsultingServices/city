@@ -67,7 +67,8 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
   useEffect(() => {
     let destroyed = false;
     let baked: Texture[] = [];
-    let unsubscribe: (() => void) | null = null;
+    let unsubscribeSeason: (() => void) | null = null;
+    let unsubscribeWalk: (() => void) | null = null;
     let detach: (() => void) | null = null;
     const reduced = prefersReducedMotion();
 
@@ -223,12 +224,22 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       };
       for (const h of hotspots) h.sprite.on("pointerdown", onHotspot(h.stationId));
 
+      // Guided navigation (§7): the DOM half posts a destination, the room walks
+      // there. A one-shot order, cleared the moment it is taken, so a second Tab
+      // to the same station still moves you.
+      unsubscribeWalk = useRoomStore.subscribe((st) => {
+        if (destroyed || !st.walkTarget) return;
+        const goal = st.walkTarget;
+        useRoomStore.getState().setWalkTarget(null);
+        walkTo(goal);
+      });
+
       // ── The house, reacting to the season ───────────────────────────────────
       // The building's readout is a subscription, not a redraw of the room:
       // decide a beat, and the collection on the brass changes — or the wall,
       // the shelf, the desk or the door does instead (§3.3, §18.2.8). Only on a
       // real change, so a decision that moves nothing costs nothing.
-      unsubscribe = useMaisonStore.subscribe((s, prev) => {
+      unsubscribeSeason = useMaisonStore.subscribe((s, prev) => {
         if (destroyed) return;
         if (s.world !== prev.world) redress(s.world);
         // Who is in the building moves with the season too: the beat you are on
@@ -404,8 +415,10 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       destroyed = true;
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
-      unsubscribe?.();
-      unsubscribe = null;
+      unsubscribeSeason?.();
+      unsubscribeSeason = null;
+      unsubscribeWalk?.();
+      unsubscribeWalk = null;
       detach?.();
       detach = null;
     };

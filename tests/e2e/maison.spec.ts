@@ -92,6 +92,48 @@ test.describe("MAISON (dev world bypass)", () => {
     await page.waitForTimeout(600);
     await page.screenshot({ path: "test-results/maison-04-floor.png" });
 
+    // §18.2.5, the blocking one: the room is walkable on a keyboard alone.
+    // Tab takes the head of the guided-navigation list, which is wherever the
+    // season is waiting — and the walk is announced before it starts, because on
+    // a keyboard the announcement is the view.
+    await page.keyboard.press("Tab");
+    await expect(page.locator("[aria-live=polite]")).toContainText(/Walking to Ines, at the rail/, {
+      timeout: 5_000,
+    });
+    await page.waitForTimeout(2_500); // let the walk finish
+    await page.screenshot({ path: "test-results/maison-05-guided.png" });
+
+    // Arrived, and the beat waiting there outranks the rail's own readout: the
+    // house offers Ines, not the collection. One Tab from anywhere in the room
+    // reaches the season, which is what makes §18.2.5 hold.
+    await expect(page.getByText(/talk to Ines/)).toBeVisible({ timeout: 10_000 });
+
+    // On down the list, still on the keyboard: the desk, then the alcove.
+    await page.keyboard.press("Tab");
+    await expect(page.locator("[aria-live=polite]")).toContainText(/Walking to the desk/, {
+      timeout: 5_000,
+    });
+    await page.waitForTimeout(2_500);
+    await page.keyboard.press("Tab");
+    await expect(page.locator("[aria-live=polite]")).toContainText(
+      /Walking to the fitting alcove/,
+      { timeout: 5_000 },
+    );
+    await page.waitForTimeout(3_000);
+    await page.screenshot({ path: "test-results/maison-06-alcove.png" });
+
+    // §3.4: the mirror. It offered "look in the mirror" and did nothing until
+    // now, so this is the assertion that keeps it honest.
+    await expect(page.getByText(/look in the mirror/)).toBeVisible({ timeout: 10_000 });
+    await page.keyboard.press("e");
+    await expect(page.getByText("On the form")).toBeVisible({ timeout: 10_000 });
+    await page.screenshot({ path: "test-results/maison-07-mirror.png" });
+
+    // It reports the piece and never rates it (§11).
+    await expect(page.getByText(/The neck label/)).toBeVisible();
+    await page.getByRole("button", { name: /Step away/i }).click();
+    await expect(page.getByText("On the form")).toHaveCount(0, { timeout: 5_000 });
+
     // The registry has no MAISON rows and the dev world has no token, so the
     // eighteen level fetches 401. That is §0.4, not a defect — everything else
     // the page complains about is.
