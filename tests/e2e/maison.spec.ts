@@ -78,6 +78,13 @@ test.describe("MAISON (dev world bypass)", () => {
     await expect(page.getByText(/to the show/)).toBeVisible();
     await expect(page.getByText(/is at the rail/)).toBeVisible(); // Ines, beat one
 
+    // The interior owns the screen: the street's chrome is not stacked under
+    // the room's own labels, and its hint no longer says "E to enter" at
+    // somebody who is already inside.
+    await expect(page.getByText("E to enter")).toHaveCount(0);
+    await expect(page.getByText("Log out")).toHaveCount(0);
+    await expect(page.getByText(/E to look/)).toBeVisible();
+
     // Walk to the rail and look at the collection (§18.2.4).
     await page.keyboard.down("ArrowRight");
     await page.waitForTimeout(900);
