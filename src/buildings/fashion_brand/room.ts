@@ -34,9 +34,20 @@ import type { Cell, Grid } from "@/lib/pathfinding";
 export const ROOM_W = 12;
 export const ROOM_H = 14;
 
-/** On-screen size of the whole room, in world pixels — drives the fit-to-viewport camera. */
-export const ROOM_PX_W = (ROOM_W + ROOM_H) * (TILE_W / 2);
-export const ROOM_PX_H = (ROOM_W + ROOM_H) * (TILE_H / 2);
+/**
+ * One cell of shell outside the play area, on the two sides the layout leaves
+ * open. §3.1 makes the ceiling "the single most important number in the room",
+ * and a floor slab in a void conveys no height at all — MAISON was reading as a
+ * platform floating in black rather than a tall room you are standing inside.
+ *
+ * It sits OUTSIDE the grid deliberately: it costs no walkable cell, it moves no
+ * prop, and every invariant over FURNITURE stays exactly as it was.
+ */
+export const SHELL = 1;
+
+/** On-screen size of the whole room including its shell, in world pixels. */
+export const ROOM_PX_W = (ROOM_W + ROOM_H + 4 * SHELL) * (TILE_W / 2);
+export const ROOM_PX_H = (ROOM_W + ROOM_H + 4 * SHELL) * (TILE_H / 2);
 
 /**
  * §3.2 — you spawn at the desk, facing the rail with the atelier behind it and
@@ -81,7 +92,12 @@ export type PropKind =
   | "machine"
   | "bench"
   | "shelving"
-  | "press_steam";
+  | "press_steam"
+  /**
+   * The near edge of the room. Kept low on purpose: a full-height wall on the
+   * side nearest the camera would stand between you and the boutique floor.
+   */
+  | "wall_sill";
 
 export interface Furniture {
   kind: PropKind;
@@ -98,7 +114,11 @@ export interface Furniture {
  * the camera for it to occlude anyway. (The Café solved this same bug with the
  * same set; MAISON had it.)
  */
-export const NEAR_EDGE: ReadonlySet<PropKind> = new Set<PropKind>(["shopfront_glass", "door"]);
+export const NEAR_EDGE: ReadonlySet<PropKind> = new Set<PropKind>([
+  "shopfront_glass",
+  "door",
+  "wall_sill",
+]);
 
 const f = (kind: PropKind, x: number, y: number, blocking = true): Furniture => ({
   kind,
@@ -152,6 +172,20 @@ export const FURNITURE: readonly Furniture[] = [
   // ── the shopfront: glass, and a heavy door with no bell ────────────────────
   ...row("shopfront_glass", 13, [0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11]),
   f("door", 4, 13, false),
+];
+
+/**
+ * The shell: the two edges the room does not wall itself.
+ *
+ * `y = 0` is already the back wall and `y = ROOM_H - 1` is already the shopfront,
+ * so only the two side runs are missing. The far side (x = -1) is full height and
+ * sorts behind everything; the near side (x = ROOM_W) is a low sill, because a
+ * full wall there would stand between the camera and the boutique floor — the
+ * same reason the Café keeps its own near edge low.
+ */
+export const SHELL_WALLS: readonly Furniture[] = [
+  ...Array.from({ length: ROOM_H + SHELL }, (_, i) => f("wall_plaster", -SHELL, i - SHELL)),
+  ...Array.from({ length: ROOM_H }, (_, y) => f("wall_sill", ROOM_W, y)),
 ];
 
 // ── Walkability ───────────────────────────────────────────────────────────────

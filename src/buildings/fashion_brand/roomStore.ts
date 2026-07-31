@@ -12,7 +12,7 @@ import { audio } from "@/framework/audio/audioManager";
 import { SPAWN, zoneAt, type ZoneId } from "./room";
 import { useMaisonStore } from "./maisonStore";
 import type { GuideTarget } from "./guide";
-import { describeCash, describePress, describeRail } from "./world";
+import { describeAtelier, describeCash, describePress, describeRail } from "./world";
 
 /**
  * Which reader is up over the room. The shell renders them; the store decides
@@ -166,13 +166,24 @@ export function actHere(): boolean {
       return open("rail", describeRail(w));
     case "st_fitting":
       return open("mirror");
-    case "st_press_wall":
-      return read(describePress(w));
     case "st_column":
       return read(`The column reads ${w.countdown}.`);
     case "st_cutting_table":
-    case "st_bench":
+      // The cloth bolts are on the shelf right beside it — this is how `cash`
+      // reads in the room (§12).
       return read(describeCash(w));
+    case "st_bench":
+    case "st_atelier":
+      // Élise's bench is about the work, not the cloth budget. It used to
+      // report the shelf, which is across the room and somebody else's problem.
+      return read(describeAtelier(w));
+    case "st_press_wall":
+    case "st_stair":
+      // §3.2: every trip between floors walks you past the press wall, so the
+      // stair reads it too rather than being a place with nothing in it.
+      return read(describePress(w));
+    case "st_boutique_floor":
+      return read(`the floor — ${describeRail(w)}`);
   }
 
   // Nothing here. Say so — a keypress that does nothing and makes no sound is

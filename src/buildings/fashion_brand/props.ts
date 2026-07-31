@@ -120,6 +120,13 @@ function drawProp(kind: PropKind): Graphics {
       return g;
     }
 
+    case "wall_sill": {
+      // The near edge. Low enough to read as the room's own wall seen from
+      // outside it, and never tall enough to hide anyone standing on the floor.
+      isoBox(g, 1, 26, shade(P.plaster, 0.9), shade(P.plaster, 0.98));
+      return g;
+    }
+
     case "shopfront_glass": {
       // Low, so it never stands between the camera and the floor.
       isoBox(g, 1, 30, P.plasterDeep);
@@ -281,6 +288,7 @@ export interface MaisonTextures {
 const FLOOR_TONES = [P.floorPolish, P.floorPolishAlt, P.floorBoard, P.floorBoardAlt];
 
 const PROP_KINDS: PropKind[] = [
+  "wall_sill",
   "wall_plaster",
   "wall_north",
   "shopfront_glass",

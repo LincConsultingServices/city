@@ -3,7 +3,7 @@ import { ALL_CAST, MAX_ON_SCREEN, STAGED_CAST, castAt, castById, type CastId } f
 import { beatActivityId } from "./beats";
 import { BEATS } from "./season";
 import { INITIAL_WORLD, type MaisonWorld } from "./world";
-import { makeRoomGrid } from "./room";
+import { makeRoomGrid, stationById } from "./room";
 import { MAISON_PALETTE } from "./props";
 import type { Decision } from "./maisonStore";
 
@@ -115,5 +115,37 @@ describe("MAISON cast — where they stand", () => {
     // the authored set is allowed to be the larger one — but only by those two.
     const unstaged = [...authored].filter((id) => !STAGED_CAST.includes(id));
     expect(unstaged.sort()).toEqual([]);
+  });
+
+  it("stands the host of the live beat at the station the beat is staged at", () => {
+    // The room said this out loud long before it was true: the HUD reads
+    // "Ines is at the rail" and guided navigation walks you there, while Ines
+    // stayed at her §5 anchor by the door for the whole beat.
+    const grid = makeRoomGrid();
+    for (const track of ["A", "B"] as const) {
+      for (let n = 0; n < BEATS.length; n++) {
+        const beat = BEATS[n];
+        const station = stationById(beat.station)!;
+        const cast = castAt(track, played(n, track), world());
+        for (const hostId of beat.hosts) {
+          const member = cast.named.find((m) => m.id === hostId);
+          if (!member) continue; // not every host is in the room every beat
+          const d =
+            Math.abs(member.anchor.x - station.cell.x) + Math.abs(member.anchor.y - station.cell.y);
+          expect(d, `${member.name} is ${d} cells from ${station.label} at beat ${n + 1}`).toBe(1);
+          expect(grid.isWalkable(member.anchor.x, member.anchor.y)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("never stands two people on the same cell", () => {
+    for (const track of ["A", "B"] as const) {
+      for (let n = 0; n < BEATS.length; n++) {
+        const cast = castAt(track, played(n, track), world());
+        const cells = cast.named.map((m) => `${m.anchor.x},${m.anchor.y}`);
+        expect(new Set(cells).size, `beat ${n + 1} on ${track} stacks people`).toBe(cells.length);
+      }
+    }
   });
 });

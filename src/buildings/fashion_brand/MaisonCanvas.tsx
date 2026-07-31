@@ -127,6 +127,8 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       world.addChild(buildKeyLight());
 
       const { root: actors, rail, dressing, hotspots } = buildRoom(tex);
+      /** Prop hotspots never change; the cast's are rebuilt with the cast. */
+      const propHotspots = hotspots.length;
       world.addChild(actors);
 
       const redress = (state = useMaisonStore.getState().world) => {
@@ -174,17 +176,22 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
 
       /** Élise looks up when you come near, and holds it (§5.1). */
       let elise: GazeSubject | null = null;
+      // The cast's hotspots are rebuilt with the cast, so the list is trimmed
+      // back to the props before each rebuild and re-wired after it.
+      let wireCastHotspots = () => {};
       const rebuildCast = (state = useMaisonStore.getState()) => {
+        hotspots.length = propHotspots;
         elise = state.track
           ? buildCast(
               castLayer,
               castAt(state.track, state.decided, state.world),
               shadowTex,
               personTex,
+              hotspots,
             )
           : (castLayer.removeChildren().forEach((c) => c.destroy()), null);
+        wireCastHotspots();
       };
-      rebuildCast();
 
       // ── Input ───────────────────────────────────────────────────────────────
       /** Walk to a cell, if there is a way. Returns whether a route was found. */
@@ -223,6 +230,12 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
         actHere();
       };
       for (const h of hotspots) h.sprite.on("pointerdown", onHotspot(h.stationId));
+      wireCastHotspots = () => {
+        for (const h of hotspots.slice(propHotspots)) {
+          h.sprite.on("pointerdown", onHotspot(h.stationId));
+        }
+      };
+      rebuildCast();
 
       // Guided navigation (§7): the DOM half posts a destination, the room walks
       // there. A one-shot order, cleared the moment it is taken, so a second Tab

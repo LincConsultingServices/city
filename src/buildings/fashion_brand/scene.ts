@@ -27,10 +27,13 @@ import {
   ROOM_H,
   ROOM_W,
   SHELF_CELL,
+  SHELL,
+  SHELL_WALLS,
   WORKER_CELLS,
   cellsOf,
   levelAt,
   stationForProp,
+  stationNear,
 } from "./room";
 import type { RoomDressing } from "./dressing";
 
@@ -88,7 +91,8 @@ export function buildRiser(): Container {
   const hh = TILE_H / 2;
   const drop = PLATFORM_RISE_PX;
 
-  for (let x = 0; x < ROOM_W; x++) {
+  // Runs across the shell too, or the platform ends in mid-air at both walls.
+  for (let x = -SHELL; x <= ROOM_W; x++) {
     const w = mapToWorld(x, PLATFORM_EDGE_Y);
     // mapToWorld lands on the diamond's centre; the lift raises the whole tile.
     const cx = w.x;
@@ -150,6 +154,13 @@ export function buildRoom(tex: MaisonTextures): RoomLayer {
   root.sortableChildren = true;
 
   const hotspots: Hotspot[] = [];
+  // The shell first: it is outside the play area, so it can never be a hotspot
+  // and never claims a cell. It exists so the room reads as a room (§3.1).
+  for (const p of SHELL_WALLS) {
+    const sprite = place(new Sprite(tex.prop[p.kind]), p.cell.x, p.cell.y);
+    sprite.zIndex = p.cell.x + p.cell.y + (NEAR_EDGE.has(p.kind) ? Z_NEAR_EDGE : 0);
+    root.addChild(sprite);
+  }
   for (const p of FURNITURE) {
     const sprite = place(new Sprite(tex.prop[p.kind]), p.cell.x, p.cell.y);
     const base = p.cell.x + p.cell.y;
@@ -284,6 +295,7 @@ export function buildCast(
   cast: RoomCast,
   shadowTex: Texture,
   personTex: (key: string, palette: PersonPalette) => PersonTextures,
+  hotspots?: Hotspot[],
 ): GazeSubject | null {
   layer.removeChildren().forEach((c) => c.destroy());
   let elise: GazeSubject | null = null;
@@ -292,6 +304,15 @@ export function buildCast(
     const tex = personTex(member.id, member.palette);
     const { root, body } = placePerson(tex, shadowTex, member.anchor);
     layer.addChild(root);
+    // §7 lists each NPC as an interactable, and they were the one thing in the
+    // room the mouse could not touch. Walking up to somebody is the whole
+    // mechanic; clicking them should mean the same thing.
+    const station = stationNear(member.anchor);
+    if (station && hotspots) {
+      body.eventMode = "static";
+      body.cursor = "pointer";
+      hotspots.push({ sprite: body, stationId: station.id });
+    }
     if (member.id === "elise") elise = { body, tex, anchor: member.anchor, gaze: 0 };
   }
 

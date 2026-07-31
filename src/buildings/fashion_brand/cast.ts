@@ -10,6 +10,7 @@
 // rest of the time she is a phone call (§9.6). Dov, having bought a percentage,
 // simply keeps being around afterwards, which is §12's `equity` made visible.
 import type { Cell } from "@/lib/pathfinding";
+import { makeRoomGrid, stationById } from "./room";
 import type { PersonPalette } from "@/world/characterArt";
 import { BEATS, type Track } from "./season";
 import { nextBeat } from "./beats";
@@ -96,6 +97,33 @@ export interface RoomCast {
   client: boolean;
 }
 
+const GRID = makeRoomGrid();
+const key = (c: Cell) => `${c.x},${c.y}`;
+
+/**
+ * Where the host of the live beat actually stands: beside the station §8 stages
+ * the beat at, rather than at their idle §5 anchor.
+ *
+ * The room already claimed this was happening — the HUD reads "Ines is at the
+ * rail", guided navigation walks you there, and the comment below said hosts
+ * stand at the station — while Ines herself stayed by the door for the whole
+ * beat. You were sent across the room to meet somebody who was not there.
+ *
+ * Beside, not on: the station cell is where the PLAYER stands.
+ */
+function besideStation(stationId: string, taken: ReadonlySet<string>): Cell | null {
+  const station = stationById(stationId);
+  if (!station) return null;
+  const { x, y } = station.cell;
+  const around = [
+    { x, y: y - 1 },
+    { x: x + 1, y },
+    { x, y: y + 1 },
+    { x: x - 1, y },
+  ];
+  return around.find((c) => GRID.isWalkable(c.x, c.y) && !taken.has(key(c))) ?? null;
+}
+
 /**
  * Who is in the building right now, already capped. Named characters are never
  * cut — a beat with nobody to bring it is not a beat — so the ambient loop is
@@ -120,7 +148,20 @@ export function castAt(
   // Having bought a percentage, Dov keeps being around (§12 `equity`).
   if (world.equity === "sold") here.add("dov");
 
-  const named = ([...here] as CastId[]).map((id) => CAST[id]);
+  // The hosts of the live beat move to it; everyone else keeps their §5 anchor.
+  // Idle anchors are reserved first so a host can never be placed on top of one.
+  const ids = [...here] as CastId[];
+  const hosts = new Set<string>(beat?.hosts ?? []);
+  const taken = new Set<string>(
+    ids.filter((id) => !hosts.has(id)).map((id) => key(CAST[id].anchor)),
+  );
+  const named = ids.map((id) => {
+    if (!hosts.has(id) || !beat) return CAST[id];
+    const anchor = besideStation(beat.station, taken);
+    if (!anchor) return CAST[id];
+    taken.add(key(anchor));
+    return { ...CAST[id], anchor };
+  });
 
   // §6: the mood is carried by how much noise the work makes. A fractured
   // atelier has two benches empty, and that has to be true of the people too,

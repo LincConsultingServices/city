@@ -1110,6 +1110,43 @@ The criteria that moved from deferred to met: **§18.2.5** (keyboard-only comple
 stated as a property in [`guide.test.ts`](../src/buildings/fashion_brand/guide.test.ts)
 and walked in the e2e) and **§3.4** (the fitting alcove now shows the season on a body).
 
+### 19.2.4 What walking the room turned up
+
+Everything above was proved by tests. Then the room was actually walked, station
+by station, with the store read out at each stop — and three things the test
+suite had no opinion about fell out.
+
+- **The host of a beat never went to it.** §8 stages every beat at a station, the
+  HUD reads "Ines is at the rail", and guided navigation walks you there. Ines
+  stood at her §5 idle anchor by the door for the whole beat. The comment in
+  `castAt` even claimed hosts stand at the station — it added them to the room and
+  never moved them. Hosts now stand _beside_ the beat's station (beside, not on:
+  the station cell is where the player stands), with idle anchors reserved first
+  so nobody is placed on top of anyone.
+- **Élise's bench reported the cloth shelf**, which is across the room and
+  somebody else's problem. The bench and the atelier now report the work; the
+  cutting table keeps the shelf, which is beside it.
+- **The stair said "Nothing to look at from here."** It is a station guided
+  navigation deliberately sends you to, and §3.2 makes the press wall the thing
+  you pass on every trip between floors. It reads the press wall now, as does the
+  boutique floor and the atelier — no station the guide offers is a dead end.
+
+And two in the environment:
+
+- **The room was not enclosed.** Only `y = 0` was walled, so MAISON read as a
+  floor slab floating in black — the opposite of §3.1, which makes the 4.6 m
+  ceiling "the single most important number in the room". A one-cell shell now
+  runs outside the play area: full height on the far side, a low sill on the near
+  side (a full wall there would stand between the camera and the boutique floor).
+  It claims no cell and moves no prop, so every invariant over `FURNITURE` is
+  untouched.
+- **NPCs were the one thing in the room the mouse could not touch**, though §7
+  lists each of them as an interactable. They are hotspots now, rebuilt with the
+  cast.
+
+The **empty boutique is not a defect and was left alone** — §3.1 specifies
+`z_boutique` as "under-furnished on purpose. Sound carries."
+
 ### 19.2.3 Converging with the Café on guided navigation
 
 The Café landed guided navigation on `main` at the same time, independently, and
