@@ -24,7 +24,10 @@ export function Hud() {
   // "+N" floater on real earnings (server's coinsEarned, not a client guess).
   useEffect(
     () =>
-      events.on("activity_completed", (r) => {
+      // The tick is the same in every venue, silent-tier included: identical in
+      // presentation at 5 and at 25, which is what §11 asks for — the number
+      // differs, the fanfare never does.
+      events.on("activity_completed", ({ response: r }) => {
         if (typeof r.coinsEarned === "number" && r.coinsEarned > 0) {
           setFloater({ id: Date.now(), amount: r.coinsEarned });
         }

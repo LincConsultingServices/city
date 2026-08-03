@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "@/framework/api";
-import { CLIENT_VERSION } from "@/framework/config/appConfig";
+import { CLIENT_VERSION, devWorldBypass } from "@/framework/config/appConfig";
 import { events } from "@/framework/events";
 import { useEconomyStore } from "@/framework/economy/economyStore";
 import type { LevelActivity, ResultPayload, SubmitResponse } from "@/framework/api/schemas";
@@ -10,8 +10,18 @@ import { MiniSimRenderer } from "./renderers/MiniSimRenderer";
 import { DragMatchRenderer } from "./renderers/DragMatchRenderer";
 import { SortOrderRenderer } from "./renderers/SortOrderRenderer";
 import { BudgetRenderer } from "./renderers/BudgetRenderer";
+import { DecisionTreeRenderer } from "./renderers/DecisionTreeRenderer";
 import { Icon } from "@/ui/Icon";
 import { Modal } from "@/ui/Modal";
+
+/**
+ * Content kinds that run under the SILENT-TIER contract (docs/maison.md §11):
+ * the venue never shows a tier, a star, a proficiency number or a pass/fail. The
+ * score still happens — the server owns it and coins still land — but a scenario
+ * is read off the world it changed, and the tier vocabulary appears exactly once,
+ * in that venue's end-of-journey report.
+ */
+const SILENT_TIER_KINDS = new Set<string>(["decision_tree"]);
 
 // Player shell (PRD §8) — header + one renderer + server-driven result. F1 wires the
 // objective loop (start → play → submit → server result/celebration) end-to-end.
@@ -29,6 +39,8 @@ export function PlayerShell({
   const [response, setResponse] = useState<SubmitResponse | null>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  /** Dev world only: submitted, but there was no backend to score it. */
+  const [unscored, setUnscored] = useState(false);
   const startedAt = useRef<number>(Date.now());
   const applyCoinBalance = useEconomyStore((s) => s.applyCoinBalance);
 
@@ -53,8 +65,22 @@ export function PlayerShell({
       applyCoinBalance(resp.coinBalance);
       if (typeof resp.coinBalance === "number") events.emit("coins_changed", resp.coinBalance);
       resp.badgesAwarded?.forEach((b) => events.emit("badge_awarded", b));
-      events.emit("activity_completed", resp);
+      events.emit("activity_completed", {
+        response: resp,
+        silent: SILENT_TIER_KINDS.has(content?.kind ?? ""),
+      });
+      // The choice itself, for venues whose world moves on what you decided.
+      events.emit("activity_submitted", { activityId: activity.id, result, response: resp });
     } catch (e) {
+      // Dev world has no backend (docs/maison.md §0.4). The decision still
+      // happened, so a scenario venue's world can still move off the trace —
+      // but nothing about the SCORE is invented, here or anywhere: no
+      // proficiency, no pass, no coins, and the close says so.
+      if (devWorldBypass) {
+        setUnscored(true);
+        events.emit("activity_submitted", { activityId: activity.id, result });
+        return;
+      }
       setError(e instanceof ApiError ? e.message : "Couldn't submit. Please try again.");
     } finally {
       setSubmitting(false);
@@ -62,7 +88,17 @@ export function PlayerShell({
   }
 
   const body = useMemo(() => {
-    if (response) return <ResultView response={response} onClose={onClose} />;
+    if (unscored) return <UnscoredView onClose={onClose} />;
+    if (response)
+      return SILENT_TIER_KINDS.has(content?.kind ?? "") ? (
+        <SilentResultView onClose={onClose} />
+      ) : (
+        <ResultView response={response} onClose={onClose} />
+      );
+    if (content?.kind === "decision_tree")
+      return (
+        <DecisionTreeRenderer content={content} activityId={activity.id} onChange={setResult} />
+      );
     if (content?.kind === "sim")
       return <MiniSimRenderer content={content} activityId={activity.id} onChange={setResult} />;
     if (content?.kind === "mcq") return <McqRenderer content={content} onChange={setResult} />;
@@ -77,7 +113,7 @@ export function PlayerShell({
         This activity isn't playable yet — its content is still being written.
       </p>
     );
-  }, [response, content, activity, onClose]);
+  }, [unscored, response, content, activity, onClose]);
 
   return (
     <Modal onClose={onClose} width="md" z={30}>
@@ -99,7 +135,7 @@ export function PlayerShell({
 
       <div className="py-5">{body}</div>
 
-      {!response && (
+      {!response && !unscored && (
         <div className="flex items-center justify-between border-t border-line pt-3">
           {error ? <span className="text-sm text-danger">{error}</span> : <span />}
           <button
@@ -112,6 +148,52 @@ export function PlayerShell({
         </div>
       )}
     </Modal>
+  );
+}
+
+/**
+ * Dev world only: the decision was made and there was no server to score it.
+ * Says exactly that, and nothing about how it went — the point of the dev
+ * fixture is to make the venue walkable, not to pretend it was graded.
+ */
+function UnscoredView({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="text-center">
+      <h3 className="font-display text-2xl font-semibold text-text">Decided.</h3>
+      <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
+        Dev world — there is no backend here, so this was not scored. The world moved on what you
+        chose.
+      </p>
+      <button
+        onClick={onClose}
+        className="mt-6 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110"
+      >
+        Back to the venue
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The silent-tier close (§11). No icon of judgement, no proficiency, no
+ * pass/fail, and none of the server's feedback prose — the decision was the
+ * whole thing, and the world reports what it cost. The submission itself is
+ * unchanged; only the view is.
+ */
+function SilentResultView({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="text-center">
+      <h3 className="font-display text-2xl font-semibold text-text">Recorded.</h3>
+      <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
+        What you decided is on the rail. Nobody is going to tell you what it was worth.
+      </p>
+      <button
+        onClick={onClose}
+        className="mt-6 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110"
+      >
+        Back to the floor
+      </button>
+    </div>
   );
 }
 

@@ -6,10 +6,12 @@
 // Buildings whose id has no entry (or whose `interior` is null) fall through to
 // the framework's overlay panel — the pre-existing behaviour for every venue.
 import { cafeManifest } from "@/buildings/cafe/manifest";
+import { maisonManifest } from "@/buildings/fashion_brand/manifest";
 import type { BuildingManifest } from "./manifest";
 
 export const BUILDINGS: Readonly<Record<string, BuildingManifest>> = {
   [cafeManifest.id]: cafeManifest,
+  [maisonManifest.id]: maisonManifest,
 };
 
 /** The manifest for a venue id, if a building is registered and enabled for it. */

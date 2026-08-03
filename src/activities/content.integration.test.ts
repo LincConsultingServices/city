@@ -17,6 +17,7 @@ const RESULT_KIND: Record<string, string> = {
   sort_order: "order",
   sim: "metrics",
   budget: "metrics",
+  decision_tree: "trace",
 };
 
 describe.skipIf(!havePack)("content ⇄ backend rubric alignment (dev cross-check)", () => {

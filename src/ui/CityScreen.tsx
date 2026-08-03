@@ -15,9 +15,18 @@ import { Celebration } from "./Celebration";
 import { TrophyHall } from "./TrophyHall";
 import { ActivityListPanel } from "@/activities/ActivityListPanel";
 import { PlayerShell } from "@/activities/PlayerShell";
+import { MaisonPanel } from "@/buildings/fashion_brand/MaisonPanel";
 import type { LevelActivity } from "@/framework/api/schemas";
+import type { VenueKind } from "@/world/cityMap";
 
 type WorldPanel = "billboard" | "plaque";
+
+/** Kinds with a panel of their own; everything else falls back to InfoPanel. */
+const PANELLED_KINDS: ReadonlySet<VenueKind> = new Set<VenueKind>([
+  "competency",
+  "trophy",
+  "scenario",
+]);
 
 export function CityScreen() {
   const nearVenueId = useWorldStore((s) => s.nearVenueId);
@@ -122,13 +131,18 @@ export function CityScreen() {
       {!inInterior && openVenue && !playing && openVenue.kind === "trophy" && (
         <TrophyHall onClose={() => setOpenVenue(null)} />
       )}
-      {!inInterior &&
-        openVenue &&
-        !playing &&
-        openVenue.kind !== "competency" &&
-        openVenue.kind !== "trophy" && (
-          <InfoPanel venue={openVenue} onClose={() => setOpenVenue(null)} />
-        )}
+      {/* A scenario venue owns its own panel — a storyline, not a level list —
+          until it registers an interior, at which point the room replaces it. */}
+      {!inInterior && openVenue && !playing && openVenue.kind === "scenario" && (
+        <MaisonPanel
+          venue={openVenue}
+          onClose={() => setOpenVenue(null)}
+          onPlay={(a) => setPlaying(a)}
+        />
+      )}
+      {!inInterior && openVenue && !playing && !PANELLED_KINDS.has(openVenue.kind) && (
+        <InfoPanel venue={openVenue} onClose={() => setOpenVenue(null)} />
+      )}
 
       {playing && openVenue && (
         <PlayerShell
