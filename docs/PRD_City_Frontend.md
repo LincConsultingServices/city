@@ -1,7 +1,9 @@
 # PRD — The City · Web (React + TypeScript + PixiJS) Isometric Frontend (Master)
 
 _Training Paths Frontend PRD · v2.0 · 2026-07-22 · **Owner: KK + team** · Status: Draft for sign-off_
-_Supersedes v1.0 (Godot) — see ADR-004 (§3). Companion docs: [00_OVERVIEW.md](00_OVERVIEW.md) (platform conventions) · [PRD_Academy_Backend.md](PRD_Academy_Backend.md) (the live backend this game talks to) · the 9 competency PRDs (activity content this game presents)._
+_Supersedes v1.0 (Godot) — see ADR-004 (§3)._
+_Companion docs, all in this folder: [ADR-005](ADR-005_Interior_Framework.md) (the interior framework) · [ADR-006](ADR-006_Missions_AI_Followups_and_Session_State.md) (missions, the AI transfer beat, session state) · [PRD_Backend_Missions.md](PRD_Backend_Missions.md) (the backend contract) · the three launch building PRDs: [Café](PRD_Building_Cafe.md) · [MERIDIAN](PRD_Building_MERIDIAN.md) · [MAISON](PRD_Building_MAISON.md)._
+_(`00_OVERVIEW.md` and `PRD_Academy_Backend.md` were referenced by v1.0 and do not exist in this repository; the backend is `backend-academy`, and its contract for this work is PRD_Backend_Missions.md.)_
 
 > **What changed from v1.0:** the _platform_ only. v1.0 specified a Godot 4.x / GDScript / HTML5 game. v2.0 re-platforms onto a **web-native TypeScript stack — React + Vite + PixiJS** — that a JS team owns end-to-end and that **Claude (Opus 4.8) can author and maintain natively**. **Every goal, functional requirement, non-functional requirement, the backend contract, the plug-in building framework, the 13 activity renderers, the economy, auth, and accessibility are unchanged in intent.** Only the engine, architecture, art/asset pipeline, hosting, collaboration model, testing, and phase mechanics are rewritten. The backend (`warroom-academy-backend`, live) remains the single source of truth; new endpoints are added additively as needed (§11.3).
 
@@ -290,7 +292,9 @@ approach → highlight + prompt → enter (fade) →
 
 ### 7.4 The 11 venues — common hints only (deep design deferred to per-building scaffolds)
 
-_(Unchanged from v1.)_
+> **Update (2026-08-04).** Deep design is **no longer deferred for three of them**, and the "suggested competency draw" column below is superseded for those three: a scenario building hosts **all nine competencies × two tracks**, not a subset. See [Cafe](PRD_Building_Cafe.md) (slot 01, Market St), [MERIDIAN](PRD_Building_MERIDIAN.md) (slot 02, the Bank, Downtown) and [MAISON](PRD_Building_MAISON.md) (slot 03, the Fashion Brand, Market St). The registry binding is twelve buildings x twelve activity slots per competency-level ([ADR-005 §10.5](ADR-005_Interior_Framework.md)), so the remaining nine venues below inherit fixed slots 04–12 whenever they are designed.
+
+_(Otherwise unchanged from v1.)_
 
 | Venue                             | District   | Theme in one line                          | Suggested competency draw                                             |
 | --------------------------------- | ---------- | ------------------------------------------ | --------------------------------------------------------------------- |
@@ -316,13 +320,15 @@ One **player shell** (React) — header: title/competency/level · progress dots
 | ---------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------- |
 | MCQ_FEEDBACK, DRAG_MATCH, SPOT_IT, CASE_STUDY, DIAGNOSE, STORY_CHOICE* | choose/drag/tap/tag → itemId+choice pairs | `objective`                        |
 | SORT_ORDER                                                             | arrange sequence                          | `order`                            |
-| DECISION_TREE (and branching STORY_CHOICE*)                            | node-by-node choices                      | `trace` (visited path)             |
+| DECISION_TREE (and branching STORY_CHOICE*)                            | node-by-node choices -> `DecisionTreeRenderer` | `trace` (path + optional `followupId`/`followupChoice`) |
 | MINI_SIM, BUDGET_SLIDER                                                | multi-round sim with meters/sliders       | `metrics` (+ optional decisionLog) |
 | BUILD_PLAN                                                             | pick-N-into-slots assembly                | `slots`                            |
 | OPEN_TEXT_AI                                                           | writing panel (word-count bounded)        | `text`                             |
 | DEFEND_PITCH                                                           | chat-style conversation vs AI persona     | `transcript`                       |
 
 _\*STORY_CHOICE submits `objective` when beats are independent, `trace` when they branch — per that activity's rubric kind. The shell reads nothing; it posts what the renderer built._
+
+> **Update (2026-08-04).** `DECISION_TREE` is shipped: [`DecisionTreeRenderer`](../src/activities/renderers/DecisionTreeRenderer.tsx) over the pure traversal in [`src/lib/decisionTree.ts`](../src/lib/decisionTree.ts). It is the only activity type the twelve scenario buildings use, and it now runs **three beats** — two authored, one generated server-side — per [ADR-006](ADR-006_Missions_AI_Followups_and_Session_State.md). The shell has a `coached` / `scenario` presentation mode derived from activity type; scenario mode renders **no result view at all** (ADR-005 §11.3).
 
 **Renderer contract (typed).** Every renderer is `React.FC<RendererProps<TContent>>` and returns a `ResultBuilder` producing exactly one of the seven result kinds. Drag/drop uses a headless dnd library (e.g. dnd-kit); sliders/sim meters are DOM/SVG; SPOT_IT tap-targets and any spatial renderer may host a small Pixi/Canvas sub-view. The seven result kinds are a **Zod discriminated union** — the renderer literally cannot emit a malformed result.
 
@@ -486,9 +492,11 @@ Concrete conventions that make the codebase one Claude authors and maintains at 
 
 React · Vite · PixiJS v8 · Zustand · @tanstack/react-query · Zod · Tailwind CSS · Radix UI primitives · Motion (Framer Motion) · dnd-kit · Firebase JS SDK (auth) · Howler.js (or a thin Web Audio wrapper) · easystarjs (or hand-rolled A*). Testing: Vitest · React Testing Library · Playwright. Lint/format: ESLint (typescript-eslint) · Prettier. _(Each pinned; licenses logged alongside assets, §14.1.)_
 
-### 12.6 3D escape hatch (Option B, per-venue only)
+### 12.6 3D escape hatch (per-venue only) — **not taken**
 
-A venue that genuinely needs real-time 3D may mount a **React-Three-Fiber** sub-scene inside its interior module, consuming CC0 glTF kits — the direct analogue of v1's "embed 3D as a special scene." This is a venue-local choice behind the same framework contract; it never becomes the city baseline and must still meet §12.3 budgets.
+> **Update (2026-08-04).** [ADR-005](ADR-005_Interior_Framework.md) v1.0 proposed making first-person React-Three-Fiber the interior baseline. **v2.0 withdrew that.** Building interiors are **2.5D isometric Pixi sub-scenes that borrow the city's existing `PIXI.Application`** — the Cafe and MAISON both ship that way. Two Pixi v8 `Application`s in one page corrupt the first one's batcher, so the borrowing is not a convenience but a requirement; the seam is `src/framework/building/interiorStage.ts`.
+
+The escape hatch itself stands: a venue that genuinely needs real-time 3D may mount an R3F sub-scene inside its `Interior.tsx`, consuming CC0 glTF kits, behind the same framework contract — same dialogue layer, same mission runner, same scoring, same a11y, same §12.3 budgets. It never becomes the city baseline, and it requires maintainer review plus an ADR amendment note. Race Car Manufacturing's pit wall and the Stock Exchange's trading floor are the anticipated candidates.
 
 ## 13. Web hosting & deploy
 
@@ -560,7 +568,18 @@ Re-platforming to DOM UI is a large a11y win over a canvas-only game:
 | **F1 — Vertical slice**   | One real venue (Ice Cream Cart) end-to-end: exterior → enter → activity list → play a real C4-BEG activity (objective or metrics) → submit → celebration; player shell + first 3 renderers                                                                                                   | Complete a real registry activity in-world; server result lands in HUD                                                   |
 | **F2 — Economy UX**       | The Shop, customization (4 slots live on the character), Trophy Hall, wallet panel; remaining renderers to 13/13 — **gated on the additive economy endpoints (§11.3) landing**                                                                                                               | Earn → buy → equip → see it on your character; badge toast from a real award                                             |
 | **F3 — Framework freeze** | All 11 venues placed with exteriors + manifests (overlay-mode minimum); `docs/BUILDING_GUIDE.md` + `CLAUDE.md` codegen recipes; ambient systems in budget; **framework API frozen**                                                                                                          | A dev (or Opus, against the recipes) adds a dummy building end-to-end touching only `buildings/<id>/` — the handoff test |
-| **F4 — Content & polish** | Venue interiors per scaffold, FTUE, audio, accessibility pass, perf pass, CORS tightening, AI NPC endpoint, launch checklist                                                                                                                                                                 | Public URL, real cohort plays a full session                                                                             |
+| **F4 — Content & polish** | Venue interiors per scaffold, FTUE, audio, accessibility pass, perf pass, CORS tightening, launch checklist                                                                                                                                                                 | Public URL, real cohort plays a full session                                                                             |
+
+> **Update (2026-08-04).** F0–F2 shipped; F3 shipped in substance (the building registry, the lazy interior gate and the interior seam exist, with the Cafe and MAISON as tenants). F4 is now sequenced explicitly, because three developers are working in parallel against one backend:
+
+| Phase                        | Deliverable                                                                                                                                                | Demo gate                                                                                                            |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **F4a — Backend foundations** | [PRD_Backend_Missions](PRD_Backend_Missions.md) P0–P3: `PRO`, the coin rescale, city + building session state, `POST /ai/followup`, three-beat scoring     | A mission scores across three beats and its 27 outcome cells reproduce [ADR-006 §10.2](ADR-006_Missions_AI_Followups_and_Session_State.md) exactly |
+| **F4b — Mission framework**   | `src/framework/mission/` (runner, tracker, speaker resolution), `src/framework/session/` (sync, beacon flush, local mirror), the transfer-beat client       | Walk the Cafe's mission 1 as an objective chain, keyboard-only, with the tracker top-left; kill the tab and resume     |
+| **F4c — Three buildings**     | Cafe CAF-1…CAF-6 · MAISON MAI-5…MAI-9 · MERIDIAN MER-0…MER-7                                                                                              | A complete nine-mission season in each, and the same seasons played with the generator disabled                        |
+| **F4d — Launch**              | FTUE, audio, a11y pass, perf pass, CORS tightening, the 54 registry rows seeded, the fresh-reader plausible-peers audits                                    | Public URL, real cohort plays a full session                                                                          |
+
+**The one hard cross-building dependency:** MERIDIAN's content phases cannot start until the Cafe proves the mission runner in F4b. It is stated in [MERIDIAN §18.1](PRD_Building_MERIDIAN.md) rather than discovered in week three.
 
 ## 20. Risks & open decisions
 
@@ -588,20 +607,30 @@ Proposed shapes are a starting point; the backend team owns the final contract.
 
 ### 21.1 Summary
 
+> **Update (2026-08-04).** BE-1…BE-4 and BE-6 are **shipped**. BE-5, BE-8 and BE-9 are superseded by the mission work and renumbered below. **The full specification of BE-13…BE-20 lives in [PRD_Backend_Missions.md](PRD_Backend_Missions.md)**, which is single-owner by design; this table is the index.
+
 | ID        | Issue                                                          | Priority | Blocks                         | Type               |
 | --------- | -------------------------------------------------------------- | -------- | ------------------------------ | ------------------ |
-| **BE-1**  | Coin economy: `coinsEarned`/`coinBalance` on submit + wallet   | P0       | F2                             | schema + endpoints |
-| **BE-2**  | `GET /api/v1/me` bootstrap + idempotent starter grants         | P0       | F2 (nice for F0)               | endpoint           |
-| **BE-3**  | Shop: `GET /shop/items` · `POST /shop/purchase`                | P0       | F2                             | endpoints + tables |
-| **BE-4**  | Inventory + avatar: `GET /inventory` · `GET/PUT /avatar/*`     | P0       | F2                             | endpoints + tables |
-| **BE-5**  | Un-stale `api/openapi.yaml` (source of generated client types) | P1       | F1 hardening                   | contract           |
-| **BE-6**  | Standardize the error envelope (structured everywhere)         | P1       | F1 hardening                   | consistency        |
+| ~~BE-1~~  | Coin economy: `coinsEarned`/`coinBalance` on submit + wallet   | —        | **shipped**                    | schema + endpoints |
+| ~~BE-2~~  | `GET /api/v1/me` bootstrap + idempotent starter grants         | —        | **shipped**                    | endpoint           |
+| ~~BE-3~~  | Shop: `GET /shop/items` · `POST /shop/purchase`                | —        | **shipped**                    | endpoints + tables |
+| ~~BE-4~~  | Inventory + avatar: `GET /inventory` · `GET/PUT /avatar/*`     | —        | **shipped**                    | endpoints + tables |
+| ~~BE-5~~  | Un-stale `api/openapi.yaml`                                    | —        | superseded by **BE-20**        | contract           |
+| ~~BE-6~~  | Standardize the error envelope                                 | —        | **shipped**                    | consistency        |
 | **BE-7**  | Tighten CORS from `*` to an allow-list                         | P1       | F4 launch                      | config             |
-| **BE-8**  | `PUT/GET /api/v1/city/state` (position/district/FTUE)          | P2       | F4 (local fallback until then) | endpoint           |
-| **BE-9**  | `POST /api/v1/ai/dialogue` (NPC + persona, model + fallback)   | P2       | F4                             | endpoint           |
+| ~~BE-8~~  | `PUT/GET /api/v1/city/state`                                   | —        | superseded by **BE-15**        | endpoint           |
+| ~~BE-9~~  | `POST /api/v1/ai/dialogue`                                     | —        | superseded by **BE-17**        | endpoint           |
 | **BE-10** | `GET /api/v1/leaderboard?batch=`                               | P3       | post-launch                    | endpoint           |
 | **BE-11** | `POST /api/v1/daily/claim` (reward + streak)                   | P3       | post-launch                    | endpoint           |
-| **BE-12** | Seed content beyond C4-BEGINNER                                | P1       | F1→F3 venue binding            | content            |
+| **BE-12** | Seed the 54 scenario rows (C1–C9 × HARD/PRO × slots 01–03)     | P1       | every building being *real*    | content            |
+| **BE-13** | Add level **`PRO`** (`ageBand 35-50`) + nine `BADGE-C{n}-PRO`  | **P0**   | Level B entirely               | registry           |
+| **BE-14** | `coinsByProficiency` → `{1:5, 2:15, 3:25}`                     | **P0**   | the reward design              | content pack       |
+| **BE-15** | `PUT/GET /api/v1/city/state` — track, FTUE, last tile          | **P0**   | track persistence              | endpoint + table   |
+| **BE-16** | `PUT/GET/POST /api/v1/city/buildings/{id}/state` + beacon path | **P0**   | the season surviving the door  | endpoint + table   |
+| **BE-17** | `POST /api/v1/ai/followup` (+ `/{id}/commit`) — the transfer beat | **P0** | ADR-006 §7                    | endpoint + table   |
+| **BE-18** | Extended `trace` submit + the `aiBeat` rubric block            | **P0**   | three-beat scoring             | scoring            |
+| **BE-19** | `POST /api/v1/telemetry/mission`                               | P3       | nothing                        | endpoint           |
+| **BE-20** | Un-stale `api/openapi.yaml` — `DECISION_TREE`, `trace`, `PRO`, all of the above | P1 | type-safe drift detection | contract |
 
 ### 21.2 Epic A — Economy surface (the critical path; blocks F2)
 
