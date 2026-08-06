@@ -232,6 +232,17 @@ export function CafeCanvas({
           if (path.length > 1) {
             pathTargets = path.slice(1);
             drawPathPreview(pathLine, pathTargets);
+          } else if (path.length === 0) {
+            // No route at all. In this room that is always the staff zone with
+            // the flap down — the pass-through is a guide entry and it is behind
+            // the counter. Say so in the room's own words: a button that quietly
+            // does nothing reads as broken, and it is the only signal a player
+            // navigating by keyboard gets.
+            store.announce(
+              useCafeStore.getState().flapOpen
+                ? "There's no way through to there."
+                : GATES[0].closedSays,
+            );
           }
         }
 

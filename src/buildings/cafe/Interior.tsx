@@ -12,7 +12,7 @@ import { Icon } from "@/ui/Icon";
 import { Modal } from "@/ui/Modal";
 import { CafeCanvas } from "./CafeCanvas";
 import { closeHotspot, openHotspot, resetCafeState, toggleFlap, useCafeStore } from "./cafeStore";
-import { GATES, HOTSPOTS, STATIONS, zoneAt } from "./room";
+import { GATES, GUIDE, HOTSPOTS, zoneAt } from "./room";
 
 export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const [ready, setReady] = useState(false);
@@ -135,7 +135,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         className="pointer-events-auto absolute bottom-4 left-5 z-10 flex flex-wrap items-center gap-1.5"
       >
         <span className="mr-1 text-xs uppercase tracking-widest text-muted">go to</span>
-        {STATIONS.map((s) => (
+        {GUIDE.map((s) => (
           <button
             key={s.id}
             onClick={() => useCafeStore.getState().setWalkTo(s.cell)}

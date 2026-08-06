@@ -274,6 +274,12 @@ export interface Hotspot {
   id: string;
   /** Prompt verb, in the room's own words. */
   prompt: string;
+  /**
+   * How this place is named in the guided-navigation list — a place, not an
+   * action, so it sits beside the stations without changing voice. "the board",
+   * not "read the board".
+   */
+  guideLabel: string;
   /** The walkable cell you stand on; the prompt fires within one cell of it. */
   cell: Cell;
   title: string;
@@ -284,6 +290,7 @@ export const HOTSPOTS: readonly Hotspot[] = [
   {
     id: "ht_chalkboard",
     prompt: "read the board",
+    guideLabel: "the board",
     cell: { x: 3, y: 3 },
     title: "The chalkboard",
     body: "Everything this place sells, in Priya's handwriting, rewritten whenever you change your mind about something. Right now it is the menu you inherited: house blend, a flat white nobody orders, and a cortado somebody has already tried to correct the spelling of.",
@@ -291,6 +298,7 @@ export const HOTSPOTS: readonly Hotspot[] = [
   {
     id: "ht_board",
     prompt: "read the noticeboard",
+    guideLabel: "the noticeboard",
     cell: { x: 1, y: 4 },
     title: "The community board",
     body: "Cork, and four layers of other people's lives. A lost cat from a fortnight ago, a bassist wanted, two flyers for the same open mic, and a card for the place across the road that you did not pin there.",
@@ -298,6 +306,7 @@ export const HOTSPOTS: readonly Hotspot[] = [
   {
     id: "ht_window",
     prompt: "look out the window",
+    guideLabel: "the window",
     cell: { x: 9, y: 1 },
     title: "Market Street",
     body: "The street goes on without you: the ice cream cart, someone's bike against the railing, the awning opposite catching the light. Everything that happens to this café happens out there first.",
@@ -305,6 +314,7 @@ export const HOTSPOTS: readonly Hotspot[] = [
   {
     id: "ht_pass",
     prompt: "check the pass-through",
+    guideLabel: "the pass-through",
     cell: { x: 1, y: 1 },
     title: "The pass-through",
     body: "Two metres out of earshot of the floor, which is the whole reason it matters. The rota is pinned here with three corrections in pencil, and the supplier's price letter is still where you left it, unopened.",
@@ -346,4 +356,28 @@ export const STATIONS: readonly Station[] = [
   { id: "st_tables", label: "the tables", cell: { x: 3, y: 5 } },
   { id: "st_window", label: "by the window", cell: { x: 9, y: 4 } },
   { id: "st_door", label: "the door", cell: { x: 4, y: 8 } },
+];
+
+/** Somewhere the player can be sent without steering. */
+export interface GuidePlace {
+  id: string;
+  /** The room's own words, never "object_04". */
+  label: string;
+  cell: Cell;
+}
+
+/**
+ * The whole guided-navigation list: the six stations, then the four hotspots.
+ *
+ * The hotspots are in it because they are destinations, not just things to read
+ * — the season sends you to the noticeboard and to the pass-through by name, and
+ * a place only a mouse can reach is a mission a keyboard player cannot finish.
+ *
+ * `the counter` and `the board` share a cell on purpose. One is where you stand
+ * to work and one is the thing above it you stop to read; naming both is how the
+ * list stays in the room's language rather than the grid's.
+ */
+export const GUIDE: readonly GuidePlace[] = [
+  ...STATIONS,
+  ...HOTSPOTS.map((h) => ({ id: h.id, label: h.guideLabel, cell: h.cell })),
 ];
