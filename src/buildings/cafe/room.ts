@@ -283,8 +283,13 @@ export interface Hotspot {
   /** The walkable cell you stand on; the prompt fires within one cell of it. */
   cell: Cell;
   title: string;
-  body: string;
 }
+
+// What each of these *says* lives in world.ts, not here. All four are views onto
+// state now — the board is what you sell, the four-top is who still comes in, the
+// window is what is happening to you from outside, and the rota by the hatch is
+// how the team is doing — so their prose is derived rather than written down once
+// and left to go stale.
 
 export const HOTSPOTS: readonly Hotspot[] = [
   {
@@ -293,7 +298,6 @@ export const HOTSPOTS: readonly Hotspot[] = [
     guideLabel: "the board",
     cell: { x: 3, y: 3 },
     title: "The chalkboard",
-    body: "Everything this place sells, in Priya's handwriting, rewritten whenever you change your mind about something. Right now it is the menu you inherited: house blend, a flat white nobody orders, and a cortado somebody has already tried to correct the spelling of.",
   },
   {
     id: "ht_board",
@@ -301,7 +305,6 @@ export const HOTSPOTS: readonly Hotspot[] = [
     guideLabel: "the noticeboard",
     cell: { x: 1, y: 4 },
     title: "The community board",
-    body: "Cork, and four layers of other people's lives. A lost cat from a fortnight ago, a bassist wanted, two flyers for the same open mic, and a card for the place across the road that you did not pin there.",
   },
   {
     id: "ht_window",
@@ -309,7 +312,6 @@ export const HOTSPOTS: readonly Hotspot[] = [
     guideLabel: "the window",
     cell: { x: 9, y: 1 },
     title: "Market Street",
-    body: "The street goes on without you: the ice cream cart, someone's bike against the railing, the awning opposite catching the light. Everything that happens to this café happens out there first.",
   },
   {
     id: "ht_pass",
@@ -317,7 +319,6 @@ export const HOTSPOTS: readonly Hotspot[] = [
     guideLabel: "the pass-through",
     cell: { x: 1, y: 1 },
     title: "The pass-through",
-    body: "Two metres out of earshot of the floor, which is the whole reason it matters. The rota is pinned here with three corrections in pencil, and the supplier's price letter is still where you left it, unopened.",
   },
 ];
 

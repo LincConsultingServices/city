@@ -45,7 +45,7 @@ import {
 } from "./room";
 import { toggleFlap, useCafeStore } from "./cafeStore";
 import { createTeardown } from "./teardown";
-import { OPENING_CAST, castNear, castPresent } from "./cast";
+import { OPENING_CAST, castFor, castNear, castPresent } from "./cast";
 import { createCast } from "./castView";
 
 const WALK_SPEED = 175; // px/sec — the city's pace, so indoors feels like outdoors
@@ -173,8 +173,11 @@ export function CafeCanvas({
       // Added to the same sorted container as the furniture and the player, so
       // Priya passes behind the counter and Marcus sits in front of his table
       // without any of it being special-cased.
+      // Everyone who can appear this season is baked once; who is actually in
+      // the room is a per-frame question the world answers.
       const cast = createCast(app.renderer, castPresent(OPENING_CAST), reduced, actors);
       baked.push(...cast.textures);
+      const presentNow = () => new Set(castFor(useCafeStore.getState().world));
 
       const pathLine = new Graphics();
       world.addChild(pathLine);
@@ -342,7 +345,7 @@ export function CafeCanvas({
         // Fed the player's cell rather than their pixels: everything the cast
         // does with it is a cell-distance question, and a cell changes ~30× less
         // often than a position does.
-        cast.update(dt, curCell);
+        cast.update(dt, curCell, presentNow());
 
         // The flap swing. Linear over FLAP_SWING_S so it reads as a hinge rather
         // than a spring; reduced motion snapped it already, above.

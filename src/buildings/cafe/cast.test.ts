@@ -8,9 +8,11 @@ import {
   castById,
   castNear,
   castPresent,
+  castFor,
   facingFrom,
   guideWithCast,
 } from "./cast";
+import { OPENING_WORLD, WORLD_KEYS } from "./world";
 
 const ALL_OPEN: ReadonlySet<GateId> = new Set(GATES.map((g) => g.id));
 const open = makeRoomGrid(ALL_OPEN);
@@ -218,5 +220,34 @@ describe("which way someone turns to look at you", () => {
 
   it("faces the camera when there is nowhere to turn", () => {
     expect(facingFrom(here, here)).toBe("S");
+  });
+});
+
+describe("who is in the room", () => {
+  it("keeps Priya in it whatever the world says", () => {
+    // An acceptance criterion, not a convention: she is the anchor every beat
+    // falls back to, so a world state without her is a beat with no speaker.
+    for (const regulars of WORLD_KEYS.regulars) {
+      expect(castFor({ ...OPENING_WORLD, regulars })).toContain("priya");
+    }
+  });
+
+  it("empties Marcus's chair exactly when the regulars thin out", () => {
+    expect(castFor({ ...OPENING_WORLD, regulars: "full" })).toContain("marcus");
+    expect(castFor({ ...OPENING_WORLD, regulars: "steady" })).toContain("marcus");
+    expect(castFor({ ...OPENING_WORLD, regulars: "returning" })).toContain("marcus");
+    expect(castFor({ ...OPENING_WORLD, regulars: "thin" })).not.toContain("marcus");
+  });
+
+  it("opens the season with exactly the opening cast", () => {
+    expect(castFor(OPENING_WORLD).sort()).toEqual([...OPENING_CAST].sort());
+  });
+
+  it("drops him from the guided-nav list when he is not there", () => {
+    // Otherwise the list offers to walk you to an empty chair.
+    const thin = { ...OPENING_WORLD, regulars: "thin" as const };
+    const labels = guideWithCast(atAnchors(castFor(thin))).map((p) => p.label);
+    expect(labels.some((l) => l.startsWith("Marcus"))).toBe(false);
+    expect(labels.some((l) => l.startsWith("Priya"))).toBe(true);
   });
 });

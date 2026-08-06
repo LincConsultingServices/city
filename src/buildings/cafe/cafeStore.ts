@@ -15,6 +15,7 @@ import {
   announcementFor,
   applyPatch,
   changedKeys,
+  hotspotBody,
   type World,
   type WorldPatch,
 } from "./world";
@@ -174,7 +175,7 @@ export function openHotspot(id: string): void {
   if (!spot) return;
   audio.play("ui_open");
   s.setOpenHotspot(id);
-  s.announce(`${spot.title}. ${spot.body}`);
+  s.announce(`${spot.title}. ${hotspotBody(id, s.world)}`);
 }
 
 export function closeHotspot(): void {

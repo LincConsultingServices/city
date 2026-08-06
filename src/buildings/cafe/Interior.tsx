@@ -21,7 +21,8 @@ import {
   useCafeStore,
 } from "./cafeStore";
 import { GATES, HOTSPOTS, zoneAt } from "./room";
-import { OPENING_CAST, atAnchors, castById, guideWithCast } from "./cast";
+import { castFor, atAnchors, castById, guideWithCast } from "./cast";
+import { hotspotBody } from "./world";
 
 export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const [ready, setReady] = useState(false);
@@ -35,6 +36,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const spokenLine = useCafeStore((s) => s.spokenLine);
   const flapOpen = useCafeStore((s) => s.flapOpen);
   const announcement = useCafeStore((s) => s.announcement);
+  const world = useCafeStore((s) => s.world);
 
   // Every visit starts at the door with the flap down, which keeps the store and
   // the canvas's own gate set in step (the canvas boots with no gates open).
@@ -51,7 +53,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   // The list is rebuilt from where people are standing, so walking to Priya
   // means walking to Priya rather than to the spot she left. Anchors are the
   // fallback for the frame or two before the canvas has reported in.
-  const guide = guideWithCast(atAnchors(OPENING_CAST));
+  const guide = guideWithCast(atAnchors(castFor(world)));
 
   /**
    * One prompt slot, four things competing for it. The door wins when you are
@@ -184,7 +186,9 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         <div className="pointer-events-auto">
           <Modal onClose={closeHotspot} width="sm">
             <h2 className="font-display text-xl font-semibold text-gold">{openSpot.title}</h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted">{openSpot.body}</p>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              {hotspotBody(openSpot.id, world)}
+            </p>
             <button
               onClick={closeHotspot}
               className="mt-5 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110"

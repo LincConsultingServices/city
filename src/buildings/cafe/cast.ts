@@ -15,6 +15,7 @@ import type { Cell } from "@/lib/pathfinding";
 import type { Cardinal } from "@/world/assets";
 import type { PersonPalette } from "@/world/characterArt";
 import { GUIDE, type GuidePlace } from "./room";
+import { marcusIsIn, type World } from "./world";
 
 export type CastId = "priya" | "tomas" | "marcus" | "nadia" | "ray" | "ellery";
 
@@ -182,6 +183,24 @@ export const CAST: readonly CastMember[] = [
  * that needs them.
  */
 export const OPENING_CAST: readonly CastId[] = ["priya", "marcus"];
+
+/**
+ * Who is in the room for a given world state.
+ *
+ * Marcus is bound to `regulars` — that is the whole point of him. He is in his
+ * chair every morning until the morning he isn't, and week 18 lands only because
+ * the chair has been full for seventeen weeks first.
+ *
+ * **Priya is unremovable**, and that is an acceptance criterion rather than a
+ * convention: she is the anchor every mission falls back to when its host is
+ * absent, so a world state that took her out would be a world state where a beat
+ * has nobody to speak it.
+ */
+export function castFor(world: World): CastId[] {
+  const here: CastId[] = ["priya"];
+  if (marcusIsIn(world)) here.push("marcus");
+  return here;
+}
 
 export function castById(id: CastId): CastMember | null {
   return CAST.find((m) => m.id === id) ?? null;

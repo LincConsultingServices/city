@@ -204,6 +204,73 @@ export function fourTopBody(world: World): string {
   return table[world.regulars];
 }
 
+/** The street through the glass. The threat is always visible from inside. */
+export function windowBody(world: World): string {
+  const parts = [
+    "Market Street goes on without you: the kerb, the railing, somebody's bike against it, the light coming off the shopfronts opposite.",
+  ];
+  if (world.truck === "parked") {
+    parts.push("There is a food truck at your kerb with its hatch up and a queue of four.");
+  } else if (world.truck === "gone_rival") {
+    parts.push("The food truck is across the road now, outside somebody else's door.");
+  }
+  if (world.rival === "open") {
+    parts.push("The awning opposite is new. It was a shuttered unit a fortnight ago.");
+  } else if (world.rival === "promo") {
+    parts.push(
+      "The new place opposite has a sandwich board out on the pavement. You cannot read it from here.",
+    );
+  }
+  return parts.join(" ");
+}
+
+/** The community board by the door. Four layers of other people's lives. */
+export function noticeboardBody(world: World): string {
+  const cork =
+    "Cork, and four layers of other people's lives. A lost cat from a fortnight ago, a bassist wanted, two flyers for the same open mic.";
+  const card: Record<WorldValue<"board">, string> = {
+    clean: "Nothing on it that you did not expect to be on it.",
+    app_card: "And a delivery app's promo card, pinned neatly, that you did not put there.",
+    direct_card: "And a card with your own number on it, in Priya's handwriting.",
+  };
+  return `${cork} ${card[world.board]}`;
+}
+
+/** The pass-through. The only corner of this room the floor cannot hear. */
+export function passThroughBody(world: World): string {
+  const base =
+    "Two metres out of earshot of the floor, which is the whole reason it matters. Through the hatch, the kitchen, and nobody in it.";
+  const rota: Record<WorldValue<"staff">, string> = {
+    easy: "The rota is pinned here and nobody has touched it since you put it up.",
+    strained:
+      "The rota is pinned here with three corrections in pencil, none of them yours, and one of them gone over twice.",
+    trusting:
+      "The rota is pinned here with a swap written in at the bottom and both names beside it.",
+  };
+  return `${base} ${rota[world.staff]}`;
+}
+
+/**
+ * What you read when you stop at something. Kept here rather than in room.ts
+ * because all four of these are now views onto state — the board is what you
+ * sell, the table is who still comes, the window is what is happening to you
+ * from outside, and the rota is how the team is doing.
+ */
+export function hotspotBody(id: string, world: World): string {
+  switch (id) {
+    case "ht_chalkboard":
+      return chalkboardBody(world);
+    case "ht_board":
+      return noticeboardBody(world);
+    case "ht_window":
+      return windowBody(world);
+    case "ht_pass":
+      return passThroughBody(world);
+    default:
+      return "";
+  }
+}
+
 /** Whether Marcus is in the room at all. */
 export function marcusIsIn(world: World): boolean {
   return world.regulars !== "thin";

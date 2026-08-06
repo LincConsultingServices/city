@@ -16,7 +16,14 @@ import { mapToWorld, roundCell, worldToMap } from "@/lib/iso";
 import { bakePersonTextures, bakeShadowTexture, type PersonTextures } from "@/world/characterArt";
 import type { Cardinal } from "@/world/assets";
 import type { Cell } from "@/lib/pathfinding";
-import { CAST_PAUSE_S, CAST_WALK_SPEED, facingFrom, type CastAt, type CastMember } from "./cast";
+import {
+  CAST_PAUSE_S,
+  CAST_WALK_SPEED,
+  facingFrom,
+  type CastAt,
+  type CastId,
+  type CastMember,
+} from "./cast";
 import { Z_CAST } from "./scene";
 
 /** Slower than the player's 0.18 — a shorter stride for a slower walk. */
@@ -44,8 +51,12 @@ interface Actor {
 export interface CastView {
   /** Everything baked here, for the canvas's teardown stack to free. */
   textures: Texture[];
-  /** `player` is the cell the player is standing on this frame. */
-  update(dtS: number, player: Cell): void;
+  /**
+   * `player` is the cell the player is standing on this frame. `present` is who
+   * the world says is in the room — Marcus goes when the regulars thin out, and
+   * his chair being visibly empty is the point of week 18.
+   */
+  update(dtS: number, player: Cell, present: ReadonlySet<CastId>): void;
   /**
    * Where everyone is standing right now. The room asks this rather than reading
    * anchors, so the prompt to speak to somebody tracks the person and not the
@@ -121,13 +132,19 @@ export function createCast(
   return {
     textures,
 
-    positions: () => actors.map((a) => ({ member: a.member, cell: a.cell })),
+    // Only people who are actually in the room. Somebody hidden must not still
+    // be answering the prompt to speak to them from behind the scenery.
+    positions: () =>
+      actors.filter((a) => a.view.visible).map((a) => ({ member: a.member, cell: a.cell })),
 
-    update(dtS, player) {
+    update(dtS, player, present) {
       elapsed += dtS;
 
       for (const a of actors) {
         const { member } = a;
+        const here = present.has(member.id);
+        if (a.view.visible !== here) a.view.visible = here;
+        if (!here) continue;
         const dist = Math.abs(player.x - a.cell.x) + Math.abs(player.y - a.cell.y);
         const noticed = dist <= member.noticesAt;
 
