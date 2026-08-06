@@ -86,7 +86,10 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     // hide it and a solid hit area would swallow every click meant for it.
     // Interactive children opt back in with `pointer-events-auto`.
     <div className="pointer-events-none absolute inset-0 z-20 animate-fade-in">
-      <CafeCanvas onReady={() => setReady(true)} />
+      {/* If the room cannot be built there is nothing to stand in, so we go back
+          to the street rather than hold the door-opening line forever. The canvas
+          has already given the city back by the time this fires. */}
+      <CafeCanvas onReady={() => setReady(true)} onError={onExit} />
 
       {!ready && (
         <div className="absolute inset-0 grid place-items-center bg-ink">

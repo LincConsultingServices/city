@@ -44,6 +44,7 @@ import {
   type GateId,
 } from "./room";
 import { toggleFlap, useCafeStore } from "./cafeStore";
+import { createTeardown } from "./teardown";
 
 const WALK_SPEED = 175; // px/sec — the city's pace, so indoors feels like outdoors
 const STEP_S = 0.18; // seconds per walk-cycle frame
@@ -52,7 +53,17 @@ const VIEWPORT_PAD = 48; // breathing room around the room at the fitted scale
 const WALL_LIFT = 42; // half the back wall's height, for visual centring
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
 
-export function CafeCanvas({ onReady }: { onReady?: () => void }) {
+export function CafeCanvas({
+  onReady,
+  onError,
+}: {
+  onReady?: () => void;
+  /**
+   * The build failed and everything borrowed from the city has been given back.
+   * The shell should leave the building — there is no room to stand in.
+   */
+  onError?: (err: unknown) => void;
+}) {
   useEffect(() => {
     let destroyed = false;
     let baked: Texture[] = [];
@@ -94,7 +105,24 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
       if (destroyed) return;
 
       const { app } = host;
+
+      // Armed empty, before the city has been touched, and grown as each thing
+      // is borrowed. Assembling it at the end instead is the frozen-city defect:
+      // the bake below can throw, and a throw with no teardown yet leaves the
+      // street hidden for the rest of the session with the player inside a
+      // building they cannot leave (teardown.ts).
+      const borrowed = createTeardown();
+      detach = () => borrowed.run();
+
       host.hideWorld();
+      borrowed.onUndo(() => host.showWorld());
+
+      // Recorded before the first bake so a bake that throws half-way through
+      // still frees the textures it managed to make.
+      borrowed.onUndo(() => {
+        destroyTextures(baked);
+        baked = [];
+      });
 
       // Our own root on the city's stage. `backdrop` is screen-space — the room
       // is a diamond, and without it the city's green sky shows through the
@@ -105,6 +133,10 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
       const world = new Container();
       root.addChild(backdrop, world);
       app.stage.addChild(root);
+      borrowed.onUndo(() => {
+        app.stage.removeChild(root);
+        root.destroy({ children: true });
+      });
 
       const tex = bakeCafeTextures(app.renderer);
       baked.push(...tex.all);
@@ -160,6 +192,7 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
         drawPathPreview(pathLine, pathTargets);
       };
       app.stage.on("pointerdown", onStageDown);
+      borrowed.onUndo(() => app.stage.off("pointerdown", onStageDown));
 
       // ── The flap, reacting to the store ─────────────────────────────────────
       let flapTarget = 0;
@@ -318,18 +351,12 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
         }
       };
       app.ticker.add(tick);
+      borrowed.onUndo(() => app.ticker.remove(tick));
 
-      // Everything we borrowed, given back. The city's Application is left
-      // running exactly as we found it — we never destroy what we did not make.
-      detach = () => {
-        app.ticker.remove(tick);
-        app.stage.off("pointerdown", onStageDown);
-        app.stage.removeChild(root);
-        root.destroy({ children: true });
-        destroyTextures(baked);
-        baked = [];
-        host.showWorld();
-      };
+      // Unwound in reverse, that is: stop the ticker, drop the stage listener,
+      // take our container off the city's stage and destroy it, free the baked
+      // textures, show the city. Its Application is left running exactly as we
+      // found it — we never destroy what we did not make.
 
       store.setNearExit(exitNear(curCell));
       store.setNearGate(gateNear(curCell)?.id ?? null);
@@ -344,7 +371,16 @@ export function CafeCanvas({ onReady }: { onReady?: () => void }) {
         return;
       }
       onReady?.();
-    })();
+    })().catch((err: unknown) => {
+      // The one failure a player cannot walk away from. Unhandled, this
+      // rejection is silent: the city stays hidden, the shell holds "Pushing the
+      // door open…" forever, and leaving runs a cleanup that has nothing to
+      // restore. Give the street back first, then tell the shell to go.
+      console.error("[cafe] the room failed to build", err);
+      detach?.();
+      detach = null;
+      onError?.(err);
+    });
 
     return () => {
       destroyed = true;
