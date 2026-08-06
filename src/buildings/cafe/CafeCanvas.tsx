@@ -339,11 +339,16 @@ export function CafeCanvas({
           store.setNearExit(exitNear(curCell));
           store.setNearGate(gateNear(curCell)?.id ?? null);
           store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
-          store.setNearCast(castNear(curCell, cast.positions())?.id ?? null);
           // The runner decides whether arriving here was an objective. Most of
           // the time it is not, and it says so by not moving.
           noteEvent({ kind: "moved", cell: curCell });
         }
+
+        // Every frame, not just when the player moves: the cast move too, and
+        // somebody can walk up to a player who is standing still. Nadia comes in
+        // at 8:05 while you are already at the counter, and if this only ran on
+        // your own movement she would arrive un-speakable-to.
+        store.setNearCast(castNear(curCell, cast.positions())?.id ?? null);
 
         steam.update(dt);
         // Fed the player's cell rather than their pixels: everything the cast
