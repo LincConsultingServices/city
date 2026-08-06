@@ -163,10 +163,50 @@ describe("choice parity — the tier leak nobody looks for", () => {
   });
 
   it("never puts a tier, a score or a verdict in anything that ships", () => {
+    // "pass" and "fail" are matched only as verdicts: the room has a
+    // pass-through in it, and that is a hatch rather than a grade.
     const banned =
-      /\b(developing|strong|advanced|proficiency|\d\s*\/\s*3|pass|fail|correct|incorrect|well done|good (call|job|choice)|mistake|you should have|the better move|the right (call|choice)|wisely|unfortunately|sadly)\b/i;
+      /\b(developing|strong|advanced|proficiency|\d\s*\/\s*3|passed|failed|incorrect|well done|good (call|job|choice)|mistake|you should have|the better move|the right (call|choice)|wisely|unfortunately|sadly)\b|\bpass\/fail\b/i;
     for (const { where, text } of everyLine()) {
       expect(banned.test(text), `${where}: "${text}"`).toBe(false);
+    }
+  });
+});
+
+describe("the season is completely written", () => {
+  it("gives every mission a decision", () => {
+    for (const m of MISSIONS) {
+      expect(TREES[m.activityId], `${m.activityId} has no tree`).toBeTruthy();
+    }
+  });
+
+  it("gives every mission a transfer beat to fall back on", () => {
+    // PRD §5.4 makes a missing fallback a build failure rather than a runtime
+    // surprise, and this is the Café's version of that check. It is what makes
+    // "nothing breaks with the generator switched off" a property of the
+    // building rather than an intention about it.
+    for (const m of MISSIONS) {
+      expect(FOLLOWUPS[m.activityId], `${m.activityId} has no fallback beat`).toBeTruthy();
+    }
+  });
+
+  it("writes a distinct decision for every week", () => {
+    const prompts = Object.values(TREES).map((t) => t.prompt);
+    expect(new Set(prompts).size, "two weeks ask the same question").toBe(prompts.length);
+    const stages = Object.values(TREES).map((t) => t.stage);
+    expect(new Set(stages).size, "two weeks open on the same scene").toBe(stages.length);
+  });
+
+  it("never repeats an option anywhere in the season", () => {
+    // Nine trees times nine leaves is a lot of prose, and prose fatigue shows up
+    // first as a line quietly doing service twice.
+    const seen = new Map<string, string>();
+    for (const { where, texts } of everyTrio()) {
+      for (const t of texts) {
+        const prior = seen.get(t);
+        expect(prior, `"${t}" appears in both ${prior} and ${where}`).toBeUndefined();
+        seen.set(t, where);
+      }
     }
   });
 });
@@ -186,8 +226,8 @@ describe("the transfer beat", () => {
     // report card. It may notice the room; it may not notice the decision.
     for (const beat of Object.values(FOLLOWUPS)) {
       const seen = new Set<string>();
-      for (const regulars of WORLD_KEYS.regulars) {
-        seen.add(beat.prompt({ ...OPENING_WORLD, regulars }));
+      for (const value of WORLD_KEYS[beat.variesOn]) {
+        seen.add(beat.prompt({ ...OPENING_WORLD, [beat.variesOn]: value }));
       }
       expect(seen.size, `${beat.activityId} reads identically in every room`).toBeGreaterThan(1);
       for (const text of seen) {
