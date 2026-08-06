@@ -20,6 +20,7 @@ import {
   arrive,
   closeHotspot,
   openDialogue,
+  saveNow,
   openHotspot,
   resetCafeState,
   speakTo,
@@ -112,6 +113,17 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     : guide;
 
   /**
+   * Leaving flushes the season first. "Leaving the building" and "closing the
+   * laptop" have to have the same consequence, so the same flush is wired to
+   * pagehide and to the tab going hidden — those are the paths where nothing
+   * else is going to run.
+   */
+  const leaveNow = useCallback(() => {
+    saveNow();
+    onExit();
+  }, [onExit]);
+
+  /**
    * One prompt slot, four things competing for it. The door wins when you are
    * standing in it — leaving must never be harder than anything else in the room.
    * Then the flap, which has to beat the person behind it: Priya works at the
@@ -126,7 +138,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     const s = useCafeStore.getState();
     if (s.nearExit) {
       audio.play("ui_close");
-      onExit();
+      leaveNow();
     } else if (s.nearGateId) {
       toggleFlap();
     } else if (s.nearCastId) {
@@ -134,7 +146,23 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     } else if (s.nearHotspotId) {
       openHotspot(s.nearHotspotId);
     }
-  }, [onExit]);
+  }, [leaveNow]);
+
+  useEffect(() => {
+    const flush = () => saveNow();
+    window.addEventListener("pagehide", flush);
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onHidden);
+      // Unmounting is also leaving — the framework can take the interior away
+      // without going through the door.
+      flush();
+    };
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -152,11 +180,11 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     }
     function leave() {
       audio.play("ui_close");
-      onExit();
+      leaveNow();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onExit, act]);
+  }, [leaveNow, act]);
 
   const prompt = nearExit
     ? "leave the café"
@@ -198,7 +226,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
       <button
         onClick={() => {
           audio.play("ui_close");
-          onExit();
+          leaveNow();
         }}
         className="pointer-events-auto absolute right-5 top-5 z-10 flex items-center gap-2 rounded-full border border-line/70 bg-surface/80 px-4 py-2 text-sm text-text backdrop-blur hover:brightness-110"
       >

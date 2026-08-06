@@ -20,6 +20,7 @@ import {
   type RoomEvent,
 } from "./missionRunner";
 import type { Beat } from "./missions";
+import { freshSeason, loadSeason, saveSeason, type Season } from "./session";
 import {
   openBeat,
   resolve,
@@ -181,12 +182,14 @@ export function toggleFlap(): boolean {
 }
 
 /**
- * Fresh state for a new visit: back at the door, flap down. Called on mount so
- * the store and the canvas's own gate set start in step — the canvas boots with
- * no gates open, and a stale `flapOpen: true` here would desync the two.
+ * Start a visit. The *room* always starts the same way — at the door, flap down,
+ * nothing open — because the canvas boots with no gates open and a stale
+ * `flapOpen: true` here would desync the two. The *season* is whatever you left
+ * behind, which is the whole point: you walk back into the café you made.
  */
 export function resetCafeState(): void {
   resetSpoken();
+  const season = loadSeason() ?? freshSeason();
   useCafeStore.setState({
     charCell: { ...SPAWN },
     zoneId: zoneAt(SPAWN).id,
@@ -197,19 +200,61 @@ export function resetCafeState(): void {
     openHotspotId: null,
     speakingToId: null,
     spokenLine: "",
-    world: { ...OPENING_WORLD },
-    progress: SEASON_START,
+    world: season.world,
+    progress: season.progress,
     dialogue: null,
     consequence: null,
-    taken: {},
-    unsent: [],
-    visitors: [],
+    taken: season.taken,
+    unsent: season.unsent,
+    visitors: season.visitors,
     flapOpen: false,
     walkTo: null,
     inputLocked: false,
     announcement: { text: "", seq: 0 },
   });
 }
+
+// ── Saving ───────────────────────────────────────────────────────────────────
+
+/** The season as the save format sees it. */
+function snapshot(): Season {
+  const s = useCafeStore.getState();
+  return {
+    progress: s.progress,
+    world: s.world,
+    taken: s.taken,
+    visitors: s.visitors,
+    playerCell: s.charCell,
+    unsent: s.unsent,
+  };
+}
+
+let debounce: number | null = null;
+
+/**
+ * Save, on the schedule PRD §19.3 sets out. Objectives completing, world writes
+ * and wandering around are cheap and frequent and coalesce into one write;
+ * a committed beat and leaving the building are immediate, because a decision
+ * that vanishes is the worst bug this building can have.
+ */
+export function saveNow(): void {
+  if (debounce !== null) {
+    window.clearTimeout(debounce);
+    debounce = null;
+  }
+  saveSeason(snapshot());
+}
+
+export function saveSoon(): void {
+  if (debounce !== null) return;
+  debounce = window.setTimeout(() => {
+    debounce = null;
+    saveSeason(snapshot());
+  }, SAVE_DEBOUNCE_MS);
+}
+
+/** Five objectives inside a second produce one write. */
+const SAVE_DEBOUNCE_MS = 800;
 
 /**
  * Open a hotspot's panel. Locks the room's input while it is up, exactly as the
@@ -254,6 +299,8 @@ export function noteEvent(event: RoomEvent): void {
   if (step.next === s.progress) return;
 
   useCafeStore.setState({ progress: step.next });
+
+  saveSoon();
 
   if (step.missionClosed) {
     // The season moves on. Nothing is on a timer: the next mission's first
@@ -313,6 +360,8 @@ export function chooseOption(optionId: string): void {
   useCafeStore.setState({ taken, dialogue: null, consequence: outcome?.consequence ?? null });
   if (outcome?.consequence) s.announce(outcome.consequence);
   if (outcome?.world) writeWorld(outcome.world);
+  // Immediate, not debounced. This is the one write that must never be lost.
+  saveNow();
 }
 
 /**
@@ -381,6 +430,7 @@ export function writeWorld(patch: WorldPatch): void {
 
   const next = applyPatch(s.world, patch);
   useCafeStore.setState({ world: next });
+  saveSoon();
 
   const said = moved
     .map((k) => announcementFor(k, next[k] as never))
