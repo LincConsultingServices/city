@@ -9,6 +9,7 @@ import { create } from "zustand";
 import type { Cell } from "@/lib/pathfinding";
 import { audio } from "@/framework/audio/audioManager";
 import { GATES, HOTSPOTS, SPAWN, zoneAt, type GateId, type ZoneId } from "./room";
+import type { CastId } from "./cast";
 
 export interface Announcement {
   text: string;
@@ -25,6 +26,8 @@ interface CafeState {
   nearGateId: GateId | null;
   /** The hotspot you are close enough to read, if any. */
   nearHotspotId: string | null;
+  /** The person you are close enough to speak to, if any. */
+  nearCastId: CastId | null;
   /** The hotspot whose panel is open, if any. */
   openHotspotId: string | null;
   flapOpen: boolean;
@@ -41,6 +44,7 @@ interface CafeState {
   setNearExit: (near: boolean) => void;
   setNearGate: (id: GateId | null) => void;
   setNearHotspot: (id: string | null) => void;
+  setNearCast: (id: CastId | null) => void;
   setOpenHotspot: (id: string | null) => void;
   setFlapOpen: (open: boolean) => void;
   setWalkTo: (cell: Cell | null) => void;
@@ -54,6 +58,7 @@ export const useCafeStore = create<CafeState>((set) => ({
   nearExit: false,
   nearGateId: null,
   nearHotspotId: null,
+  nearCastId: null,
   openHotspotId: null,
   flapOpen: false,
   walkTo: null,
@@ -70,6 +75,7 @@ export const useCafeStore = create<CafeState>((set) => ({
   setNearGate: (nearGateId) => set((s) => (s.nearGateId === nearGateId ? s : { nearGateId })),
   setNearHotspot: (nearHotspotId) =>
     set((s) => (s.nearHotspotId === nearHotspotId ? s : { nearHotspotId })),
+  setNearCast: (nearCastId) => set((s) => (s.nearCastId === nearCastId ? s : { nearCastId })),
   setOpenHotspot: (openHotspotId) =>
     set((s) =>
       s.openHotspotId === openHotspotId
@@ -121,6 +127,7 @@ export function resetCafeState(): void {
     nearExit: false,
     nearGateId: null,
     nearHotspotId: null,
+    nearCastId: null,
     openHotspotId: null,
     flapOpen: false,
     walkTo: null,

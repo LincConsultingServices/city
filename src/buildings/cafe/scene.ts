@@ -20,6 +20,12 @@ const Z_OVERLAY = 0.2; // the pastry case in front of its wall
  */
 const Z_NEAR_EDGE = -0.5;
 export const Z_PLAYER = 0.6; // matches the city's own player offset
+/**
+ * The cast sort just behind the player, so when you walk onto the cell somebody
+ * is standing on it is you in front — the room should never hide you from
+ * yourself.
+ */
+export const Z_CAST = 0.55;
 
 function place(sprite: Sprite, cx: number, cy: number): Sprite {
   const w = mapToWorld(cx, cy);

@@ -45,6 +45,8 @@ import {
 } from "./room";
 import { toggleFlap, useCafeStore } from "./cafeStore";
 import { createTeardown } from "./teardown";
+import { OPENING_CAST, castNear, castPresent } from "./cast";
+import { createCast } from "./castView";
 
 const WALK_SPEED = 175; // px/sec — the city's pace, so indoors feels like outdoors
 const STEP_S = 0.18; // seconds per walk-cycle frame
@@ -166,6 +168,13 @@ export function CafeCanvas({
       charBody.anchor.set(0.5, 1);
       char.addChild(charShadow, charBody);
       actors.addChild(char);
+
+      // ── The cast ────────────────────────────────────────────────────────────
+      // Added to the same sorted container as the furniture and the player, so
+      // Priya passes behind the counter and Marcus sits in front of his table
+      // without any of it being special-cased.
+      const cast = createCast(app.renderer, castPresent(OPENING_CAST), reduced, actors);
+      baked.push(...cast.textures);
 
       const pathLine = new Graphics();
       world.addChild(pathLine);
@@ -326,9 +335,14 @@ export function CafeCanvas({
           store.setNearExit(exitNear(curCell));
           store.setNearGate(gateNear(curCell)?.id ?? null);
           store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
+          store.setNearCast(castNear(curCell, OPENING_CAST)?.id ?? null);
         }
 
         steam.update(dt);
+        // Fed the player's cell rather than their pixels: everything the cast
+        // does with it is a cell-distance question, and a cell changes ~30× less
+        // often than a position does.
+        cast.update(dt, curCell);
 
         // The flap swing. Linear over FLAP_SWING_S so it reads as a hinge rather
         // than a spring; reduced motion snapped it already, above.
@@ -372,6 +386,7 @@ export function CafeCanvas({
       store.setNearExit(exitNear(curCell));
       store.setNearGate(gateNear(curCell)?.id ?? null);
       store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
+      store.setNearCast(castNear(curCell, OPENING_CAST)?.id ?? null);
       audio.preload(["step_hard_1", "step_hard_2"]);
 
       // Unmounted while we were building? Hand it all straight back — the React
