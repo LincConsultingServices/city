@@ -335,7 +335,7 @@ export function CafeCanvas({
           store.setNearExit(exitNear(curCell));
           store.setNearGate(gateNear(curCell)?.id ?? null);
           store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
-          store.setNearCast(castNear(curCell, OPENING_CAST)?.id ?? null);
+          store.setNearCast(castNear(curCell, cast.positions())?.id ?? null);
         }
 
         steam.update(dt);
@@ -386,7 +386,7 @@ export function CafeCanvas({
       store.setNearExit(exitNear(curCell));
       store.setNearGate(gateNear(curCell)?.id ?? null);
       store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
-      store.setNearCast(castNear(curCell, OPENING_CAST)?.id ?? null);
+      store.setNearCast(castNear(curCell, cast.positions())?.id ?? null);
       audio.preload(["step_hard_1", "step_hard_2"]);
 
       // Unmounted while we were building? Hand it all straight back — the React

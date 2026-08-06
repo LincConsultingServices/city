@@ -9,7 +9,7 @@ import { create } from "zustand";
 import type { Cell } from "@/lib/pathfinding";
 import { audio } from "@/framework/audio/audioManager";
 import { GATES, HOTSPOTS, SPAWN, zoneAt, type GateId, type ZoneId } from "./room";
-import type { CastId } from "./cast";
+import { castById, type CastId } from "./cast";
 
 export interface Announcement {
   text: string;
@@ -30,6 +30,10 @@ interface CafeState {
   nearCastId: CastId | null;
   /** The hotspot whose panel is open, if any. */
   openHotspotId: string | null;
+  /** Who you are mid-conversation with, if anyone. */
+  speakingToId: CastId | null;
+  /** What they just said. Held here so the DOM and the live region agree. */
+  spokenLine: string;
   flapOpen: boolean;
   /**
    * A request from the DOM for the room to walk somewhere — the keyboard station
@@ -46,6 +50,7 @@ interface CafeState {
   setNearHotspot: (id: string | null) => void;
   setNearCast: (id: CastId | null) => void;
   setOpenHotspot: (id: string | null) => void;
+  setSpeaking: (id: CastId | null, line: string) => void;
   setFlapOpen: (open: boolean) => void;
   setWalkTo: (cell: Cell | null) => void;
   setInputLocked: (locked: boolean) => void;
@@ -60,6 +65,8 @@ export const useCafeStore = create<CafeState>((set) => ({
   nearHotspotId: null,
   nearCastId: null,
   openHotspotId: null,
+  speakingToId: null,
+  spokenLine: "",
   flapOpen: false,
   walkTo: null,
   inputLocked: false,
@@ -82,6 +89,8 @@ export const useCafeStore = create<CafeState>((set) => ({
         ? s
         : { openHotspotId, inputLocked: openHotspotId !== null },
     ),
+  setSpeaking: (speakingToId, spokenLine) =>
+    set({ speakingToId, spokenLine, inputLocked: speakingToId !== null }),
   setWalkTo: (walkTo) => set({ walkTo }),
   setFlapOpen: (flapOpen) => set((s) => (s.flapOpen === flapOpen ? s : { flapOpen })),
   setInputLocked: (inputLocked) =>
@@ -121,6 +130,7 @@ export function toggleFlap(): boolean {
  * no gates open, and a stale `flapOpen: true` here would desync the two.
  */
 export function resetCafeState(): void {
+  resetSpoken();
   useCafeStore.setState({
     charCell: { ...SPAWN },
     zoneId: zoneAt(SPAWN).id,
@@ -129,6 +139,8 @@ export function resetCafeState(): void {
     nearHotspotId: null,
     nearCastId: null,
     openHotspotId: null,
+    speakingToId: null,
+    spokenLine: "",
     flapOpen: false,
     walkTo: null,
     inputLocked: false,
@@ -153,4 +165,34 @@ export function openHotspot(id: string): void {
 export function closeHotspot(): void {
   audio.play("ui_close");
   useCafeStore.getState().setOpenHotspot(null);
+}
+
+/**
+ * Say hello. Which line comes out is a plain rotation rather than a random pick:
+ * a room where the same person says the same random thing twice running reads as
+ * broken, and cycling means a player who talks to Priya four times hears four
+ * different things and then a repeat they can predict.
+ */
+const spokenCount = new Map<CastId, number>();
+
+export function speakTo(id: CastId): void {
+  const member = castById(id);
+  if (!member || member.ambientLines.length === 0) return;
+  const n = spokenCount.get(id) ?? 0;
+  spokenCount.set(id, n + 1);
+  const line = member.ambientLines[n % member.ambientLines.length];
+  const s = useCafeStore.getState();
+  audio.play("ui_open");
+  s.setSpeaking(id, line);
+  s.announce(`${member.name}. ${line}`);
+}
+
+export function stopSpeaking(): void {
+  audio.play("ui_close");
+  useCafeStore.getState().setSpeaking(null, "");
+}
+
+/** Fresh rotation for a fresh visit, so re-entering starts the room over. */
+function resetSpoken(): void {
+  spokenCount.clear();
 }

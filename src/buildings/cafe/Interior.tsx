@@ -11,8 +11,17 @@ import { audio } from "@/framework/audio/audioManager";
 import { Icon } from "@/ui/Icon";
 import { Modal } from "@/ui/Modal";
 import { CafeCanvas } from "./CafeCanvas";
-import { closeHotspot, openHotspot, resetCafeState, toggleFlap, useCafeStore } from "./cafeStore";
-import { GATES, GUIDE, HOTSPOTS, zoneAt } from "./room";
+import {
+  closeHotspot,
+  openHotspot,
+  resetCafeState,
+  speakTo,
+  stopSpeaking,
+  toggleFlap,
+  useCafeStore,
+} from "./cafeStore";
+import { GATES, HOTSPOTS, zoneAt } from "./room";
+import { OPENING_CAST, atAnchors, castById, guideWithCast } from "./cast";
 
 export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const [ready, setReady] = useState(false);
@@ -20,7 +29,10 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const nearExit = useCafeStore((s) => s.nearExit);
   const nearGateId = useCafeStore((s) => s.nearGateId);
   const nearHotspotId = useCafeStore((s) => s.nearHotspotId);
+  const nearCastId = useCafeStore((s) => s.nearCastId);
   const openHotspotId = useCafeStore((s) => s.openHotspotId);
+  const speakingToId = useCafeStore((s) => s.speakingToId);
+  const spokenLine = useCafeStore((s) => s.spokenLine);
   const flapOpen = useCafeStore((s) => s.flapOpen);
   const announcement = useCafeStore((s) => s.announcement);
 
@@ -33,12 +45,24 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const gate = nearGateId ? (GATES.find((g) => g.id === nearGateId) ?? null) : null;
   const hotspot = nearHotspotId ? (HOTSPOTS.find((h) => h.id === nearHotspotId) ?? null) : null;
   const openSpot = openHotspotId ? (HOTSPOTS.find((h) => h.id === openHotspotId) ?? null) : null;
+  const person = nearCastId ? castById(nearCastId) : null;
+  const speaking = speakingToId ? castById(speakingToId) : null;
+
+  // The list is rebuilt from where people are standing, so walking to Priya
+  // means walking to Priya rather than to the spot she left. Anchors are the
+  // fallback for the frame or two before the canvas has reported in.
+  const guide = guideWithCast(atAnchors(OPENING_CAST));
 
   /**
-   * One prompt slot, three things competing for it. The door wins when you are
-   * standing in it — leaving must never be harder than anything else in the room
-   * — then the flap, then whatever you can read. Reads live state rather than
-   * closing over props, so the keyboard and the button can share it.
+   * One prompt slot, four things competing for it. The door wins when you are
+   * standing in it — leaving must never be harder than anything else in the room.
+   * Then the flap, which has to beat the person behind it: Priya works at the
+   * machine one cell from the hinge, and if she won there you could never lower
+   * the flap from the staff side. Then people, because someone standing in front
+   * of you outranks a noticeboard. Then whatever you can read.
+   *
+   * Reads live state rather than closing over props, so the keyboard and the
+   * button can share it.
    */
   const act = useCallback(() => {
     const s = useCafeStore.getState();
@@ -47,6 +71,8 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
       onExit();
     } else if (s.nearGateId) {
       toggleFlap();
+    } else if (s.nearCastId) {
+      speakTo(s.nearCastId);
     } else if (s.nearHotspotId) {
       openHotspot(s.nearHotspotId);
     }
@@ -56,7 +82,9 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         // A panel closes first; only then does Escape mean "leave".
-        if (useCafeStore.getState().openHotspotId) closeHotspot();
+        const s = useCafeStore.getState();
+        if (s.speakingToId) stopSpeaking();
+        else if (s.openHotspotId) closeHotspot();
         else leave();
         return;
       }
@@ -78,7 +106,9 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
       ? flapOpen
         ? gate.closePrompt
         : gate.openPrompt
-      : (hotspot?.prompt ?? null);
+      : person
+        ? person.name
+        : (hotspot?.prompt ?? null);
 
   return (
     // Transparent, and click-through by default. The room is drawn into the
@@ -116,7 +146,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         <span className="rounded bg-line/50 px-1.5 py-0.5 text-xs text-muted">Esc</span>
       </button>
 
-      {prompt && !openSpot && (
+      {prompt && !openSpot && !speaking && (
         <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 animate-slide-up">
           <button
             onClick={act}
@@ -135,7 +165,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         className="pointer-events-auto absolute bottom-4 left-5 z-10 flex flex-wrap items-center gap-1.5"
       >
         <span className="mr-1 text-xs uppercase tracking-widest text-muted">go to</span>
-        {GUIDE.map((s) => (
+        {guide.map((s) => (
           <button
             key={s.id}
             onClick={() => useCafeStore.getState().setWalkTo(s.cell)}
@@ -162,6 +192,28 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
               Back to the room
             </button>
           </Modal>
+        </div>
+      )}
+
+      {/* Somebody talking to you. Deliberately not the hotspot panel's shape: a
+          line of speech is a person, not an exhibit, so it sits low and narrow
+          near where they are standing rather than taking over the screen. */}
+      {speaking && (
+        <div className="pointer-events-auto absolute bottom-16 left-1/2 z-20 w-[min(30rem,90vw)] -translate-x-1/2 animate-slide-up">
+          <div className="rounded-2xl border border-line/70 bg-surface/95 p-5 shadow-xl backdrop-blur">
+            <p className="text-xs uppercase tracking-widest text-gold">
+              {speaking.name}
+              <span className="ml-2 normal-case tracking-normal text-muted">{speaking.role}</span>
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-text">{spokenLine}</p>
+            <button
+              onClick={stopSpeaking}
+              className="mt-4 rounded-lg border border-line/70 px-4 py-1.5 text-xs text-muted hover:border-gold/60 hover:text-text"
+            >
+              Leave it there
+              <span className="ml-2 rounded bg-line/50 px-1.5 py-0.5 text-[10px]">Esc</span>
+            </button>
+          </div>
         </div>
       )}
 

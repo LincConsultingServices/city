@@ -1,7 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { findPath, type Cell } from "@/lib/pathfinding";
-import { GATES, ROOM_H, ROOM_W, SPAWN, makeRoomGrid, type GateId } from "./room";
-import { CAST, OPENING_CAST, castById, castNear, castPresent, facingFrom } from "./cast";
+import { GATES, GUIDE, ROOM_H, ROOM_W, SPAWN, makeRoomGrid, type GateId } from "./room";
+import {
+  CAST,
+  OPENING_CAST,
+  atAnchors,
+  castById,
+  castNear,
+  castPresent,
+  facingFrom,
+  guideWithCast,
+} from "./cast";
 
 const ALL_OPEN: ReadonlySet<GateId> = new Set(GATES.map((g) => g.id));
 const open = makeRoomGrid(ALL_OPEN);
@@ -113,17 +122,17 @@ describe("the Café cast", () => {
 describe("standing near the cast", () => {
   it("finds the person you are standing next to", () => {
     const priya = castById("priya")!;
-    expect(castNear(priya.anchor, ["priya"])?.id).toBe("priya");
+    expect(castNear(priya.anchor, atAnchors(["priya"]))?.id).toBe("priya");
   });
 
   it("finds nobody when you are on the other side of the room", () => {
-    expect(castNear({ x: 4, y: 8 }, OPENING_CAST)).toBeNull();
+    expect(castNear({ x: 4, y: 8 }, atAnchors(OPENING_CAST))).toBeNull();
   });
 
   it("ignores people who are not in the room", () => {
     const ray = castById("ray")!;
-    expect(castNear(ray.anchor, [])).toBeNull();
-    expect(castNear(ray.anchor, ["ray"])?.id).toBe("ray");
+    expect(castNear(ray.anchor, atAnchors([]))).toBeNull();
+    expect(castNear(ray.anchor, atAnchors(["ray"]))?.id).toBe("ray");
   });
 
   it("lets you speak to Priya across the counter", () => {
@@ -131,13 +140,65 @@ describe("standing near the cast", () => {
     // only way to talk to your own head barista is to lift the flap first.
     const acrossTheCounter = { x: 4, y: 3 };
     expect(open.isWalkable(acrossTheCounter.x, acrossTheCounter.y)).toBe(true);
-    expect(castNear(acrossTheCounter, ["priya"])?.id).toBe("priya");
+    expect(castNear(acrossTheCounter, atAnchors(["priya"]))?.id).toBe("priya");
   });
 
   it("picks the nearer of two people rather than the first one declared", () => {
     // Standing at the four-top with both Ellery and Marcus at it.
     const marcus = castById("marcus")!;
-    expect(castNear(marcus.anchor, ["marcus", "ellery"])?.id).toBe("marcus");
+    expect(castNear(marcus.anchor, atAnchors(["marcus", "ellery"]))?.id).toBe("marcus");
+  });
+});
+
+describe("what the cast says", () => {
+  it("gives everyone something to say", () => {
+    for (const m of CAST) {
+      expect(m.ambientLines.length, `${m.id} has no lines`).toBeGreaterThan(0);
+      for (const line of m.ambientLines) {
+        expect(line.trim(), `${m.id} has an empty line`).toBeTruthy();
+      }
+    }
+  });
+
+  it("never lets anybody pass judgement on the player", () => {
+    // The silent-tier contract, applied to idle chatter. A character who says
+    // "good call" has told the player their score, and this is the cheapest
+    // place in the building for that to leak in unnoticed.
+    const verdicts =
+      /\b(well done|good (call|job|choice)|nice one|mistake|you should have|the better|the right (call|choice)|wisely|unfortunately|correct)\b/i;
+    for (const m of CAST) {
+      for (const line of m.ambientLines) {
+        expect(verdicts.test(line), `${m.id} passes judgement: "${line}"`).toBe(false);
+      }
+    }
+  });
+});
+
+describe("the guided-navigation list with people in it", () => {
+  it("adds whoever is in the room, by name and role", () => {
+    const list = guideWithCast(atAnchors(OPENING_CAST));
+    const labels = list.map((p) => p.label);
+    expect(labels).toContain("Priya, head barista");
+    expect(labels).toContain("Marcus, the regular");
+  });
+
+  it("keeps the places, and keeps them first", () => {
+    const list = guideWithCast(atAnchors(OPENING_CAST));
+    expect(list.slice(0, GUIDE.length).map((p) => p.id)).toEqual(GUIDE.map((p) => p.id));
+    expect(list).toHaveLength(GUIDE.length + OPENING_CAST.length);
+  });
+
+  it("sends you to where somebody actually is, not where they started", () => {
+    // Priya walks her loop, so the list has to be built from live positions or
+    // it walks you to an empty patch of floor by the machine.
+    const priya = castById("priya")!;
+    const moved = { x: 6, y: 1 };
+    const entry = guideWithCast([{ member: priya, cell: moved }]).find((p) => p.id === "priya");
+    expect(entry?.cell).toEqual(moved);
+  });
+
+  it("is empty of people when the room is empty of people", () => {
+    expect(guideWithCast([])).toHaveLength(GUIDE.length);
   });
 });
 

@@ -16,7 +16,7 @@ import { mapToWorld, roundCell, worldToMap } from "@/lib/iso";
 import { bakePersonTextures, bakeShadowTexture, type PersonTextures } from "@/world/characterArt";
 import type { Cardinal } from "@/world/assets";
 import type { Cell } from "@/lib/pathfinding";
-import { CAST_PAUSE_S, CAST_WALK_SPEED, facingFrom, type CastMember } from "./cast";
+import { CAST_PAUSE_S, CAST_WALK_SPEED, facingFrom, type CastAt, type CastMember } from "./cast";
 import { Z_CAST } from "./scene";
 
 /** Slower than the player's 0.18 — a shorter stride for a slower walk. */
@@ -46,6 +46,12 @@ export interface CastView {
   textures: Texture[];
   /** `player` is the cell the player is standing on this frame. */
   update(dtS: number, player: Cell): void;
+  /**
+   * Where everyone is standing right now. The room asks this rather than reading
+   * anchors, so the prompt to speak to somebody tracks the person and not the
+   * spot they started from.
+   */
+  positions(): CastAt[];
   destroy(): void;
 }
 
@@ -114,6 +120,8 @@ export function createCast(
 
   return {
     textures,
+
+    positions: () => actors.map((a) => ({ member: a.member, cell: a.cell })),
 
     update(dtS, player) {
       elapsed += dtS;

@@ -14,6 +14,7 @@
 import type { Cell } from "@/lib/pathfinding";
 import type { Cardinal } from "@/world/assets";
 import type { PersonPalette } from "@/world/characterArt";
+import { GUIDE, type GuidePlace } from "./room";
 
 export type CastId = "priya" | "tomas" | "marcus" | "nadia" | "ray" | "ellery";
 
@@ -41,11 +42,17 @@ export interface CastMember {
    */
   noticesAt: number;
   /**
-   * How close you have to be to speak to them. Priya's is 2 because the whole
-   * point of a counter is that you talk across it; Marcus's is 1 because you go
-   * to his table.
+   * How close you have to be to speak to them. Two for anyone working behind the
+   * counter or standing at it, because the counter run is a solid cell between
+   * you; one for anyone sitting down, because you go to their table.
    */
   talkRadius: number;
+  /**
+   * What they say when there is nothing going on. Cycled, in character, and
+   * about the room rather than about you — nobody in this building comments on
+   * how the player is doing.
+   */
+  ambientLines: readonly string[];
 }
 
 /**
@@ -72,6 +79,12 @@ export const CAST: readonly CastMember[] = [
     seated: false,
     noticesAt: 3,
     talkRadius: 2,
+    ambientLines: [
+      "Machine's warm. We're good for the morning.",
+      "Two of the oat cartons are near date. I put them at the front so they go first.",
+      "Marcus was in at twenty to. Same as ever.",
+      "I did the grinder. Don't touch the grinder.",
+    ],
   },
   {
     id: "tomas",
@@ -86,6 +99,11 @@ export const CAST: readonly CastMember[] = [
     seated: false,
     noticesAt: 2,
     talkRadius: 2,
+    ambientLines: [
+      "I moved my Thursday. It's fine — I cleared it.",
+      "Bar's set. I'd do the milk fridge next if it were me.",
+      "You want me on the machine or on the till? I'm faster on the machine.",
+    ],
   },
   {
     id: "marcus",
@@ -100,6 +118,11 @@ export const CAST: readonly CastMember[] = [
     // hard to distract is the character.
     noticesAt: 1,
     talkRadius: 1,
+    ambientLines: [
+      "Morning. Don't let me hold you up.",
+      "Paper's mostly adverts now. I still read it.",
+      "You've got a queue building. Go on.",
+    ],
   },
   {
     id: "nadia",
@@ -110,7 +133,12 @@ export const CAST: readonly CastMember[] = [
     patrol: [],
     seated: false,
     noticesAt: 2,
-    talkRadius: 1,
+    talkRadius: 2, // you serve her from behind the counter, which is two cells
+    ambientLines: [
+      "Just the one. I'm already late.",
+      "Card. Always card.",
+      "Is it still the flat white you do? I never remember.",
+    ],
   },
   {
     id: "ray",
@@ -122,6 +150,11 @@ export const CAST: readonly CastMember[] = [
     seated: false,
     noticesAt: 3,
     talkRadius: 2,
+    ambientLines: [
+      "Your crowd, my fries. Tell me what's wrong with that.",
+      "I'm parked till four either way. Come out and look at it.",
+      "You've got the corner and the coffee. I've got the fryer. That's the whole pitch.",
+    ],
   },
   {
     id: "ellery",
@@ -135,6 +168,11 @@ export const CAST: readonly CastMember[] = [
     seated: false,
     noticesAt: 2,
     talkRadius: 1,
+    ambientLines: [
+      "Take your time. I've got the table till eleven.",
+      "It's a good spot, this. Quiet enough to work in.",
+      "I should say we're also talking to the place by the station.",
+    ],
   },
 ];
 
@@ -155,21 +193,53 @@ export function castPresent(present: readonly CastId[]): CastMember[] {
 }
 
 /**
+ * Somebody and the cell they are standing on *now*. Priya walks her loop, so
+ * asking where she is has to mean the sprite rather than the anchor — otherwise
+ * the prompt to speak to her hangs in the air at the machine after she has moved
+ * on, and disappears where she actually is.
+ */
+export interface CastAt {
+  member: CastMember;
+  cell: Cell;
+}
+
+/** Everyone at the cell they start from. The layout view, and what tests use. */
+export function atAnchors(present: readonly CastId[]): CastAt[] {
+  return castPresent(present).map((member) => ({ member, cell: member.anchor }));
+}
+
+/**
  * The person you are close enough to speak to, if any. Ties go to whoever is
  * nearer, then to declaration order, so the answer never depends on which way
  * you happened to walk in.
  */
-export function castNear(cell: Cell, present: readonly CastId[]): CastMember | null {
+export function castNear(cell: Cell, present: readonly CastAt[]): CastMember | null {
   let best: CastMember | null = null;
   let bestDist = Infinity;
-  for (const m of castPresent(present)) {
-    const d = manhattan(cell, m.anchor);
-    if (d <= m.talkRadius && d < bestDist) {
-      best = m;
+  for (const { member, cell: theirs } of present) {
+    const d = manhattan(cell, theirs);
+    if (d <= member.talkRadius && d < bestDist) {
+      best = member;
       bestDist = d;
     }
   }
   return best;
+}
+
+/**
+ * The guided-navigation list with the people in it — the places first, then
+ * whoever is in the room, by name and role (ADR-005 §14.2). Cast entries walk
+ * you to the cell beside them rather than onto them.
+ */
+export function guideWithCast(present: readonly CastAt[]): GuidePlace[] {
+  return [
+    ...GUIDE,
+    ...present.map(({ member, cell }) => ({
+      id: member.id,
+      label: `${member.name}, ${member.role}`,
+      cell,
+    })),
+  ];
 }
 
 /**
