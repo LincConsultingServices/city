@@ -10,6 +10,14 @@ import type { Cell } from "@/lib/pathfinding";
 import { audio } from "@/framework/audio/audioManager";
 import { GATES, HOTSPOTS, SPAWN, zoneAt, type GateId, type ZoneId } from "./room";
 import { castById, type CastId } from "./cast";
+import {
+  OPENING_WORLD,
+  announcementFor,
+  applyPatch,
+  changedKeys,
+  type World,
+  type WorldPatch,
+} from "./world";
 
 export interface Announcement {
   text: string;
@@ -40,6 +48,11 @@ interface CafeState {
    * list. The canvas paths there and clears it, the same shape `flapOpen` uses.
    */
   walkTo: Cell | null;
+  /**
+   * The ten keys of PRD §12. Presentation only — nothing here reaches the
+   * submitted trace, and nothing here decides a proficiency.
+   */
+  world: World;
   /** True while a DOM panel is up — the room ignores clicks and WASD. */
   inputLocked: boolean;
   announcement: Announcement;
@@ -67,6 +80,7 @@ export const useCafeStore = create<CafeState>((set) => ({
   openHotspotId: null,
   speakingToId: null,
   spokenLine: "",
+  world: { ...OPENING_WORLD },
   flapOpen: false,
   walkTo: null,
   inputLocked: false,
@@ -141,6 +155,7 @@ export function resetCafeState(): void {
     openHotspotId: null,
     speakingToId: null,
     spokenLine: "",
+    world: { ...OPENING_WORLD },
     flapOpen: false,
     walkTo: null,
     inputLocked: false,
@@ -165,6 +180,29 @@ export function openHotspot(id: string): void {
 export function closeHotspot(): void {
   audio.play("ui_close");
   useCafeStore.getState().setOpenHotspot(null);
+}
+
+/**
+ * Change something about the room.
+ *
+ * Every key that actually moves is announced, because a consequence that exists
+ * only in the picture is a consequence half the audience never receives (PRD
+ * §15). Illegal writes are dropped by the reducer and therefore announce
+ * nothing, which is the right failure: a typo in a decision's world write costs
+ * a change, never a crash and never a wrong line.
+ */
+export function writeWorld(patch: WorldPatch): void {
+  const s = useCafeStore.getState();
+  const moved = changedKeys(s.world, patch);
+  if (moved.length === 0) return;
+
+  const next = applyPatch(s.world, patch);
+  useCafeStore.setState({ world: next });
+
+  const said = moved
+    .map((k) => announcementFor(k, next[k] as never))
+    .filter((line): line is string => line !== null);
+  if (said.length > 0) s.announce(said.join(" "));
 }
 
 /**
