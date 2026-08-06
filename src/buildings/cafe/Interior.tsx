@@ -14,9 +14,12 @@ import { CafeCanvas } from "./CafeCanvas";
 
 /** How long the bell takes to go after a `wait_for` opens. */
 const ARRIVAL_MS = 2200;
+/** The beat in which whoever is asking finishes what they were doing first. */
+const BEAT_MS = 900;
 import {
   arrive,
   closeHotspot,
+  openDialogue,
   openHotspot,
   resetCafeState,
   speakTo,
@@ -28,7 +31,9 @@ import { GATES, HOTSPOTS, zoneAt } from "./room";
 import { atAnchors, castById, castFor, guideWithCast, type CastId } from "./cast";
 import { hotspotBody } from "./world";
 import { Tracker } from "./Tracker";
+import { Dialogue } from "./Dialogue";
 import { currentObjective } from "./missionRunner";
+import type { Beat } from "./missions";
 import { HOTSPOTS as ALL_SPOTS, STATIONS as ALL_STATIONS } from "./room";
 
 export default function CafeInterior({ manifest, onExit }: InteriorProps) {
@@ -64,6 +69,16 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     const t = window.setTimeout(() => arrive(waitingFor), ARRIVAL_MS);
     return () => window.clearTimeout(t);
   }, [waitingFor]);
+
+  // A `decide` objective going live is the question arriving. The pause before
+  // it is the room finishing what it was doing — never a spinner, and never
+  // anything that marks out which beat came from a model (PRD §11.2).
+  const dueBeat = objective?.kind === "decide" ? (objective.target as Beat) : null;
+  useEffect(() => {
+    if (!dueBeat) return;
+    const t = window.setTimeout(() => openDialogue(dueBeat), BEAT_MS);
+    return () => window.clearTimeout(t);
+  }, [dueBeat]);
 
   const gate = nearGateId ? (GATES.find((g) => g.id === nearGateId) ?? null) : null;
   const hotspot = nearHotspotId ? (HOTSPOTS.find((h) => h.id === nearHotspotId) ?? null) : null;
@@ -165,6 +180,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
       <CafeCanvas onReady={() => setReady(true)} onError={onExit} />
 
       {ready && <Tracker />}
+      <Dialogue />
 
       {!ready && (
         <div className="absolute inset-0 grid place-items-center bg-ink">

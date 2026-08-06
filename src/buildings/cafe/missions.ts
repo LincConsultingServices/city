@@ -47,6 +47,13 @@ export interface Mission {
    * through glass.
    */
   host: CastId | null;
+  /**
+   * Who speaks when the host is absent, before falling back to the anchor. Only
+   * two missions need one: week 12 hands the beat to Marcus, who is standing
+   * there holding his paper, and week 8 hands it to the room, because being
+   * alone is the point of that night.
+   */
+  standIn?: CastId | "room";
   objectives: readonly Objective[];
   /** Applied when the mission closes, whatever was decided. */
   closeWorldState: WorldPatch;
@@ -149,6 +156,7 @@ export const MISSIONS: readonly Mission[] = [
     // Nobody. This is the only mission in the season that ends with you alone in
     // the room, and it carries the money decision on purpose.
     host: null,
+    standIn: "room",
     objectives: [
       { kind: "go_to", target: "st_door", line: "lock up" },
       { kind: "inspect", target: "ht_chalkboard", line: "look at what you sell now" },
@@ -187,6 +195,7 @@ export const MISSIONS: readonly Mission[] = [
     staging:
       "She's taken Marcus's table. Laptop open, coffee she bought herself, a number already decided.",
     host: "ellery",
+    standIn: "marcus",
     objectives: [
       { kind: "wait_for", target: "ellery", line: "someone's taken the four-top" },
       { kind: "go_to", target: "st_tables", line: "go over" },
@@ -275,6 +284,22 @@ export const MISSIONS: readonly Mission[] = [
     aiWorldCandidates: [{ regulars: "returning" }, { regulars: "thin" }, { rival: "promo" }],
   },
 ];
+
+/**
+ * Who asks the question (PRD §19.5, ADR-006 §9). The host if they are still in
+ * the room; the mission's stand-in if it has one; then Priya, who is the anchor
+ * and cannot be removed by any world state; then the room itself.
+ *
+ * The order matters because the alternative is a beat with no speaker, and the
+ * dialogue layer has nowhere to put a question nobody is asking.
+ */
+export function resolveSpeaker(mission: Mission, present: readonly CastId[]): CastId | "room" {
+  if (mission.host && present.includes(mission.host)) return mission.host;
+  if (mission.standIn === "room") return "room";
+  if (mission.standIn && present.includes(mission.standIn)) return mission.standIn;
+  if (present.includes("priya")) return "priya";
+  return "room";
+}
 
 export function missionByOrder(order: number): Mission | null {
   return MISSIONS.find((m) => m.order === order) ?? null;

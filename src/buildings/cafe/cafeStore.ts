@@ -14,10 +14,19 @@ import { HOTSPOTS as SPOTS, STATIONS as STNS } from "./room";
 import {
   SEASON_START,
   advance,
+  currentMission,
   currentObjective,
   type Progress,
   type RoomEvent,
 } from "./missionRunner";
+import type { Beat } from "./missions";
+import {
+  openBeat,
+  resolve,
+  submitDecision,
+  type DecisionSoFar,
+  type DialogueState,
+} from "./dialogue";
 import {
   OPENING_WORLD,
   announcementFor,
@@ -64,6 +73,17 @@ interface CafeState {
   world: World;
   /** Which mission, and how far into its chain. */
   progress: Progress;
+  /** The beat on screen, if one is. */
+  dialogue: DialogueState | null;
+  /** The room's answer to what you just chose, shown before the room returns. */
+  consequence: string | null;
+  /** The letters taken so far this mission — what goes on the wire. */
+  taken: DecisionSoFar;
+  /**
+   * Decisions whose submit failed, kept to retry. The Café's registry rows are
+   * backend content that has not been seeded, so this is the normal case today.
+   */
+  unsent: { activityId: string; taken: DecisionSoFar; durationSec: number }[];
   /**
    * People the live mission has brought into the room on top of whoever the
    * world state says lives here. Nadia comes in at 8:05 and leaves again.
@@ -98,6 +118,10 @@ export const useCafeStore = create<CafeState>((set) => ({
   spokenLine: "",
   world: { ...OPENING_WORLD },
   progress: SEASON_START,
+  dialogue: null,
+  consequence: null,
+  taken: {},
+  unsent: [],
   visitors: [],
   flapOpen: false,
   walkTo: null,
@@ -175,6 +199,10 @@ export function resetCafeState(): void {
     spokenLine: "",
     world: { ...OPENING_WORLD },
     progress: SEASON_START,
+    dialogue: null,
+    consequence: null,
+    taken: {},
+    unsent: [],
     visitors: [],
     flapOpen: false,
     walkTo: null,
@@ -238,6 +266,92 @@ export function noteEvent(event: RoomEvent): void {
   // Whatever is live now says its piece, if it has one.
   const opened = currentObjective(useCafeStore.getState().progress);
   if (opened?.cue) s.announce(opened.cue);
+}
+
+// ── The decision ─────────────────────────────────────────────────────────────
+
+let missionStartedAt = Date.now();
+
+/**
+ * Put the due beat on screen. Called when a `decide` objective goes live.
+ *
+ * If nothing is authored for this mission the beat is skipped rather than the
+ * chain being stuck: a season with only some of its content written should still
+ * be walkable, and a mission you cannot leave is worse than one you cannot
+ * finish properly.
+ */
+export function openDialogue(beat: Beat): void {
+  const s = useCafeStore.getState();
+  const mission = currentMission(s.progress);
+  if (!mission) return;
+  if (beat === "seed") missionStartedAt = Date.now();
+
+  const next = openBeat(mission.activityId, beat, s.taken, mission, presentCast(), s.world);
+  if (!next) {
+    noteEvent({ kind: "decided", beat });
+    return;
+  }
+  useCafeStore.setState({ dialogue: next, consequence: null, inputLocked: true });
+  s.announce(`${next.stage ? next.stage + " " : ""}${next.prompt}`);
+}
+
+/**
+ * Take an option. The consequence plays, the world moves, and then the player is
+ * simply free to walk again. There is no panel telling them how that went, and
+ * there is no "next" implying a score was computed.
+ */
+export function chooseOption(optionId: string): void {
+  const s = useCafeStore.getState();
+  const mission = currentMission(s.progress);
+  const open = s.dialogue;
+  if (!mission || !open) return;
+
+  const outcome = resolve(mission.activityId, open.beat, s.taken, optionId);
+  const taken: DecisionSoFar = { ...s.taken, [open.beat]: optionId };
+
+  audio.play("ui_confirm");
+  useCafeStore.setState({ taken, dialogue: null, consequence: outcome?.consequence ?? null });
+  if (outcome?.consequence) s.announce(outcome.consequence);
+  if (outcome?.world) writeWorld(outcome.world);
+}
+
+/**
+ * Dismiss the consequence and let the chain move on. Kept separate from taking
+ * the option so the room gets its four to six seconds before the tracker line
+ * changes under the player.
+ */
+export function closeConsequence(): void {
+  const s = useCafeStore.getState();
+  const beat = s.dialogue?.beat ?? lastBeatTaken(s.taken);
+  useCafeStore.setState({ consequence: null, inputLocked: false });
+  if (!beat) return;
+
+  // Read the mission before advancing: noteEvent below can close this mission
+  // and move the season on, and then we would be submitting the next week's
+  // activity id with this week's path.
+  const activityId = currentMission(s.progress)?.activityId ?? "";
+  const taken = s.taken;
+
+  noteEvent({ kind: "decided", beat });
+
+  if (beat !== "transfer") return;
+
+  const durationSec = (Date.now() - missionStartedAt) / 1000;
+  useCafeStore.setState({ taken: {} });
+  void submitDecision(activityId, taken, durationSec).then((sent) => {
+    if (sent) return;
+    // The room has already moved. The score can catch up whenever the backend
+    // has rows for these activities to score against.
+    const q = useCafeStore.getState().unsent;
+    useCafeStore.setState({ unsent: [...q, { activityId, taken, durationSec }] });
+  });
+}
+
+function lastBeatTaken(taken: DecisionSoFar): Beat | null {
+  if (taken.transfer) return "transfer";
+  if (taken.follow) return "follow";
+  if (taken.seed) return "seed";
+  return null;
 }
 
 /**
