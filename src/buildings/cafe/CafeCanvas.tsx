@@ -43,9 +43,9 @@ import {
   makeRoomGrid,
   type GateId,
 } from "./room";
-import { toggleFlap, useCafeStore } from "./cafeStore";
+import { noteEvent, presentCast, toggleFlap, useCafeStore } from "./cafeStore";
 import { createTeardown } from "./teardown";
-import { OPENING_CAST, castFor, castNear, castPresent } from "./cast";
+import { CAST, castNear } from "./cast";
 import { createCast } from "./castView";
 
 const WALK_SPEED = 175; // px/sec — the city's pace, so indoors feels like outdoors
@@ -173,11 +173,12 @@ export function CafeCanvas({
       // Added to the same sorted container as the furniture and the player, so
       // Priya passes behind the counter and Marcus sits in front of his table
       // without any of it being special-cased.
-      // Everyone who can appear this season is baked once; who is actually in
-      // the room is a per-frame question the world answers.
-      const cast = createCast(app.renderer, castPresent(OPENING_CAST), reduced, actors);
+      // Everyone who can appear this season is baked once — six palettes over
+      // one rig, which is cheap — and who is actually in the room is a per-frame
+      // question the world state and the live mission answer between them.
+      const cast = createCast(app.renderer, CAST, reduced, actors);
       baked.push(...cast.textures);
-      const presentNow = () => new Set(castFor(useCafeStore.getState().world));
+      const presentNow = () => new Set(presentCast());
 
       const pathLine = new Graphics();
       world.addChild(pathLine);
@@ -339,6 +340,9 @@ export function CafeCanvas({
           store.setNearGate(gateNear(curCell)?.id ?? null);
           store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
           store.setNearCast(castNear(curCell, cast.positions())?.id ?? null);
+          // The runner decides whether arriving here was an objective. Most of
+          // the time it is not, and it says so by not moving.
+          noteEvent({ kind: "moved", cell: curCell });
         }
 
         steam.update(dt);

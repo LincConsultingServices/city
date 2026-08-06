@@ -173,10 +173,25 @@ describe("the Café room", () => {
 });
 
 describe("the guided-navigation list", () => {
-  it("can send you to every station and every hotspot", () => {
+  it("can send you to every station and every standing hotspot", () => {
     const ids = new Set(GUIDE.map((p) => p.id));
     for (const s of STATIONS) expect(ids.has(s.id), `${s.id} is not in the guide`).toBe(true);
-    for (const h of HOTSPOTS) expect(ids.has(h.id), `${h.id} is not in the guide`).toBe(true);
+    for (const h of HOTSPOTS.filter((x) => !x.seasonal)) {
+      expect(ids.has(h.id), `${h.id} is not in the guide`).toBe(true);
+    }
+  });
+
+  it("keeps the seasonal ones out until the week that needs them", () => {
+    // A button reading "the sample bag" in week one is a promise about week
+    // sixteen. The runner fronts the live objective's target instead.
+    const ids = new Set(GUIDE.map((p) => p.id));
+    for (const h of HOTSPOTS.filter((x) => x.seasonal)) {
+      expect(ids.has(h.id), `${h.id} is in the standing guide`).toBe(false);
+    }
+    expect(
+      HOTSPOTS.some((h) => h.seasonal),
+      "nothing is seasonal any more",
+    ).toBe(true);
   });
 
   it("carries the two places the season sends you that are not stations", () => {

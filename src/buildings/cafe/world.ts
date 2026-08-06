@@ -250,6 +250,15 @@ export function passThroughBody(world: World): string {
   return `${base} ${rota[world.staff]}`;
 }
 
+/** The supplier's sample, and the invoice underneath it. */
+export function sampleBagBody(world: World): string {
+  const base =
+    "A kilo of the cheaper beans in a plain bag, and the invoice folded under it with a number on it that would fix this month. They smell fine. They smell like coffee.";
+  return world.beans === "cheap"
+    ? `${base} There is already a sack of them behind you, half used.`
+    : base;
+}
+
 /**
  * What you read when you stop at something. Kept here rather than in room.ts
  * because all four of these are now views onto state — the board is what you
@@ -266,6 +275,8 @@ export function hotspotBody(id: string, world: World): string {
       return windowBody(world);
     case "ht_pass":
       return passThroughBody(world);
+    case "ht_sample":
+      return sampleBagBody(world);
     default:
       return "";
   }

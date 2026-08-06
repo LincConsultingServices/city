@@ -283,6 +283,13 @@ export interface Hotspot {
   /** The walkable cell you stand on; the prompt fires within one cell of it. */
   cell: Cell;
   title: string;
+  /**
+   * Only there for the week that needs it. Seasonal hotspots stay out of the
+   * standing guided-nav list — a button reading "the sample bag" in week one is
+   * a promise about week sixteen — and the runner puts the live one at the front
+   * of the list while its objective is open.
+   */
+  seasonal?: boolean;
 }
 
 // What each of these *says* lives in world.ts, not here. All four are views onto
@@ -312,6 +319,16 @@ export const HOTSPOTS: readonly Hotspot[] = [
     guideLabel: "the window",
     cell: { x: 9, y: 1 },
     title: "Market Street",
+  },
+  {
+    id: "ht_sample",
+    prompt: "open the sample bag",
+    guideLabel: "the sample bag",
+    // The end of the counter run, staff side: the delivery comes in through the
+    // flap and gets put down where there is room for it.
+    cell: { x: 6, y: 1 },
+    title: "The sample bag",
+    seasonal: true,
   },
   {
     id: "ht_pass",
@@ -380,5 +397,9 @@ export interface GuidePlace {
  */
 export const GUIDE: readonly GuidePlace[] = [
   ...STATIONS,
-  ...HOTSPOTS.map((h) => ({ id: h.id, label: h.guideLabel, cell: h.cell })),
+  ...HOTSPOTS.filter((h) => !h.seasonal).map((h) => ({
+    id: h.id,
+    label: h.guideLabel,
+    cell: h.cell,
+  })),
 ];

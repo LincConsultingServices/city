@@ -9,7 +9,15 @@ import { create } from "zustand";
 import type { Cell } from "@/lib/pathfinding";
 import { audio } from "@/framework/audio/audioManager";
 import { GATES, HOTSPOTS, SPAWN, zoneAt, type GateId, type ZoneId } from "./room";
-import { castById, type CastId } from "./cast";
+import { castById, castFor, type CastId } from "./cast";
+import { HOTSPOTS as SPOTS, STATIONS as STNS } from "./room";
+import {
+  SEASON_START,
+  advance,
+  currentObjective,
+  type Progress,
+  type RoomEvent,
+} from "./missionRunner";
 import {
   OPENING_WORLD,
   announcementFor,
@@ -54,6 +62,13 @@ interface CafeState {
    * submitted trace, and nothing here decides a proficiency.
    */
   world: World;
+  /** Which mission, and how far into its chain. */
+  progress: Progress;
+  /**
+   * People the live mission has brought into the room on top of whoever the
+   * world state says lives here. Nadia comes in at 8:05 and leaves again.
+   */
+  visitors: CastId[];
   /** True while a DOM panel is up — the room ignores clicks and WASD. */
   inputLocked: boolean;
   announcement: Announcement;
@@ -82,6 +97,8 @@ export const useCafeStore = create<CafeState>((set) => ({
   speakingToId: null,
   spokenLine: "",
   world: { ...OPENING_WORLD },
+  progress: SEASON_START,
+  visitors: [],
   flapOpen: false,
   walkTo: null,
   inputLocked: false,
@@ -157,6 +174,8 @@ export function resetCafeState(): void {
     speakingToId: null,
     spokenLine: "",
     world: { ...OPENING_WORLD },
+    progress: SEASON_START,
+    visitors: [],
     flapOpen: false,
     walkTo: null,
     inputLocked: false,
@@ -176,11 +195,60 @@ export function openHotspot(id: string): void {
   audio.play("ui_open");
   s.setOpenHotspot(id);
   s.announce(`${spot.title}. ${hotspotBody(id, s.world)}`);
+  noteEvent({ kind: "inspected", id });
 }
 
 export function closeHotspot(): void {
   audio.play("ui_close");
   useCafeStore.getState().setOpenHotspot(null);
+}
+
+// ── The season ───────────────────────────────────────────────────────────────
+
+const cellOf = (id: string) =>
+  STNS.find((s) => s.id === id)?.cell ?? SPOTS.find((h) => h.id === id)?.cell ?? null;
+
+/** Everyone in the room: whoever lives here, plus whoever this week brought in. */
+export function presentCast(): CastId[] {
+  const s = useCafeStore.getState();
+  return [...new Set([...castFor(s.world), ...s.visitors])];
+}
+
+/**
+ * Tell the runner something happened. Most of what the room reports is not an
+ * objective — the ticker says "moved" every time the player changes cell — so
+ * the runner returns the same Progress when nothing landed and this returns
+ * early on identity.
+ */
+export function noteEvent(event: RoomEvent): void {
+  const s = useCafeStore.getState();
+  const step = advance(s.progress, event, cellOf);
+  if (step.next === s.progress) return;
+
+  useCafeStore.setState({ progress: step.next });
+
+  if (step.missionClosed) {
+    // The season moves on. Nothing is on a timer: the next mission's first
+    // objective is simply available, and the player is free until they go to it.
+    useCafeStore.setState({ visitors: [] });
+    writeWorld(step.missionClosed.closeWorldState);
+    s.announce(`That's week ${step.missionClosed.week} done.`);
+  }
+
+  // Whatever is live now says its piece, if it has one.
+  const opened = currentObjective(useCafeStore.getState().progress);
+  if (opened?.cue) s.announce(opened.cue);
+}
+
+/**
+ * Somebody arrives for a `wait_for`. They join the room first and the objective
+ * closes second, so the beat reads as a person coming through the door rather
+ * than as a tracker line ticking over on its own.
+ */
+export function arrive(id: CastId): void {
+  const s = useCafeStore.getState();
+  if (!s.visitors.includes(id)) useCafeStore.setState({ visitors: [...s.visitors, id] });
+  noteEvent({ kind: "arrived", id });
 }
 
 /**
@@ -224,6 +292,7 @@ export function speakTo(id: CastId): void {
   audio.play("ui_open");
   s.setSpeaking(id, line);
   s.announce(`${member.name}. ${line}`);
+  noteEvent({ kind: "spoke_to", id });
 }
 
 export function stopSpeaking(): void {

@@ -11,7 +11,11 @@ import { audio } from "@/framework/audio/audioManager";
 import { Icon } from "@/ui/Icon";
 import { Modal } from "@/ui/Modal";
 import { CafeCanvas } from "./CafeCanvas";
+
+/** How long the bell takes to go after a `wait_for` opens. */
+const ARRIVAL_MS = 2200;
 import {
+  arrive,
   closeHotspot,
   openHotspot,
   resetCafeState,
@@ -21,8 +25,11 @@ import {
   useCafeStore,
 } from "./cafeStore";
 import { GATES, HOTSPOTS, zoneAt } from "./room";
-import { castFor, atAnchors, castById, guideWithCast } from "./cast";
+import { atAnchors, castById, castFor, guideWithCast, type CastId } from "./cast";
 import { hotspotBody } from "./world";
+import { Tracker } from "./Tracker";
+import { currentObjective } from "./missionRunner";
+import { HOTSPOTS as ALL_SPOTS, STATIONS as ALL_STATIONS } from "./room";
 
 export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const [ready, setReady] = useState(false);
@@ -37,12 +44,26 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const flapOpen = useCafeStore((s) => s.flapOpen);
   const announcement = useCafeStore((s) => s.announcement);
   const world = useCafeStore((s) => s.world);
+  const progress = useCafeStore((s) => s.progress);
+  const visitors = useCafeStore((s) => s.visitors);
 
   // Every visit starts at the door with the flap down, which keeps the store and
   // the canvas's own gate set in step (the canvas boots with no gates open).
   useEffect(() => {
     resetCafeState();
   }, []);
+
+  const objective = currentObjective(progress);
+
+  // A `wait_for` completes on arrival, and arrival is on a short timer rather
+  // than on anything the player does. It is the one objective kind they cannot
+  // make happen, so it must never be a place to get stuck (PRD §18.4).
+  const waitingFor = objective?.kind === "wait_for" ? (objective.target as CastId) : null;
+  useEffect(() => {
+    if (!waitingFor) return;
+    const t = window.setTimeout(() => arrive(waitingFor), ARRIVAL_MS);
+    return () => window.clearTimeout(t);
+  }, [waitingFor]);
 
   const gate = nearGateId ? (GATES.find((g) => g.id === nearGateId) ?? null) : null;
   const hotspot = nearHotspotId ? (HOTSPOTS.find((h) => h.id === nearHotspotId) ?? null) : null;
@@ -53,7 +74,27 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   // The list is rebuilt from where people are standing, so walking to Priya
   // means walking to Priya rather than to the spot she left. Anchors are the
   // fallback for the frame or two before the canvas has reported in.
-  const guide = guideWithCast(atAnchors(castFor(world)));
+  // Derived from the store's own fields rather than from presentCast(), which
+  // reads getState() and so would not re-render this list when Nadia walks in.
+  const present = [...new Set([...castFor(world), ...visitors])];
+  const guide = guideWithCast(atAnchors(present));
+  // The list's first entry is wherever the mission is waiting (PRD §15). It is
+  // also how a seasonal place like the sample bag becomes reachable at all —
+  // those are kept out of the standing list on purpose.
+  const waitingAt = objective
+    ? (ALL_STATIONS.find((p) => p.id === objective.target) ??
+      ALL_SPOTS.find((h) => h.id === objective.target))
+    : undefined;
+  const nav = waitingAt
+    ? [
+        {
+          id: waitingAt.id,
+          label: "label" in waitingAt ? waitingAt.label : waitingAt.guideLabel,
+          cell: waitingAt.cell,
+        },
+        ...guide.filter((p) => p.id !== waitingAt.id),
+      ]
+    : guide;
 
   /**
    * One prompt slot, four things competing for it. The door wins when you are
@@ -123,6 +164,8 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
           has already given the city back by the time this fires. */}
       <CafeCanvas onReady={() => setReady(true)} onError={onExit} />
 
+      {ready && <Tracker />}
+
       {!ready && (
         <div className="absolute inset-0 grid place-items-center bg-ink">
           <p className="text-sm text-muted">Pushing the door open…</p>
@@ -167,7 +210,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         className="pointer-events-auto absolute bottom-4 left-5 z-10 flex flex-wrap items-center gap-1.5"
       >
         <span className="mr-1 text-xs uppercase tracking-widest text-muted">go to</span>
-        {guide.map((s) => (
+        {nav.map((s) => (
           <button
             key={s.id}
             onClick={() => useCafeStore.getState().setWalkTo(s.cell)}
