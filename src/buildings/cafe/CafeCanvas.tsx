@@ -48,6 +48,7 @@ import { createTeardown } from "./teardown";
 import { CAST, castNear } from "./cast";
 import { createCast } from "./castView";
 import { FADE_S, lightForMission, mixLight, type Light } from "./light";
+import { createCustomers } from "./customersView";
 
 const WALK_SPEED = 175; // px/sec — the city's pace, so indoors feels like outdoors
 const STEP_S = 0.18; // seconds per walk-cycle frame
@@ -189,6 +190,17 @@ export function CafeCanvas({
       const cast = createCast(app.renderer, CAST, reduced, actors);
       baked.push(...cast.textures);
       const presentNow = () => new Set(presentCast());
+
+      // ── The room's population ───────────────────────────────────────────────
+      // Unnamed, never an objective, and the reason the café reads as a café
+      // when nothing is being asked of you (PRD §5.7).
+      const customers = createCustomers(app.renderer, reduced, actors);
+      baked.push(...customers.textures);
+      // The bell, and the street coming in with it for a moment. `ui_open` is a
+      // stand-in: the Café's own sound names are a closed union in the framework
+      // and are filed to the maintainer (PRD §20.7), so the beat ships on a
+      // borrowed sound rather than not at all.
+      const ringBell = () => audio.play("ui_open", { volume: 0.22, rate: 1.35 });
 
       const pathLine = new Graphics();
       world.addChild(pathLine);
@@ -396,6 +408,7 @@ export function CafeCanvas({
         // does with it is a cell-distance question, and a cell changes ~30× less
         // often than a position does.
         cast.update(dt, curCell, presentNow());
+        customers.update(dt, useCafeStore.getState().world, order, ringBell);
 
         // The flap swing. Linear over FLAP_SWING_S so it reads as a hinge rather
         // than a spring; reduced motion snapped it already, above.
