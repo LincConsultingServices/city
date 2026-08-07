@@ -19,6 +19,7 @@ import type { CastId } from "./cast";
 import type { DecisionSoFar } from "./dialogue";
 import { SEASON_START, type Progress } from "./missionRunner";
 import { OPENING_WORLD, applyPatch, type World } from "./world";
+import type { Decided } from "./report";
 
 const KEY = "city.cafe.season";
 
@@ -36,6 +37,16 @@ export interface SeasonBlob {
   visitors: CastId[];
   /** Decisions the backend has not taken yet, kept to retry. */
   unsent: { activityId: string; taken: DecisionSoFar; durationSec: number }[];
+  /**
+   * Every week that has closed, and what was taken in it. A Café extension to
+   * §19.2's document: the end-of-season report is built from this trail (§13.2),
+   * and a trail that does not survive leaving is a report that only exists for
+   * someone who played nine missions without ever shutting the laptop.
+   *
+   * It carries option letters, never anything derived from them. Nothing here is
+   * a tier and nothing here decides one.
+   */
+  decided: Decided[];
 }
 
 export interface Season {
@@ -45,6 +56,7 @@ export interface Season {
   visitors: CastId[];
   playerCell: { x: number; y: number };
   unsent: SeasonBlob["unsent"];
+  decided: Decided[];
 }
 
 const BEATS = ["seed", "follow", "transfer"] as const;
@@ -59,6 +71,7 @@ export function toBlob(s: Season): SeasonBlob {
     playerCell: [s.playerCell.x, s.playerCell.y],
     visitors: s.visitors,
     unsent: s.unsent,
+    decided: s.decided,
   };
 }
 
@@ -88,7 +101,18 @@ export function fromBlob(blob: unknown): Season | null {
     visitors: blob.visitors.filter((v): v is CastId => typeof v === "string"),
     playerCell: { x: blob.playerCell[0], y: blob.playerCell[1] },
     unsent: Array.isArray(blob.unsent) ? blob.unsent : [],
+    decided: Array.isArray(blob.decided) ? blob.decided.filter(isDecided) : [],
   };
+}
+
+/** A record row, checked field by field — a stale save is the normal case. */
+function isDecided(v: unknown): v is Decided {
+  if (typeof v !== "object" || v === null) return false;
+  const d = v as Record<string, unknown>;
+  const letter = (x: unknown) => x === null || typeof x === "string";
+  return (
+    typeof d.activityId === "string" && letter(d.seed) && letter(d.follow) && letter(d.transfer)
+  );
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -137,5 +161,6 @@ export function freshSeason(): Season {
     visitors: [],
     playerCell: { x: 4, y: 8 },
     unsent: [],
+    decided: [],
   };
 }

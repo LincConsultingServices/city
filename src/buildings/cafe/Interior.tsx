@@ -20,6 +20,7 @@ import {
   arrive,
   closeHotspot,
   openDialogue,
+  openReport,
   saveNow,
   openHotspot,
   resetCafeState,
@@ -33,9 +34,19 @@ import { atAnchors, castById, castFor, guideWithCast, type CastId } from "./cast
 import { hotspotBody } from "./world";
 import { Tracker } from "./Tracker";
 import { Dialogue } from "./Dialogue";
-import { currentObjective } from "./missionRunner";
+import { currentObjective, seasonIsOver, type Progress } from "./missionRunner";
+import { Report } from "./Report";
 import type { Beat } from "./missions";
 import { HOTSPOTS as ALL_SPOTS, STATIONS as ALL_STATIONS } from "./room";
+
+/**
+ * The envelope is at the pass-through, where the rota usually is, and only after
+ * the ninth week has closed (PRD §13). It replaces the hatch's own panel rather
+ * than sitting beside it: there is one thing propped there and it is the letter.
+ */
+function letterIsAt(hotspotId: string | null, progress: Progress): boolean {
+  return hotspotId === "ht_pass" && seasonIsOver(progress);
+}
 
 export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const [ready, setReady] = useState(false);
@@ -143,6 +154,8 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
       toggleFlap();
     } else if (s.nearCastId) {
       speakTo(s.nearCastId);
+    } else if (letterIsAt(s.nearHotspotId, s.progress)) {
+      openReport();
     } else if (s.nearHotspotId) {
       openHotspot(s.nearHotspotId);
     }
@@ -194,7 +207,9 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         : gate.openPrompt
       : person
         ? person.name
-        : (hotspot?.prompt ?? null);
+        : letterIsAt(nearHotspotId, progress)
+          ? "read the letter"
+          : (hotspot?.prompt ?? null);
 
   return (
     // Transparent, and click-through by default. The room is drawn into the
@@ -209,6 +224,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
 
       {ready && <Tracker />}
       <Dialogue />
+      <Report />
 
       {!ready && (
         <div className="absolute inset-0 grid place-items-center bg-ink">

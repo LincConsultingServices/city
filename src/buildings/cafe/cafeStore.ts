@@ -21,6 +21,7 @@ import {
 } from "./missionRunner";
 import type { Beat } from "./missions";
 import { freshSeason, loadSeason, saveSeason, type Season } from "./session";
+import type { Decided } from "./report";
 import {
   openBeat,
   resolve,
@@ -90,6 +91,14 @@ interface CafeState {
    * world state says lives here. Nadia comes in at 8:05 and leaves again.
    */
   visitors: CastId[];
+  /**
+   * Every week that has closed and what was taken in it. The end-of-season
+   * report is built from this (PRD §13.2) and nothing else reads it — no part of
+   * the room's behaviour depends on what you decided nine weeks ago.
+   */
+  decided: Decided[];
+  /** The letter by the pass-through is open. Only ever after week eighteen. */
+  reportOpen: boolean;
   /** True while a DOM panel is up — the room ignores clicks and WASD. */
   inputLocked: boolean;
   announcement: Announcement;
@@ -124,6 +133,8 @@ export const useCafeStore = create<CafeState>((set) => ({
   taken: {},
   unsent: [],
   visitors: [],
+  decided: [],
+  reportOpen: false,
   flapOpen: false,
   walkTo: null,
   inputLocked: false,
@@ -207,6 +218,8 @@ export function resetCafeState(): void {
     taken: season.taken,
     unsent: season.unsent,
     visitors: season.visitors,
+    decided: season.decided,
+    reportOpen: false,
     flapOpen: false,
     walkTo: null,
     inputLocked: false,
@@ -226,6 +239,7 @@ function snapshot(): Season {
     visitors: s.visitors,
     playerCell: s.charCell,
     unsent: s.unsent,
+    decided: s.decided,
   };
 }
 
@@ -274,6 +288,26 @@ export function openHotspot(id: string): void {
 export function closeHotspot(): void {
   audio.play("ui_close");
   useCafeStore.getState().setOpenHotspot(null);
+}
+
+/**
+ * The letter propped against the pass-through hatch, where the rota usually is
+ * (PRD §13). It only exists once the ninth week has closed, and reading it is
+ * the last thing there is to do in the building.
+ */
+export function openReport(): void {
+  audio.play("ui_open");
+  useCafeStore.setState({ reportOpen: true, inputLocked: true });
+  useCafeStore
+    .getState()
+    .announce(
+      "An envelope propped against the hatch, in Priya's handwriting. The year at the corner.",
+    );
+}
+
+export function closeReport(): void {
+  audio.play("ui_close");
+  useCafeStore.setState({ reportOpen: false, inputLocked: false });
 }
 
 // ── The season ───────────────────────────────────────────────────────────────
@@ -386,7 +420,21 @@ export function closeConsequence(): void {
   if (beat !== "transfer") return;
 
   const durationSec = (Date.now() - missionStartedAt) / 1000;
-  useCafeStore.setState({ taken: {} });
+  // The week goes into the record before `taken` is cleared. This is the only
+  // memory the building keeps of what you decided, and the only thing that reads
+  // it is the letter by the pass-through nine weeks later (PRD §13.2).
+  useCafeStore.setState({
+    taken: {},
+    decided: [
+      ...useCafeStore.getState().decided.filter((d) => d.activityId !== activityId),
+      {
+        activityId,
+        seed: taken.seed ?? null,
+        follow: taken.follow ?? null,
+        transfer: taken.transfer ?? null,
+      },
+    ],
+  });
   void submitDecision(activityId, taken, durationSec).then((sent) => {
     if (sent) return;
     // The room has already moved. The score can catch up whenever the backend

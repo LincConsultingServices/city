@@ -18,6 +18,7 @@ const played: Season = {
   visitors: ["nadia"],
   playerCell: { x: 9, y: 4 },
   unsent: [{ activityId: "C1-HARD-01", taken: { seed: "c", follow: "b" }, durationSec: 412 }],
+  decided: [{ activityId: "C1-HARD-01", seed: "c", follow: "b", transfer: "o_c1a" }],
 };
 
 beforeEach(() => {
@@ -28,6 +29,11 @@ describe("the season's save format", () => {
   it("is the document the server is going to want", () => {
     // PRD §19.2. Written in the server's shape now so the swap to BE-15/16 is
     // one implementation rather than a migration across save formats.
+    //
+    // `decided` is the one Café extension to that document: the end-of-season
+    // report is built from the trail (§13.2), and a trail that does not survive
+    // leaving is a report only somebody who played nine missions without ever
+    // shutting the laptop would ever see.
     const blob = toBlob(played);
     expect(Object.keys(blob).sort()).toEqual(
       [
@@ -39,6 +45,7 @@ describe("the season's save format", () => {
         "unsent",
         "visitors",
         "world",
+        "decided",
       ].sort(),
     );
     expect(blob.missionOrder).toBe(3);
