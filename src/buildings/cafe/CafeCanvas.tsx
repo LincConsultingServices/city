@@ -47,6 +47,7 @@ import { noteEvent, presentCast, toggleFlap, useCafeStore } from "./cafeStore";
 import { createTeardown } from "./teardown";
 import { CAST, castNear } from "./cast";
 import { createCast } from "./castView";
+import { FADE_S, lightForMission, mixLight, type Light } from "./light";
 
 const WALK_SPEED = 175; // px/sec — the city's pace, so indoors feels like outdoors
 const STEP_S = 0.18; // seconds per walk-cycle frame
@@ -133,7 +134,16 @@ export function CafeCanvas({
       const backdrop = new Sprite(Texture.WHITE);
       backdrop.tint = CAFE_PALETTE.void;
       const world = new Container();
-      root.addChild(backdrop, world);
+      // The season's light (light.ts): two screen-space quads over the finished
+      // frame — one multiplied for the grade, one added for the warmth. Doing it
+      // here rather than as a second light source in the bake means the week can
+      // change in 1.2 seconds without re-baking a single prop.
+      const grade = new Sprite(Texture.WHITE);
+      grade.blendMode = "multiply";
+      const glow = new Sprite(Texture.WHITE);
+      glow.blendMode = "add";
+      glow.tint = CAFE_PALETTE.lamp;
+      root.addChild(backdrop, world, grade, glow);
       app.stage.addChild(root);
       borrowed.onUndo(() => {
         app.stage.removeChild(root);
@@ -229,11 +239,42 @@ export function CafeCanvas({
       let lastW = 0;
       let lastH = 0;
 
+      // ── The season's light ──────────────────────────────────────────────────
+      // `shown` is what is on the screen this frame, `into` is the week we are
+      // heading for, and `fade` runs 0→1 over FADE_S. The week is read off the
+      // runner rather than off `world.season`, because the light is a property
+      // of when you are, not of anything you decided (PRD §3.4).
+      let shown: Light = lightForMission(useCafeStore.getState().progress.missionOrder);
+      let from: Light = shown;
+      let into: Light = shown;
+      let fade = 1;
+      let litOrder = useCafeStore.getState().progress.missionOrder;
+
       const tick = (ticker: { deltaMS: number }) => {
         if (destroyed) return;
         const dt = ticker.deltaMS / 1000;
         elapsed += dt;
         const locked = useCafeStore.getState().inputLocked;
+
+        // Between weeks the screen does not cut away — the light shifts under
+        // the player while they are still standing in the room. Announced on
+        // arrival rather than on departure, so what is said matches what is lit.
+        const order = useCafeStore.getState().progress.missionOrder;
+        if (order !== litOrder) {
+          litOrder = order;
+          from = shown;
+          into = lightForMission(order);
+          fade = reduced ? 1 : 0;
+          if (reduced) store.announce(into.says);
+        }
+        if (fade < 1) {
+          fade = Math.min(1, fade + dt / FADE_S);
+          if (fade >= 1) store.announce(into.says);
+        }
+        shown = fade >= 1 ? into : mixLight(from, into, fade);
+        grade.tint = shown.tint;
+        grade.alpha = shown.grade;
+        glow.alpha = shown.glow;
 
         // A station button asking the room to walk somewhere. Polled rather than
         // subscribed: the ticker is already reading this store every frame, and a
@@ -374,6 +415,10 @@ export function CafeCanvas({
           lastH = sh;
           backdrop.width = sw;
           backdrop.height = sh;
+          grade.width = sw;
+          grade.height = sh;
+          glow.width = sw;
+          glow.height = sh;
           const scale = Math.min(
             1,
             (sw - VIEWPORT_PAD) / ROOM_PX_W,
@@ -400,6 +445,9 @@ export function CafeCanvas({
       store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
       store.setNearCast(castNear(curCell, cast.positions())?.id ?? null);
       audio.preload(["step_hard_1", "step_hard_2"]);
+      // What time of year you have walked back into. A returning player mid-season
+      // sees it; this is how everyone else gets it.
+      store.announce(shown.says);
 
       // Unmounted while we were building? Hand it all straight back — the React
       // cleanup already ran and found nothing to clean.
