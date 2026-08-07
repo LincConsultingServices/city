@@ -3,7 +3,14 @@ import { findPath, type Cell } from "@/lib/pathfinding";
 import { GATES, GUIDE, HOTSPOTS, SPAWN, STATIONS, makeRoomGrid, type GateId } from "./room";
 import { CAST, type CastId } from "./cast";
 import { isLegal, isWorldKey, type WorldKey } from "./world";
-import { MISSIONS, beatsDone, decideBeats, missionByOrder } from "./missions";
+import { MISSIONS, PRO_MISSIONS, beatsDone, decideBeats, missionByOrder } from "./missions";
+
+/**
+ * Both tracks. Every rule below is about what a mission *is* rather than about
+ * which season it belongs to, so a rule that held on nine and not eighteen would
+ * be a rule Level B could quietly break.
+ */
+const SEASONS = [...MISSIONS, ...PRO_MISSIONS];
 import {
   SEASON_START,
   advance,
@@ -64,7 +71,7 @@ describe("the season", () => {
   it("makes you do something in the room before it asks you anything", () => {
     // The failure mode this whole structure exists to prevent: decisions as
     // modals in a nice backdrop (PRD §18.4).
-    for (const m of MISSIONS) {
+    for (const m of SEASONS) {
       const firstDecide = m.objectives.findIndex((o) => o.kind === "decide");
       expect(firstDecide, `${m.activityId} opens on a decision`).toBeGreaterThan(0);
       const before = m.objectives.slice(0, firstDecide);
@@ -76,7 +83,7 @@ describe("the season", () => {
   });
 
   it("leaves every mission with something the player can point at", () => {
-    for (const m of MISSIONS) {
+    for (const m of SEASONS) {
       const keys = Object.keys(m.closeWorldState);
       expect(keys.length, `${m.activityId} closes changing nothing`).toBeGreaterThan(0);
       for (const [k, v] of Object.entries(m.closeWorldState)) {
@@ -89,7 +96,7 @@ describe("the season", () => {
   it("only lets the generated beat write legal world state", () => {
     // Anything else and the model can invent a value that silently stops
     // rendering (PRD §9.6.3, gate 8).
-    for (const m of MISSIONS) {
+    for (const m of SEASONS) {
       expect(m.aiWorldCandidates.length, `${m.activityId} offers no writes`).toBeGreaterThan(0);
       for (const patch of m.aiWorldCandidates) {
         for (const [k, v] of Object.entries(patch)) {
@@ -101,7 +108,7 @@ describe("the season", () => {
   });
 
   it("points every objective at something that exists", () => {
-    for (const m of MISSIONS) {
+    for (const m of SEASONS) {
       for (const o of m.objectives) {
         const where = `${m.activityId} ${o.kind} ${o.target}`;
         if (o.kind === "decide") {
@@ -118,7 +125,7 @@ describe("the season", () => {
   it("keeps every go_to reachable, and in the guided-nav list", () => {
     // An objective you cannot reach without a mouse is a blocked season.
     const guideIds = new Set(GUIDE.map((p) => p.id));
-    for (const m of MISSIONS) {
+    for (const m of SEASONS) {
       for (const o of m.objectives.filter((x) => x.kind === "go_to")) {
         const cell = cellOf(o.target);
         expect(cell, `${m.activityId} sends you to unknown ${o.target}`).toBeTruthy();
@@ -129,7 +136,7 @@ describe("the season", () => {
   });
 
   it("writes every tracker line in the room's own words", () => {
-    for (const m of MISSIONS) {
+    for (const m of SEASONS) {
       for (const o of m.objectives) {
         expect(o.line.trim(), `${m.activityId} has a blank line`).toBeTruthy();
         expect(o.line, `${m.activityId}: "${o.line}"`).not.toMatch(/objective|step \d|task/i);
@@ -150,7 +157,7 @@ describe("the season", () => {
   });
 
   it("never asks a mission to report to nobody", () => {
-    for (const m of MISSIONS) {
+    for (const m of SEASONS) {
       for (const o of m.objectives.filter((x) => x.kind === "report")) {
         expect(castIds.has(o.target), `${m.activityId} reports to ${o.target}`).toBe(true);
       }

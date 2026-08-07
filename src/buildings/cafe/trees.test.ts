@@ -71,6 +71,23 @@ describe("the shape of a decision", () => {
     }
   });
 
+  it("gives every leaf a change the player can point at", () => {
+    // PRD §18.3's content rule, and §18.2's eleventh acceptance criterion behind
+    // it: a decision whose outcome exists only as a sentence is a decision the
+    // room did not actually take. It caught three leaves on the branch where you
+    // pass on the supplier's offer — "nothing happened" is exactly the shape
+    // this rule exists to refuse, because the money staying put *is* the change.
+    for (const tree of Object.values(TREES)) {
+      const all = [...tree.seed, ...Object.values(tree.follow).flatMap((f) => f.choices)];
+      for (const c of all) {
+        expect(
+          Object.keys(c.world ?? {}).length,
+          `${tree.activityId}.${c.id} changes nothing in the room`,
+        ).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("gives every option a consequence the room can play", () => {
     for (const tree of Object.values(TREES)) {
       const all = [...tree.seed, ...Object.values(tree.follow).flatMap((f) => f.choices)];
@@ -181,6 +198,13 @@ describe("the season is completely written", () => {
     for (const m of SEASONS) {
       expect(TREES[m.activityId], `${m.activityId} has no tree`).toBeTruthy();
     }
+  });
+
+  it("ships exactly eighteen fallback beats, one per registry row", () => {
+    // §18.3 counts them explicitly, because the failure it is guarding against
+    // is a season that works right up until the generator is switched off.
+    expect(Object.keys(FOLLOWUPS)).toHaveLength(18);
+    expect(new Set(Object.values(FOLLOWUPS).map((f) => f.activityId)).size).toBe(18);
   });
 
   it("gives every mission a transfer beat to fall back on", () => {

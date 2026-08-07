@@ -261,6 +261,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
         text: "Pass. Tying that much cash to a forecast you don't have is the kind of risk that only looks smart in hindsight.",
         consequence:
           "You pass. Ray shrugs and takes the folder back out to the van. In November the price is exactly where he said it would be and you pay it without much feeling about it.",
+        world: { till: "healthy" },
       },
       {
         id: "b",
@@ -287,6 +288,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
             text: "Ask him what the next one looks like and get the date in the diary, so the answer is a decision rather than a reaction.",
             consequence:
               "He gives you a date in February and a rough number. You spend January working out what you would need to be true to say yes to it.",
+            world: { till: "healthy" },
           },
           {
             id: "b",
@@ -300,6 +302,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
             text: "Say plainly that I said no because I could not model it, and ask him to bring me the numbers three weeks earlier next time.",
             consequence:
               "Ray says nobody has ever asked him that. The next offer arrives three weeks ahead with the previous year's volumes attached, unprompted.",
+            world: { beans: "good" },
           },
         ],
       },
