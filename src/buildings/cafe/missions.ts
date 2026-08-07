@@ -11,6 +11,7 @@
 // here knows about Pixi, the store, or the clock.
 import type { CastId } from "./cast";
 import type { WorldPatch } from "./world";
+import { activityIdFor, trackOrDefault, type Track } from "./track";
 
 export type ObjectiveKind = "go_to" | "wait_for" | "talk_to" | "inspect" | "decide" | "report";
 
@@ -285,6 +286,106 @@ export const MISSIONS: readonly Mission[] = [
   },
 ];
 
+// ── Level B ──────────────────────────────────────────────────────────────────
+//
+// Same nine weeks, same room, same chain shape. What changes is the weight: in
+// Level B every option has a defensible case and a real price, and the follow-up
+// is where the price arrives (PRD §14). The overrides below are the staging and
+// the routing; the decisions themselves are in trees.ts.
+//
+// Derived from the Level A table rather than written out again, so the season's
+// shape — nine orders, nine weeks, the three `decide` beats at the end of every
+// chain — cannot drift between the two tracks. Anything a track really does
+// differently has to be named here, which is the point.
+
+type ProOverride = Partial<Pick<Mission, "title" | "staging" | "host" | "standIn" | "objectives">>;
+
+const PRO_OVERRIDES: Readonly<Record<string, ProOverride>> = {
+  C1: {
+    staging:
+      "8:05, and you have stood behind a counter at this hour before. Nadia's already reaching for her card. Tomas is on the bar because Priya cannot do six mornings, which is a problem you have not solved yet and can hear behind you.",
+  },
+  C2: {
+    title: "The Drink You Championed",
+    staging:
+      "You told the team to get behind it. They did. It isn't working, and they are watching to see what you do about having been wrong.",
+  },
+  C3: {
+    title: "Thirty Per Cent",
+    staging:
+      "A bulk offer at thirty per cent off, placed today or not at all. The saving is real. It would take most of your spare cash, and you have no idea what the quarter after next looks like.",
+    // The supplier's letter is pinned by the hatch from week one on this track,
+    // so the offer arrives as paper before it arrives as a person.
+    objectives: [
+      { kind: "inspect", target: "ht_pass", line: "read the supplier's letter" },
+      {
+        kind: "wait_for",
+        target: "ray",
+        line: "he said he'd come by",
+        cue: "The bell, and Ray with a folder under his arm.",
+      },
+      { kind: "talk_to", target: "ray", line: "hear the offer" },
+      ...decide,
+      { kind: "report", target: "priya", line: "tell Priya what you've committed to" },
+    ],
+  },
+  C4: {
+    staging:
+      "22:30. Chairs up, machine cooling and ticking as it goes. The month's takings are the best four weeks since you took the place on. It is also August, and you have run a room long enough to know what September looks like.",
+  },
+  C5: {
+    title: "Forty Per Cent of You",
+    staging:
+      "The app drives forty per cent of your orders and has just raised its commission. Leaving costs you that volume overnight; staying costs you the margin. Whatever you decide today you will be living inside for two years.",
+  },
+  C6: {
+    title: "The Account",
+    staging:
+      "Steady revenue, a year's commitment, and terms that would leave you working at roughly nothing. She mentions, pleasantly, that she has other options.",
+  },
+  C7: {
+    title: "The Best One",
+    staging:
+      "Tomas is the fastest pair of hands you have and the reason two other people are miserable. Cracking down risks losing him. Not cracking down risks losing them.",
+    // The conversation is with Tomas, and it happens where the floor cannot hear
+    // it — which on this track is the whole mechanism rather than the setting.
+    objectives: [
+      { kind: "inspect", target: "ht_pass", line: "check the rota" },
+      { kind: "talk_to", target: "priya", line: "ask Priya what she's seeing" },
+      { kind: "talk_to", target: "tomas", line: "ask Tomas to step through" },
+      {
+        kind: "go_to",
+        target: "ht_pass",
+        line: "out of earshot",
+        cue: "The floor goes quiet behind you. Out of earshot, by about two metres.",
+      },
+      ...decide,
+      { kind: "report", target: "priya", line: "tell Priya where that landed" },
+    ],
+  },
+  C8: {
+    title: "The Quiet Cut",
+    staging:
+      "There is a reduction you could make that this quarter needs and almost nobody would notice for a while. The sample is on the counter end and the invoice is folded underneath it.",
+  },
+  C9: {
+    title: "Three Weeks Down",
+    staging:
+      "Well-funded competition, three straight weeks of decline, staff who have started reading the room, and cash that is tightening. This is the third hard stretch this year.",
+  },
+};
+
+/** The Level B season. Same shape, different weight. */
+export const PRO_MISSIONS: readonly Mission[] = MISSIONS.map((mission) => ({
+  ...mission,
+  activityId: activityIdFor(mission.competency, "PRO"),
+  ...PRO_OVERRIDES[mission.competency],
+}));
+
+export function seasonFor(track: Track): readonly Mission[] {
+  return track === "PRO" ? PRO_MISSIONS : MISSIONS;
+}
+
 /**
  * Who asks the question (PRD §19.5, ADR-006 §9). The host if they are still in
  * the room; the mission's stand-in if it has one; then Priya, who is the anchor
@@ -301,8 +402,15 @@ export function resolveSpeaker(mission: Mission, present: readonly CastId[]): Ca
   return "room";
 }
 
-export function missionByOrder(order: number): Mission | null {
-  return MISSIONS.find((m) => m.order === order) ?? null;
+/**
+ * The mission at this point in the season, on the track the player answered
+ * Priya with. The two seasons run the same nine orders and the same nine weeks,
+ * so everything that only cares about *when* you are — the light, whether the
+ * café is shut that night, the tracker's ordinal — can keep reading the Level A
+ * table and be right on both tracks.
+ */
+export function missionByOrder(order: number, track: Track = trackOrDefault()): Mission | null {
+  return seasonFor(track).find((m) => m.order === order) ?? null;
 }
 
 /** The three `decide` beats, which are always the last three of a chain. */

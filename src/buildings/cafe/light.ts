@@ -15,6 +15,7 @@
 // a low-vision player, so `grade` is clamped below 1 and the night beat is a
 // deep blue at 0.62 rather than black at 0.95. You can still see the chairs.
 import { MISSIONS } from "./missions";
+import { trackOrDefault } from "./track";
 
 export interface Light {
   /** Multiplied over the whole frame. */
@@ -125,7 +126,10 @@ export function lightForWeek(week: number): Light {
  */
 export function lightForMission(missionOrder: number): Light {
   const mission = MISSIONS.find((m) => m.order === missionOrder);
-  return mission ? lightForWeek(mission.week) : AFTER_LIGHT;
+  const light = mission ? lightForWeek(mission.week) : AFTER_LIGHT;
+  // Both seasons run the same nine weeks, so the week comes off the Level A
+  // table on either track. Only the grade differs.
+  return trackOrDefault() === "PRO" ? cooled(light) : light;
 }
 
 /**

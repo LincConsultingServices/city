@@ -36,6 +36,7 @@ import { Tracker } from "./Tracker";
 import { Dialogue } from "./Dialogue";
 import { currentObjective, seasonIsOver, type Progress } from "./missionRunner";
 import { Report } from "./Report";
+import { Threshold, thresholdIsDue } from "./Threshold";
 import type { Beat } from "./missions";
 import { HOTSPOTS as ALL_SPOTS, STATIONS as ALL_STATIONS } from "./room";
 
@@ -68,6 +69,11 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   // the canvas's own gate set in step (the canvas boots with no gates open).
   useEffect(() => {
     resetCafeState();
+    // Priya gets her question in before the first mission does. It locks input
+    // the same way any decision does, because it is one.
+    if (thresholdIsDue()) {
+      useCafeStore.setState({ thresholdOpen: true, inputLocked: true });
+    }
   }, []);
 
   const objective = currentObjective(progress);
@@ -225,6 +231,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
       {ready && <Tracker />}
       <Dialogue />
       <Report />
+      <Threshold />
 
       {!ready && (
         <div className="absolute inset-0 grid place-items-center bg-ink">

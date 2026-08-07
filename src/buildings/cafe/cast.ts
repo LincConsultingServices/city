@@ -16,6 +16,7 @@ import type { Cardinal } from "@/world/assets";
 import type { PersonPalette } from "@/world/characterArt";
 import { GUIDE, type GuidePlace } from "./room";
 import { marcusIsIn, type World } from "./world";
+import { trackOrDefault, type Track } from "./track";
 
 export type CastId = "priya" | "tomas" | "marcus" | "nadia" | "ray" | "ellery";
 
@@ -195,9 +196,15 @@ export const OPENING_CAST: readonly CastId[] = ["priya", "marcus"];
  * convention: she is the anchor every mission falls back to when its host is
  * absent, so a world state that took her out would be a world state where a beat
  * has nobody to speak it.
+ *
+ * **Tomas is on the floor from week one on Level B** (PRD §14). He is the
+ * staffing problem, and on that track the staffing problem is in the room from
+ * the start rather than arriving in week 14 — which is most of what makes the
+ * same nine weeks read heavier.
  */
-export function castFor(world: World): CastId[] {
+export function castFor(world: World, track: Track = trackOrDefault()): CastId[] {
   const here: CastId[] = ["priya"];
+  if (track === "PRO") here.push("tomas");
   if (marcusIsIn(world)) here.push("marcus");
   return here;
 }

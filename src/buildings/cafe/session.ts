@@ -18,7 +18,8 @@ import { loadJson, saveJson } from "@/lib/persist";
 import type { CastId } from "./cast";
 import type { DecisionSoFar } from "./dialogue";
 import { SEASON_START, type Progress } from "./missionRunner";
-import { OPENING_WORLD, applyPatch, type World } from "./world";
+import { OPENING_WORLD, applyPatch, openingWorldFor, type World } from "./world";
+import { trackOrDefault } from "./track";
 import type { Decided } from "./report";
 
 const KEY = "city.cafe.season";
@@ -156,7 +157,9 @@ export function clearSeason(): void {
 export function freshSeason(): Season {
   return {
     progress: SEASON_START,
-    world: { ...OPENING_WORLD },
+    // Level B opens with the awning already up across the road, so a fresh
+    // season on that track starts under the pressure rather than building to it.
+    world: openingWorldFor(trackOrDefault()),
     taken: {},
     visitors: [],
     playerCell: { x: 4, y: 8 },

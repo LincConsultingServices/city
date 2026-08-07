@@ -14,6 +14,7 @@
 // it, so a bad write is a no-op rather than a room with a hole in it — the same
 // stance the backend takes on the world state it is sent.
 import type { Cell } from "@/lib/pathfinding";
+import { trackOrDefault, type Track } from "./track";
 
 export const WORLD_KEYS = {
   /** The board above the counter, rewritten in Priya's hand between weeks. */
@@ -70,6 +71,17 @@ export const OPENING_WORLD: World = {
   rival: "none",
   season: "spring",
 };
+
+/**
+ * Week one on the track you are on. Level B opens with the rival's awning
+ * already up across the road (PRD §14): the pressure is visible through the
+ * glass from the first minute rather than arriving in week 18, which is the
+ * difference between a season that builds to a threat and one that is run under
+ * one from the start.
+ */
+export function openingWorldFor(track: Track): World {
+  return track === "PRO" ? { ...OPENING_WORLD, rival: "open" } : { ...OPENING_WORLD };
+}
 
 const KEYS = Object.keys(WORLD_KEYS) as WorldKey[];
 
@@ -237,9 +249,15 @@ export function noticeboardBody(world: World): string {
 }
 
 /** The pass-through. The only corner of this room the floor cannot hear. */
-export function passThroughBody(world: World): string {
+export function passThroughBody(world: World, track: Track = trackOrDefault()): string {
   const base =
     "Two metres out of earshot of the floor, which is the whole reason it matters. Through the hatch, the kitchen, and nobody in it.";
+  // Level B pins two more things here: the supplier's price-increase letter, and
+  // a second rota that somebody has already been through in pencil (PRD §14).
+  const paper =
+    track === "PRO"
+      ? " Pinned beside it: a letter from the supplier about next quarter's prices, and a second rota with two shifts crossed out and rewritten."
+      : "";
   const rota: Record<WorldValue<"staff">, string> = {
     easy: "The rota is pinned here and nobody has touched it since you put it up.",
     strained:
@@ -247,7 +265,7 @@ export function passThroughBody(world: World): string {
     trusting:
       "The rota is pinned here with a swap written in at the bottom and both names beside it.",
   };
-  return `${base} ${rota[world.staff]}`;
+  return `${base} ${rota[world.staff]}${paper}`;
 }
 
 /** The supplier's sample, and the invoice underneath it. */

@@ -99,6 +99,11 @@ interface CafeState {
   decided: Decided[];
   /** The letter by the pass-through is open. Only ever after week eighteen. */
   reportOpen: boolean;
+  /**
+   * Priya's question at the door is on screen. True exactly once per player, on
+   * their first entry into the first building that asks it (PRD §14).
+   */
+  thresholdOpen: boolean;
   /** True while a DOM panel is up — the room ignores clicks and WASD. */
   inputLocked: boolean;
   announcement: Announcement;
@@ -135,6 +140,7 @@ export const useCafeStore = create<CafeState>((set) => ({
   visitors: [],
   decided: [],
   reportOpen: false,
+  thresholdOpen: false,
   flapOpen: false,
   walkTo: null,
   inputLocked: false,
