@@ -49,10 +49,17 @@ import { CAST, castNear } from "./cast";
 import { createCast } from "./castView";
 import { FADE_S, lightForMission, mixLight, type Light } from "./light";
 import { createCustomers } from "./customersView";
+import { createSchedule } from "./ambient";
+import { createPigeon } from "./pigeon";
+import { marcusIsIn } from "./world";
 
 const WALK_SPEED = 175; // px/sec — the city's pace, so indoors feels like outdoors
 const STEP_S = 0.18; // seconds per walk-cycle frame
 const FLAP_SWING_S = 0.25;
+/** How long a single ambient steam beat keeps the group head puffing. */
+const STEAM_BURST_S = 2.6;
+/** How long the grinder shakes the machine. Matches ambient.ts's duck window. */
+const GRIND_S = 1.5;
 const VIEWPORT_PAD = 48; // breathing room around the room at the fitted scale
 const WALL_LIFT = 42; // half the back wall's height, for visual centring
 const MOVE_KEYS = new Set(["w", "a", "s", "d", "arrowup", "arrowleft", "arrowdown", "arrowright"]);
@@ -155,7 +162,7 @@ export function CafeCanvas({
       baked.push(...tex.all);
       world.addChild(buildFloor());
 
-      const { root: actors, flap } = buildFurniture(tex);
+      const { root: actors, flap, machine: machineSprite } = buildFurniture(tex);
       world.addChild(actors);
 
       // Steam off the espresso machine. Sits on the machine's own cell, lifted
@@ -201,6 +208,24 @@ export function CafeCanvas({
       // and are filed to the maintainer (PRD §20.7), so the beat ships on a
       // borrowed sound rather than not at all.
       const ringBell = () => audio.play("ui_open", { volume: 0.22, rate: 1.35 });
+
+      // ── The ambient layer ───────────────────────────────────────────────────
+      // §6's beat table, scheduled in ambient.ts and played here. The sounds are
+      // borrowed from the framework's eleven names — the Café's own are a closed
+      // union and are filed to the maintainer — so what ships is the cadence and
+      // the visuals, with the audio a one-table swap when the names land.
+      const beats = createSchedule(reduced);
+      const pigeonAt = mapToWorld(9, 0);
+      const pigeon = createPigeon({ x: pigeonAt.x, y: pigeonAt.y - 24 }, reduced);
+      pigeon.view.zIndex = 9 + 0 + 0.4;
+      actors.addChild(pigeon.view);
+      // Seconds of grinder shudder still to play on the hero prop, and where it
+      // sits when nothing is shaking it.
+      let grind = 0;
+      const machineBaseX = machineSprite?.position.x ?? 0;
+      // Seconds of steam still to come off the group head. §6 gives the machine
+      // "a short particle puff", not a permanent plume.
+      let steamFor = 0;
 
       const pathLine = new Graphics();
       world.addChild(pathLine);
@@ -403,7 +428,59 @@ export function CafeCanvas({
         // your own movement she would arrive un-speakable-to.
         store.setNearCast(castNear(curCell, cast.positions())?.id ?? null);
 
-        steam.update(dt);
+        // ── Ambient ───────────────────────────────────────────────────────────
+        // Somebody is at the machine when Priya is standing on the two cells in
+        // front of it. The steam is hers, not the room's.
+        const roomWorld = useCafeStore.getState().world;
+        const atMachine = cast
+          .positions()
+          .some((p) => p.cell.y <= 1 && p.cell.x >= 3 && p.cell.x <= 5);
+
+        for (const beat of beats.tick(dt, {
+          world: roomWorld,
+          missionOrder: order,
+          seated: customers.countInside(),
+          atMachine,
+        })) {
+          switch (beat) {
+            case "steam":
+              steamFor = STEAM_BURST_S;
+              break;
+            case "grinder":
+              // The one beat loud enough to be used deliberately before a hard
+              // line. It shakes the hero prop and holds the room for 1.5 s.
+              grind = GRIND_S;
+              audio.play("step_hard_1", { volume: 0.3, rate: 0.55 });
+              break;
+            case "cup":
+              audio.play("step_hard_2", { volume: 0.14, rate: 1.9 });
+              break;
+            case "wipe":
+              cast.nudge("priya");
+              break;
+            case "page":
+              if (marcusIsIn(roomWorld)) cast.nudge("marcus");
+              break;
+            case "pigeon":
+              pigeon.land();
+              break;
+          }
+        }
+
+        if (steamFor > 0) steamFor -= dt;
+        pigeon.update(dt);
+        if (machineSprite) {
+          // A hand-width of jitter for a beat and a half, then dead still. Any
+          // longer and it stops being a grinder and becomes a fault.
+          if (grind > 0) {
+            grind -= dt;
+            machineSprite.position.x = machineBaseX + Math.sin(elapsed * 70) * 0.9;
+          } else if (machineSprite.position.x !== machineBaseX) {
+            machineSprite.position.x = machineBaseX;
+          }
+        }
+
+        steam.update(dt, steamFor > 0);
         // Fed the player's cell rather than their pixels: everything the cast
         // does with it is a cell-distance question, and a cell changes ~30× less
         // often than a position does.

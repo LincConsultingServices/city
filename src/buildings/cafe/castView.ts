@@ -46,6 +46,8 @@ interface Actor {
   stepClock: number;
   /** So a room full of people does not breathe in unison. */
   phase: number;
+  /** Seconds of ambient movement still to play. */
+  nudge: number;
 }
 
 export interface CastView {
@@ -63,6 +65,14 @@ export interface CastView {
    * spot they started from.
    */
   positions(): CastAt[];
+  /**
+   * A one-off movement from the ambient layer: Priya wiping down, Marcus turning
+   * a page (PRD §6). Deliberately not a new animation — it is a short squash on
+   * the frame they are already showing, which at this size reads as somebody
+   * shifting in their seat and costs no textures. Ignored for anyone not in the
+   * room, and ignored under reduced motion.
+   */
+  nudge(id: CastId): void;
   destroy(): void;
 }
 
@@ -124,6 +134,7 @@ export function createCast(
       pause: CAST_PAUSE_S,
       stepClock: 0,
       phase: i * 1.7,
+      nudge: 0,
     };
   });
 
@@ -131,6 +142,12 @@ export function createCast(
 
   return {
     textures,
+
+    nudge(id) {
+      if (reduced) return;
+      const a = actors.find((x) => x.member.id === id);
+      if (a?.view.visible) a.nudge = NUDGE_S;
+    },
 
     // Only people who are actually in the room. Somebody hidden must not still
     // be answering the prompt to speak to them from behind the scenery.
@@ -144,7 +161,11 @@ export function createCast(
         const { member } = a;
         const here = present.has(member.id);
         if (a.view.visible !== here) a.view.visible = here;
-        if (!here) continue;
+        if (!here) {
+          a.nudge = 0;
+          continue;
+        }
+        if (a.nudge > 0) a.nudge = Math.max(0, a.nudge - dtS);
         const dist = Math.abs(player.x - a.cell.x) + Math.abs(player.y - a.cell.y);
         const noticed = dist <= member.noticesAt;
 
@@ -216,10 +237,24 @@ export function createCast(
   };
 }
 
+/** How long a wipe or a page turn takes. */
+const NUDGE_S = 0.9;
+/** How far it squashes them. Twice the breath, so it reads without being a gag. */
+const NUDGE = 0.03;
+
 /** Standing still: face the way they were left, and breathe. */
 function idlePose(a: Actor, elapsed: number, reduced: boolean): void {
   a.body.position.y = a.member.seated ? 4 : 0;
   a.body.scale.x = a.facing === "W" ? -1 : 1;
   const rest = a.member.seated ? 0.82 : 1;
-  a.body.scale.y = reduced ? rest : rest * (1 + BREATH * Math.sin(elapsed * 2 + a.phase));
+  if (reduced) {
+    a.body.scale.y = rest;
+    return;
+  }
+  // The nudge rides on top of the breath rather than replacing it — one full
+  // cycle over NUDGE_S, tapering as it runs out, so it settles rather than snaps.
+  const breath = BREATH * Math.sin(elapsed * 2 + a.phase);
+  const k = a.nudge / NUDGE_S;
+  const move = k > 0 ? NUDGE * k * Math.sin((1 - k) * Math.PI * 2) : 0;
+  a.body.scale.y = rest * (1 + breath + move);
 }
