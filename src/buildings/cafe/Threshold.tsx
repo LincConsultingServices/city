@@ -11,7 +11,7 @@
 //
 // Deliberately the same surface as a decision, because it is one.
 import { useEffect } from "react";
-import { THRESHOLD, activeTrack, setTrack, type Track } from "./track";
+import { THRESHOLD, setTrack, type Track } from "./track";
 import { castById } from "./cast";
 import { resetCafeState, useCafeStore } from "./cafeStore";
 import { audio } from "@/framework/audio/audioManager";
@@ -66,9 +66,4 @@ export function Threshold({ onAnswered }: { onAnswered?: () => void }) {
       </div>
     </div>
   );
-}
-
-/** Whether the player still has to answer. Read once, when the room opens. */
-export function thresholdIsDue(): boolean {
-  return activeTrack() === null;
 }

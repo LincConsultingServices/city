@@ -76,6 +76,11 @@ export function trackOrDefault(): Track {
   return activeTrack() ?? "HARD";
 }
 
+/** Whether the player still has to answer. Read once, when the room opens. */
+export function thresholdIsDue(): boolean {
+  return activeTrack() === null;
+}
+
 export function setTrack(track: Track): void {
   active = track;
   loaded = true;

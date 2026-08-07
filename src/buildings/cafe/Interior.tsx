@@ -36,7 +36,8 @@ import { Tracker } from "./Tracker";
 import { Dialogue } from "./Dialogue";
 import { currentObjective, seasonIsOver, type Progress } from "./missionRunner";
 import { Report } from "./Report";
-import { Threshold, thresholdIsDue } from "./Threshold";
+import { Threshold } from "./Threshold";
+import { thresholdIsDue } from "./track";
 import type { Beat } from "./missions";
 import { HOTSPOTS as ALL_SPOTS, STATIONS as ALL_STATIONS } from "./room";
 
