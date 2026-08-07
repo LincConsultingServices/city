@@ -18,6 +18,7 @@
 //   * no consequence tells the player whether they did well. The room reports
 //     what happened and stops there.
 import type { WorldPatch } from "./world";
+import { PRO_TREES } from "./treesPro";
 
 export interface Choice {
   /** "a" | "b" | "c" — the letter that goes on the wire in the trace path. */
@@ -59,7 +60,7 @@ export function tracePath(activityId: string, seed: string, follow: string): str
   ];
 }
 
-export const TREES: Readonly<Record<string, Tree>> = {
+const HARD_TREES: Readonly<Record<string, Tree>> = {
   // Fully worked in PRD §9.3. The seed and follow-up text below is the shipping
   // text from that section verbatim; the leaf consequences are authored to it.
   "C1-HARD-01": {
@@ -1084,6 +1085,13 @@ export const TREES: Readonly<Record<string, Tree>> = {
     },
   },
 };
+
+/**
+ * Both seasons, in one lookup. Nothing that plays a beat needs to know which
+ * track it is on — it has an activity id, and the ids are distinct across the
+ * eighteen rows, so the tree for a decision is a plain map read either way.
+ */
+export const TREES: Readonly<Record<string, Tree>> = { ...HARD_TREES, ...PRO_TREES };
 
 export function treeFor(activityId: string): Tree | null {
   return TREES[activityId] ?? null;

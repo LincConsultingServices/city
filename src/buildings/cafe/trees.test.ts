@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { TREES, tracePath, treeFor } from "./trees";
 import { FOLLOWUPS } from "./followups";
-import { MISSIONS, resolveSpeaker } from "./missions";
+import { MISSIONS, PRO_MISSIONS, resolveSpeaker } from "./missions";
+
+/** Both tracks. Everything in this file holds for eighteen rows or for none. */
+const SEASONS = [...MISSIONS, ...PRO_MISSIONS];
 import { OPENING_WORLD, WORLD_KEYS, isLegal, isWorldKey, type WorldKey } from "./world";
 import { CAST, type CastId } from "./cast";
 
@@ -108,7 +111,7 @@ describe("the shape of a decision", () => {
   it("names a tree by an activity the season actually runs", () => {
     for (const id of Object.keys(TREES)) {
       expect(
-        MISSIONS.some((m) => m.activityId === id),
+        SEASONS.some((m) => m.activityId === id),
         `${id} belongs to no mission`,
       ).toBe(true);
     }
@@ -175,7 +178,7 @@ describe("choice parity — the tier leak nobody looks for", () => {
 
 describe("the season is completely written", () => {
   it("gives every mission a decision", () => {
-    for (const m of MISSIONS) {
+    for (const m of SEASONS) {
       expect(TREES[m.activityId], `${m.activityId} has no tree`).toBeTruthy();
     }
   });
@@ -185,7 +188,7 @@ describe("the season is completely written", () => {
     // surprise, and this is the Café's version of that check. It is what makes
     // "nothing breaks with the generator switched off" a property of the
     // building rather than an intention about it.
-    for (const m of MISSIONS) {
+    for (const m of SEASONS) {
       expect(FOLLOWUPS[m.activityId], `${m.activityId} has no fallback beat`).toBeTruthy();
     }
   });
@@ -214,7 +217,7 @@ describe("the season is completely written", () => {
 describe("the transfer beat", () => {
   it("belongs to a mission and speaks as somebody in the building", () => {
     for (const beat of Object.values(FOLLOWUPS)) {
-      expect(MISSIONS.some((m) => m.activityId === beat.activityId)).toBe(true);
+      expect(SEASONS.some((m) => m.activityId === beat.activityId)).toBe(true);
       expect(beat.speakerId === "room" || castIds.has(beat.speakerId)).toBe(true);
       expect(beat.options).toHaveLength(3);
       expect(new Set(beat.options.map((o) => o.id)).size).toBe(3);

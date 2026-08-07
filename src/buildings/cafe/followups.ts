@@ -20,6 +20,7 @@
 // thin one without knowing what you chose to get there.
 import type { CastId } from "./cast";
 import type { World, WorldKey, WorldPatch } from "./world";
+import { PRO_FOLLOWUPS } from "./followupsPro";
 
 export interface FollowupOption {
   id: string;
@@ -44,7 +45,7 @@ export interface FollowupBeat {
   options: readonly FollowupOption[];
 }
 
-export const FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
+const HARD_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
   // Track A opens on the station café changing its hours, and varies on
   // `regulars` (PRD §9.6.4).
   "C1-HARD-01": {
@@ -377,6 +378,12 @@ export const FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
       },
     ],
   },
+};
+
+/** Both seasons. Eighteen rows, eighteen fallbacks, one lookup. */
+export const FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
+  ...HARD_FOLLOWUPS,
+  ...PRO_FOLLOWUPS,
 };
 
 export function followupFor(activityId: string): FollowupBeat | null {
