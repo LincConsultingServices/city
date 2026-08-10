@@ -106,6 +106,22 @@ interface CafeState {
   thresholdOpen: boolean;
   /** True while a DOM panel is up — the room ignores clicks and WASD. */
   inputLocked: boolean;
+  /**
+   * Whether the player has touched anything in the room yet this visit.
+   *
+   * The mission surfaces — the top panel and the cloud over somebody's head —
+   * stay down until this flips. Walking in is arriving somewhere, and a card
+   * that lands on the screen in the same second as the door closes reads as a
+   * quest log rather than as a job: the first thing the room does should be to
+   * let you stand in it. The moment you work the flap, read something, or say
+   * anything to anyone, you are on shift and the week arrives.
+   *
+   * Per-visit, not per-season: `resetCafeState()` puts it back down, so coming
+   * back in tomorrow gets the same beat. Nothing about the season depends on it
+   * — objectives advance whether or not it is up, so a player who walks to the
+   * counter first has simply done the first thing before being told to.
+   */
+  missionWoken: boolean;
   announcement: Announcement;
 
   setCharCell: (cell: Cell) => void;
@@ -144,6 +160,7 @@ export const useCafeStore = create<CafeState>((set) => ({
   flapOpen: false,
   walkTo: null,
   inputLocked: false,
+  missionWoken: false,
   announcement: { text: "", seq: 0 },
 
   setCharCell: (charCell) =>
@@ -195,6 +212,10 @@ export function toggleFlap(): boolean {
   s.setFlapOpen(next);
   audio.play(next ? "ui_open" : "ui_close");
   s.announce(next ? gate.openedSays : gate.closedSays);
+  // Working the flap is work. Here rather than only in `act()` because the flap
+  // is the one thing in the room you can also click directly, and a player who
+  // starts their shift by lifting it has started their shift either way.
+  wakeMission();
   return true;
 }
 
@@ -229,8 +250,21 @@ export function resetCafeState(): void {
     flapOpen: false,
     walkTo: null,
     inputLocked: false,
+    missionWoken: false,
     announcement: { text: "", seq: 0 },
   });
+}
+
+/**
+ * You have touched something, so the week can start. Called from the one place
+ * that knows an interaction happened — Interior's `act()` — and deliberately not
+ * from movement: crossing the room is not clocking on.
+ *
+ * Leaving is the exception `act()` keeps out of here. Pressing E in the doorway
+ * is going home, and going home must not be the thing that starts the shift.
+ */
+export function wakeMission(): void {
+  useCafeStore.setState((s) => (s.missionWoken ? s : { missionWoken: true }));
 }
 
 // ── Saving ───────────────────────────────────────────────────────────────────
@@ -380,6 +414,10 @@ export function openDialogue(beat: Beat): void {
   }
   useCafeStore.setState({ dialogue: next, consequence: null, inputLocked: true });
   s.announce(`${next.stage ? next.stage + " " : ""}${next.prompt}`);
+  // A player who left mid-decision and has just walked back in gets the question
+  // before they have touched anything. The room asking you something is the week
+  // having arrived, whoever started it, so the tracker comes up with it.
+  wakeMission();
 }
 
 /**

@@ -28,6 +28,7 @@ import {
   stopSpeaking,
   toggleFlap,
   useCafeStore,
+  wakeMission,
 } from "./cafeStore";
 import { GATES, HOTSPOTS, zoneAt } from "./room";
 import { atAnchors, castById, castFor, guideWithCast, type CastId } from "./cast";
@@ -65,6 +66,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const world = useCafeStore((s) => s.world);
   const progress = useCafeStore((s) => s.progress);
   const visitors = useCafeStore((s) => s.visitors);
+  const missionWoken = useCafeStore((s) => s.missionWoken);
 
   // Every visit starts at the door with the flap down, which keeps the store and
   // the canvas's own gate set in step (the canvas boots with no gates open).
@@ -157,7 +159,10 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     if (s.nearExit) {
       audio.play("ui_close");
       leaveNow();
-    } else if (s.nearGateId) {
+      return;
+    }
+
+    if (s.nearGateId) {
       toggleFlap();
     } else if (s.nearCastId) {
       speakTo(s.nearCastId);
@@ -165,7 +170,16 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
       openReport();
     } else if (s.nearHotspotId) {
       openHotspot(s.nearHotspotId);
+    } else {
+      // Nothing within reach. Pressing E at the middle of the floor is not work
+      // and must not start the week.
+      return;
     }
+
+    // Something happened, so the week can arrive (see `missionWoken`). Here
+    // rather than inside each branch; the flap wakes it through `toggleFlap`
+    // too, because it can also be clicked in the room without coming past here.
+    wakeMission();
   }, [leaveNow]);
 
   useEffect(() => {
@@ -229,7 +243,9 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
           has already given the city back by the time this fires. */}
       <CafeCanvas onReady={() => setReady(true)} onError={onExit} />
 
-      {ready && <Tracker />}
+      {/* Not until you have touched something. Walking in is arriving; the week
+          starts when you do. */}
+      {ready && missionWoken && <Tracker />}
       <Dialogue />
       <Report />
       <Threshold />

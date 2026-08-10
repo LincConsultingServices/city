@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { findPath, type Cell } from "@/lib/pathfinding";
+import { forgetTrack, setTrack } from "./track";
 import { GATES, GUIDE, HOTSPOTS, SPAWN, STATIONS, makeRoomGrid, type GateId } from "./room";
 import { CAST, type CastId } from "./cast";
 import { isLegal, isWorldKey, type WorldKey } from "./world";
@@ -15,12 +16,14 @@ import {
   SEASON_START,
   advance,
   beatsBehind,
+  calloutFor,
   currentMission,
   currentObjective,
   satisfies,
   seasonIsOver,
   trackerLine,
   trackerOrdinal,
+  trackerTitle,
 } from "./missionRunner";
 
 const open = makeRoomGrid(new Set(GATES.map((g) => g.id)) as ReadonlySet<GateId>);
@@ -177,6 +180,13 @@ describe("running a mission", () => {
     expect(currentObjective(SEASON_START)?.target).toBe("st_counter");
     expect(trackerLine(SEASON_START)).toBe("take the counter");
     expect(trackerOrdinal(SEASON_START)).toBe("mission 1 of 9");
+    expect(trackerTitle(SEASON_START)).toBe("The Dairy-Free Question");
+  });
+
+  it("stops naming a mission once there is not one", () => {
+    // The title goes the same way the line and the ordinal do — the panel
+    // disappears rather than sitting there naming a week that has closed.
+    expect(trackerTitle({ missionOrder: MISSIONS.length + 1, objectiveIndex: 0 })).toBeNull();
   });
 
   it("shows exactly one line at a time", () => {
@@ -271,6 +281,44 @@ describe("running a mission", () => {
     const beat = { kind: "decide" as const, target: "follow", line: "decide" };
     expect(satisfies(beat, { kind: "decided", beat: "follow" }, cellOf)).toBe(true);
     expect(satisfies(beat, { kind: "decided", beat: "seed" }, cellOf)).toBe(false);
+  });
+});
+
+/**
+ * The cloud over somebody's head. It answers one question the tracker cannot
+ * answer from across the room — who to walk up to — so what it may point at is
+ * worth pinning down as hard as what the tracker may say.
+ */
+describe("the callout", () => {
+  afterEach(forgetTrack);
+
+  for (const track of ["HARD", "PRO"] as const) {
+    it(`points at a person for exactly the person objectives (${track})`, () => {
+      setTrack(track);
+      for (let order = 1; order <= MISSIONS.length; order++) {
+        const mission = missionByOrder(order)!;
+        mission.objectives.forEach((o, objectiveIndex) => {
+          const where = `${mission.activityId} #${objectiveIndex} ${o.kind} ${o.target}`;
+          const call = calloutFor({ missionOrder: order, objectiveIndex });
+
+          if (o.kind === "wait_for" || o.kind === "talk_to" || o.kind === "report") {
+            expect(call, where).toEqual({ id: o.target, line: o.line });
+            // A cloud over somebody who is not in the cast is a cloud over
+            // nobody, which is worse than not drawing one.
+            expect(castIds.has(call!.id), where).toBe(true);
+          } else {
+            // Places and beats get nothing. `go_to` and `inspect` are already
+            // reachable by name from the "go to" row, and a `decide` is a
+            // dialogue about to open, not somewhere to walk.
+            expect(call, where).toBeNull();
+          }
+        });
+      }
+    });
+  }
+
+  it("says nothing once the season is over", () => {
+    expect(calloutFor({ missionOrder: MISSIONS.length + 1, objectiveIndex: 0 })).toBeNull();
   });
 });
 

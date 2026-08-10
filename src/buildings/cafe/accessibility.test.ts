@@ -10,10 +10,11 @@
 import { describe, it, expect } from "vitest";
 import { GUIDE, HOTSPOTS, ZONES } from "./room";
 import { CAST, guideWithCast, atAnchors } from "./cast";
-import { MISSIONS, PRO_MISSIONS } from "./missions";
+import { MISSIONS, PRO_MISSIONS, missionByOrder } from "./missions";
+import { calloutFor, trackerLine } from "./missionRunner";
 import { WORLD_KEYS, announcementFor, hotspotBody, OPENING_WORLD, type WorldKey } from "./world";
 import { lightForWeek, MAX_GRADE } from "./light";
-import { THRESHOLD } from "./track";
+import { THRESHOLD, forgetTrack, setTrack } from "./track";
 
 const SEASONS = [...MISSIONS, ...PRO_MISSIONS];
 
@@ -142,6 +143,28 @@ describe("the tracker and the question at the door", () => {
         expect(objective.line.length, objective.line).toBeLessThan(48);
       }
     }
+  });
+
+  it("never lets the cloud say anything the tracker has not already said", () => {
+    // The callout cloud is drawn into the canvas, over somebody's head, and is
+    // therefore invisible to a screen reader by construction. That is only
+    // acceptable while it is a repeat: every line it can ever show has to be the
+    // live objective's own line, which is real DOM under a polite live region.
+    // The day it carries a word of its own is the day half the audience stops
+    // being told who to walk up to.
+    for (const track of ["HARD", "PRO"] as const) {
+      setTrack(track);
+      for (let order = 1; order <= MISSIONS.length; order++) {
+        const mission = missionByOrder(order)!;
+        mission.objectives.forEach((_, objectiveIndex) => {
+          const p = { missionOrder: order, objectiveIndex };
+          const call = calloutFor(p);
+          if (call)
+            expect(call.line, `${mission.activityId} #${objectiveIndex}`).toBe(trackerLine(p));
+        });
+      }
+    }
+    forgetTrack();
   });
 
   it("puts the threshold question in the live region's reach", () => {

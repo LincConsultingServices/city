@@ -1,0 +1,62 @@
+// When the week arrives.
+//
+// The mission surfaces — the panel at the top and the cloud over somebody's head
+// — are down when the player walks in and come up the first time they work
+// something in the room. Walking in is arriving somewhere; a card that lands in
+// the same second as the door closes reads as a quest log rather than as a job.
+//
+// What is checked here is that this is a *presentation* rule and nothing more:
+// the season does not wait on it, so nothing about progress, the world, or what
+// is submitted can be reached only by a player who happened to press E.
+import { describe, it, expect, beforeEach } from "vitest";
+import { resetCafeState, toggleFlap, useCafeStore, wakeMission } from "./cafeStore";
+import { clearSeason } from "./session";
+import { SEASON_START, advance } from "./missionRunner";
+import { STATIONS } from "./room";
+
+const woken = () => useCafeStore.getState().missionWoken;
+
+beforeEach(() => {
+  clearSeason();
+  resetCafeState();
+});
+
+describe("waking the mission", () => {
+  it("starts every visit down", () => {
+    expect(woken()).toBe(false);
+  });
+
+  it("comes up once, and staying up costs nothing", () => {
+    const before = useCafeStore.getState();
+    wakeMission();
+    expect(woken()).toBe(true);
+
+    // Identity-guarded like the ticker's own setters: waking an already-woken
+    // room must not push a new state object at React.
+    const after = useCafeStore.getState();
+    wakeMission();
+    expect(useCafeStore.getState()).toBe(after);
+    expect(after).not.toBe(before);
+  });
+
+  it("counts working the flap, which can be clicked without going through act()", () => {
+    expect(toggleFlap()).toBe(true);
+    expect(woken()).toBe(true);
+  });
+
+  it("goes back down when you come back in", () => {
+    wakeMission();
+    resetCafeState();
+    expect(woken()).toBe(false);
+  });
+
+  it("holds nothing about the season back", () => {
+    // The point of the rule is that it is only ever about what is on screen. A
+    // player who crosses to the counter before touching anything has still taken
+    // the counter, and the objective moves on whether or not they were told to.
+    const counter = STATIONS.find((s) => s.id === "st_counter")!;
+    const moved = advance(SEASON_START, { kind: "moved", cell: counter.cell }, () => counter.cell);
+    expect(moved.next.objectiveIndex).toBe(1);
+    expect(woken()).toBe(false);
+  });
+});

@@ -32,6 +32,10 @@ module.exports = {
           from: { opacity: "0", transform: "translateY(10px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "slide-down": {
+          from: { opacity: "0", transform: "translateY(-10px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
         "float-up": {
           "0%": { opacity: "0", transform: "translateY(4px)" },
           "20%": { opacity: "1" },
@@ -54,6 +58,7 @@ module.exports = {
         "fade-in": "fade-in 0.2s ease-out",
         "pop-in": "pop-in 0.22s cubic-bezier(0.34, 1.4, 0.64, 1)",
         "slide-up": "slide-up 0.25s ease-out",
+        "slide-down": "slide-down 0.25s ease-out",
         "float-up": "float-up 1.6s ease-out forwards",
         twinkle: "twinkle 4s ease-in-out infinite",
         "drift-a": "drift-x 18s ease-in-out infinite alternate",

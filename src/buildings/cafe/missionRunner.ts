@@ -12,6 +12,7 @@
 // to put a number on, which is exactly why it is written down here that it isn't
 // (PRD §11.1).
 import type { Cell } from "@/lib/pathfinding";
+import type { CastId } from "./cast";
 import { MISSIONS, beatsDone, missionByOrder, type Mission, type Objective } from "./missions";
 
 /** What the room tells the runner. Facts, never judgements. */
@@ -134,4 +135,33 @@ export function trackerLine(p: Progress): string | null {
 export function trackerOrdinal(p: Progress): string | null {
   if (seasonIsOver(p)) return null;
   return `mission ${p.missionOrder} of ${MISSIONS.length}`;
+}
+
+/**
+ * The mission's own name — "The Dairy-Free Question". Which week you are in the
+ * middle of, which is the same register as the ordinal: place, not quality.
+ */
+export function trackerTitle(p: Progress): string | null {
+  return currentMission(p)?.title ?? null;
+}
+
+/** The three objective kinds that name a person rather than a place or a beat. */
+const POINTS_AT_PERSON: ReadonlySet<Objective["kind"]> = new Set(["wait_for", "talk_to", "report"]);
+
+/**
+ * Who the live objective is pointing at, and what to say over their head.
+ *
+ * Only the three kinds that name somebody. `go_to` and `inspect` name places,
+ * which the "go to" list already reaches by name, and `decide` names a beat that
+ * is about to open as a dialogue — a cloud over any of those would be pointing
+ * at something the player cannot walk up to.
+ *
+ * The line is the tracker's own, deliberately: the cloud answers "who do I
+ * approach" and must never become a second place to put content, because a
+ * player who cannot see the room would never receive it (PRD §15).
+ */
+export function calloutFor(p: Progress): { id: CastId; line: string } | null {
+  const objective = currentObjective(p);
+  if (!objective || !POINTS_AT_PERSON.has(objective.kind)) return null;
+  return { id: objective.target as CastId, line: objective.line };
 }

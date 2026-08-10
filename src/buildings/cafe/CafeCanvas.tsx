@@ -47,6 +47,7 @@ import { noteEvent, presentCast, toggleFlap, useCafeStore } from "./cafeStore";
 import { createTeardown } from "./teardown";
 import { CAST, castNear } from "./cast";
 import { createCast } from "./castView";
+import { calloutFor } from "./missionRunner";
 import { FADE_S, lightForMission, mixLight, type Light } from "./light";
 import { createCustomers } from "./customersView";
 import { createSchedule } from "./ambient";
@@ -296,7 +297,8 @@ export function CafeCanvas({
         // Between weeks the screen does not cut away — the light shifts under
         // the player while they are still standing in the room. Announced on
         // arrival rather than on departure, so what is said matches what is lit.
-        const order = useCafeStore.getState().progress.missionOrder;
+        const { progress, missionWoken: woken } = useCafeStore.getState();
+        const order = progress.missionOrder;
         if (order !== litOrder) {
           litOrder = order;
           from = shown;
@@ -485,6 +487,14 @@ export function CafeCanvas({
         // does with it is a cell-distance question, and a cell changes ~30× less
         // often than a position does.
         cast.update(dt, curCell, presentNow());
+        // Whoever the live objective is pointing at gets the line over their
+        // head. The tracker says what to do; this says who to walk to, which is
+        // the one question a panel cannot answer from across the room.
+        //
+        // Down until the player has touched something, with the tracker and for
+        // the same reason: the room should be a room first (see `missionWoken`).
+        const call = woken ? calloutFor(progress) : null;
+        cast.callOut(call?.id ?? null, call?.line ?? "");
         customers.update(dt, useCafeStore.getState().world, order, ringBell);
 
         // The flap swing. Linear over FLAP_SWING_S so it reads as a hinge rather
