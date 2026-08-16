@@ -14,10 +14,18 @@ import { CafeCanvas } from "./CafeCanvas";
 
 /** How long the bell takes to go after a `wait_for` opens. */
 const ARRIVAL_MS = 2200;
+/**
+ * How long they stand there before the objective waiting on them closes. The
+ * cloud over their head is up for exactly this long, and it is the only window
+ * in which "he's coming in" is a thing you can look at rather than a line that
+ * has already gone.
+ */
+const LINGER_MS = 1400;
 /** The beat in which whoever is asking finishes what they were doing first. */
 const BEAT_MS = 900;
 import {
   arrive,
+  showUp,
   closeHotspot,
   openDialogue,
   openReport,
@@ -88,8 +96,14 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const waitingFor = objective?.kind === "wait_for" ? (objective.target as CastId) : null;
   useEffect(() => {
     if (!waitingFor) return;
-    const t = window.setTimeout(() => arrive(waitingFor), ARRIVAL_MS);
-    return () => window.clearTimeout(t);
+    // Two beats, not one: they come through the door, and a moment later the
+    // objective they were holding open closes.
+    const walksIn = window.setTimeout(() => showUp(waitingFor), ARRIVAL_MS);
+    const lands = window.setTimeout(() => arrive(waitingFor), ARRIVAL_MS + LINGER_MS);
+    return () => {
+      window.clearTimeout(walksIn);
+      window.clearTimeout(lands);
+    };
   }, [waitingFor]);
 
   // A `decide` objective going live is the question arriving. The pause before

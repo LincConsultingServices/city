@@ -9,7 +9,14 @@
 // the season does not wait on it, so nothing about progress, the world, or what
 // is submitted can be reached only by a player who happened to press E.
 import { describe, it, expect, beforeEach } from "vitest";
-import { resetCafeState, toggleFlap, useCafeStore, wakeMission } from "./cafeStore";
+import {
+  noteEvent,
+  resetCafeState,
+  showUp,
+  toggleFlap,
+  useCafeStore,
+  wakeMission,
+} from "./cafeStore";
 import { clearSeason } from "./session";
 import { SEASON_START, advance } from "./missionRunner";
 import { STATIONS } from "./room";
@@ -58,5 +65,22 @@ describe("waking the mission", () => {
     const moved = advance(SEASON_START, { kind: "moved", cell: counter.cell }, () => counter.cell);
     expect(moved.next.objectiveIndex).toBe(1);
     expect(woken()).toBe(false);
+  });
+});
+
+describe("somebody walking in", () => {
+  it("puts them in the room without closing what is waiting on them", () => {
+    // The cloud over a `wait_for` target hangs off that person, so there has to
+    // be a moment where they are in the room and the objective is still open.
+    // These were one call, and that moment did not exist.
+    noteEvent({ kind: "moved", cell: STATIONS.find((p) => p.id === "st_counter")!.cell });
+    const waiting = useCafeStore.getState().progress;
+
+    showUp("nadia");
+    expect(useCafeStore.getState().visitors).toContain("nadia");
+    expect(useCafeStore.getState().progress, "arrival closed it early").toEqual(waiting);
+
+    noteEvent({ kind: "arrived", id: "nadia" });
+    expect(useCafeStore.getState().progress.objectiveIndex).toBe(waiting.objectiveIndex + 1);
   });
 });

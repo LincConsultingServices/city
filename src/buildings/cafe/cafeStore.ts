@@ -516,13 +516,23 @@ function lastBeatTaken(taken: DecisionSoFar): Beat | null {
 }
 
 /**
- * Somebody arrives for a `wait_for`. They join the room first and the objective
- * closes second, so the beat reads as a person coming through the door rather
- * than as a tracker line ticking over on its own.
+ * Somebody walks in. They are in the room from this moment; the objective they
+ * satisfy does not close until `arrive` below.
+ *
+ * The two were one call, and that made the cloud over a `wait_for` target
+ * unreachable: nobody was in the room for the whole life of the objective, and
+ * the frame they appeared the objective had already advanced. A beat that reads
+ * as "the bell, and Ray filling the doorway" needs a moment where he is filling
+ * the doorway.
  */
-export function arrive(id: CastId): void {
+export function showUp(id: CastId): void {
   const s = useCafeStore.getState();
   if (!s.visitors.includes(id)) useCafeStore.setState({ visitors: [...s.visitors, id] });
+}
+
+/** Their arrival lands, and the objective waiting on it closes. */
+export function arrive(id: CastId): void {
+  showUp(id);
   noteEvent({ kind: "arrived", id });
 }
 
