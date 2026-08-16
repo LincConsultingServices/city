@@ -37,7 +37,7 @@ const CLOUD_MAX_W = 250;
 export interface Callout {
   /** Add this to whoever the cloud belongs to. */
   view: Container;
-  /** Re-letter and re-cut it. Empty string hides it. */
+  /** Re-letter, re-cut and show it. An empty string hides it instead. */
   draw: (line: string) => void;
   visible: (on: boolean) => void;
   destroy: () => void;
@@ -115,6 +115,10 @@ export function createCallout(): Callout {
           .stroke({ color: CLOUD_EDGE, alpha: 0.55, width: 1 });
       }
       label.position.set(0, -CLOUD_PAD_Y - TAIL_H);
+      // Drawing a line is what makes it appear. The cast's cloud got away with
+      // this because callOut() flips `visible` itself; the player's had nobody
+      // to do that for it and stayed hidden with a perfectly good cloud in it.
+      view.visible = true;
     },
 
     visible(on) {
