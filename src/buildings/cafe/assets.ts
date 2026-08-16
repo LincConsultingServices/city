@@ -31,6 +31,27 @@ export type CafeAssetKey = string;
  */
 export const PROP_SPRITE: Partial<Record<PropKind, { key: CafeAssetKey; width: number }>> = {};
 
+/** UI furniture that a sprite can serve instead of a `Graphics` path. */
+export interface UiSprite {
+  key: CafeAssetKey;
+  /**
+   * Nine-slice insets in source pixels. A callout is re-cut every time its line
+   * changes and runs from about fifty to a hundred and forty pixels wide, so a
+   * plain sprite stretched to fit pulls the lobes out of shape. Only the flat
+   * middle bands may stretch; the corners, the lobes and the tail hold.
+   */
+  slice: { left: number; top: number; right: number; bottom: number };
+}
+
+/**
+ * Kept apart from `PROP_SPRITE` because that table is keyed by `PropKind` and a
+ * label over somebody's head is not a prop. Empty for the same reason the table
+ * above is: the callout cloud is drawn as a path today (castView.ts). A real
+ * cloud PNG — tail baked into the bottom band, so the tail point stays the
+ * sprite's origin — drops in here with one line and needs no other change.
+ */
+export const UI_SPRITE: Partial<Record<"callout", UiSprite>> = {};
+
 let loaded = false;
 
 export async function loadCafeAssets(): Promise<void> {

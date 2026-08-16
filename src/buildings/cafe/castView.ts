@@ -11,7 +11,7 @@
 // look up when someone comes near. That last one is two frames of texture swap
 // and it is worth more than the other two put together — a room where nobody
 // registers you is a diorama.
-import { Container, Graphics, Sprite, Text, type Renderer, type Texture } from "pixi.js";
+import { Container, Sprite, type Renderer, type Texture } from "pixi.js";
 import { mapToWorld, roundCell, worldToMap } from "@/lib/iso";
 import { bakePersonTextures, bakeShadowTexture, type PersonTextures } from "@/world/characterArt";
 import type { Cardinal } from "@/world/assets";
@@ -25,23 +25,13 @@ import {
   type CastMember,
 } from "./cast";
 import { Z_CAST } from "./scene";
+import { createCallout, type Callout } from "./calloutView";
+import { CLOUD_FLOAT, CLOUD_FLOAT_HZ, CLOUD_LIFT } from "./cloud";
 
 /** Slower than the player's 0.18 — a shorter stride for a slower walk. */
 const STEP_S = 0.26;
 const BOB_PX = 2;
 const BREATH = 0.012;
-
-/** How far above the top of somebody's head the cloud's tail points. */
-const CLOUD_LIFT = 8;
-/** Half the walk bob, so it drifts rather than bounces. */
-const CLOUD_FLOAT = 1.5;
-const CLOUD_PAD_X = 9;
-const CLOUD_PAD_Y = 5;
-const TAIL_W = 10;
-const TAIL_H = 6;
-/** The venue sign's own colours (world/CityCanvas.tsx) — one UI language. */
-const CLOUD_INK = 0x11151f;
-const CLOUD_EDGE = 0xe2be78;
 
 interface Actor {
   member: CastMember;
@@ -166,7 +156,9 @@ export function createCast(
   // The callout cloud. One for the whole room rather than one per person: only
   // ever one objective is live, so only ever one cloud is up, and a single Text
   // swapping its string costs a fraction of six of them standing idle.
-  let cloud: Cloud | null = null;
+  let cloud: Callout | null = null;
+  /** Where the tail points before the idle float is added on top. */
+  let cloudBaseY = 0;
   let calledOn: CastId | null = null;
   let calledLine = "";
 
@@ -186,15 +178,15 @@ export function createCast(
 
       const actor = id ? actors.find((a) => a.member.id === id) : undefined;
       if (!actor || !line) {
-        if (cloud) cloud.view.visible = false;
+        if (cloud) cloud.visible(false);
         return;
       }
 
       // Built on the first callout, not up front: every mission opens on
       // something that is not a person, so the room is always on screen for a
       // while before this is needed and sometimes never needs it at all.
-      cloud ??= buildCloud();
-      drawCloud(cloud, line);
+      cloud ??= createCallout();
+      cloud.draw(line);
 
       // Parented to the person rather than to the room, which is what makes the
       // cloud free: it tracks them as they walk with no projection maths, and it
@@ -205,9 +197,9 @@ export function createCast(
       // `body` is anchored (0.5, 1) at the holder's origin, so the top of the
       // head is one scaled body-height up from it — plus the sitting offset for
       // anyone at a table.
-      cloud.baseY = actor.body.position.y - actor.body.height - CLOUD_LIFT;
-      cloud.view.position.set(0, cloud.baseY);
-      cloud.view.visible = true;
+      cloudBaseY = actor.body.position.y - actor.body.height - CLOUD_LIFT;
+      cloud.view.position.set(0, cloudBaseY);
+      cloud.visible(true);
     },
 
     // Only people who are actually in the room. Somebody hidden must not still
@@ -222,7 +214,7 @@ export function createCast(
       // when nothing else does — that is the whole reason it is a cloud and not
       // a static label — without becoming an attract-mode animation.
       if (cloud && !reduced && cloud.view.visible) {
-        cloud.view.position.y = cloud.baseY + Math.sin(elapsed * 1.6) * CLOUD_FLOAT;
+        cloud.view.position.y = cloudBaseY + Math.sin(elapsed * CLOUD_FLOAT_HZ) * CLOUD_FLOAT;
       }
 
       for (const a of actors) {
@@ -302,7 +294,11 @@ export function createCast(
       // First, and explicitly: the cloud carries a Text, whose texture is not in
       // the `textures` list the canvas frees, and it may be sitting unparented
       // if it was never called out. Destroying it here covers both.
-      cloud?.view.destroy({ children: true, texture: true });
+      //
+      // A callout served by a sprite goes first and keeps its texture: that one
+      // belongs to Pixi's `Assets` cache, which outlives this room and hands the
+      // same texture to the next visit. We destroy only what we generated.
+      cloud?.destroy();
       cloud = null;
       calledOn = null;
       calledLine = "";
@@ -332,69 +328,4 @@ function idlePose(a: Actor, elapsed: number, reduced: boolean): void {
   const k = a.nudge / NUDGE_S;
   const move = k > 0 ? NUDGE * k * Math.sin((1 - k) * Math.PI * 2) : 0;
   a.body.scale.y = rest * (1 + breath + move);
-}
-
-interface Cloud {
-  view: Container;
-  plate: Graphics;
-  label: Text;
-  /** Where the tail points before the float is added on top. */
-  baseY: number;
-}
-
-/**
- * The cloud is built at the shape of the city's venue sign
- * (world/CityCanvas.tsx) — backed plate, hairline gold edge, Outfit — because a
- * player who has just walked in off Market Street has been reading those for
- * five minutes and should not have to learn a second kind of label indoors.
- *
- * Its origin is the tail's point, so placing it is "put this at the top of the
- * head" and nothing else.
- */
-function buildCloud(): Cloud {
-  const view = new Container();
-  const plate = new Graphics();
-  const label = new Text({
-    text: "",
-    style: {
-      fill: 0xf3f6fb,
-      stroke: { color: 0x0f121a, width: 1 },
-      fontFamily: "Outfit, sans-serif",
-      fontSize: 13,
-      fontWeight: "600",
-    },
-    // Baked above the renderer's density: the room is scaled to fit the viewport
-    // and a rasterised label scaled up is a blurry label.
-    resolution: Math.max(2, Math.ceil(window.devicePixelRatio || 1) * 2),
-  });
-  label.anchor.set(0.5, 1);
-  view.addChild(plate, label);
-  view.visible = false;
-  return { view, plate, label, baseY: 0 };
-}
-
-/** Re-letter the cloud and re-cut the plate to fit. */
-function drawCloud(cloud: Cloud, line: string): void {
-  const { plate, label } = cloud;
-  label.text = line;
-
-  const w = label.width + CLOUD_PAD_X * 2;
-  const h = label.height + CLOUD_PAD_Y * 2;
-  plate.clear();
-  plate
-    .roundRect(-w / 2, -h - TAIL_H, w, h, 8)
-    .fill({ color: CLOUD_INK, alpha: 0.9 })
-    .stroke({ color: CLOUD_EDGE, alpha: 0.55, width: 1 });
-  // The tail is a second path so the plate keeps its own closed outline: one
-  // combined path would stroke the seam and leave a line drawn across the mouth.
-  plate
-    .poly([-TAIL_W / 2, -TAIL_H, TAIL_W / 2, -TAIL_H, 0, 0])
-    .fill({ color: CLOUD_INK, alpha: 0.9 });
-  plate
-    .moveTo(-TAIL_W / 2, -TAIL_H)
-    .lineTo(0, 0)
-    .lineTo(TAIL_W / 2, -TAIL_H)
-    .stroke({ color: CLOUD_EDGE, alpha: 0.55, width: 1 });
-
-  label.position.set(0, -CLOUD_PAD_Y - TAIL_H);
 }
