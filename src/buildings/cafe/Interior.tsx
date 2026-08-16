@@ -31,6 +31,7 @@ import {
   wakeMission,
 } from "./cafeStore";
 import { GATES, HOTSPOTS, zoneAt } from "./room";
+import { wantsCancel, wantsInteract } from "./input";
 import { atAnchors, castById, castFor, guideWithCast, type CastId } from "./cast";
 import { hotspotBody } from "./world";
 import { Tracker } from "./Tracker";
@@ -200,7 +201,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
+      if (wantsCancel(e)) {
         // A panel closes first; only then does Escape mean "leave".
         const s = useCafeStore.getState();
         if (s.speakingToId) stopSpeaking();
@@ -208,9 +209,8 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         else leave();
         return;
       }
-      if (e.key !== "e" && e.key !== "E" && e.key !== "Enter") return;
-      if (useCafeStore.getState().inputLocked) return;
-      act();
+      // The guards, and why they are both there, live in input.ts.
+      if (wantsInteract(e, useCafeStore.getState().inputLocked)) act();
     }
     function leave() {
       audio.play("ui_close");
