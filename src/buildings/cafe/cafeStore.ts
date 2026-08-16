@@ -382,6 +382,12 @@ export function noteEvent(event: RoomEvent): void {
 
   useCafeStore.setState({ progress: step.next });
 
+  // Closing an objective is doing something, whatever closed it. Waking only on
+  // a keypress meant a player who crossed the room with the guided-navigation
+  // list — the keyboard-only path — advanced through objectives with the tracker
+  // and the cloud both still down, which is the one player who needs them most.
+  wakeMission();
+
   saveSoon();
 
   if (step.missionClosed) {

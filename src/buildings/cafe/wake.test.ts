@@ -68,6 +68,26 @@ describe("waking the mission", () => {
   });
 });
 
+describe("the week arrives when the week moves", () => {
+  it("wakes on an objective closing, not only on a keypress", () => {
+    // The guided-navigation list is the keyboard-only way across the room, and
+    // it walks you to places without ever going through `act()`. Waking only on
+    // E meant that player advanced through objectives with the tracker and the
+    // cloud both still down — the one player who needs them most.
+    expect(woken()).toBe(false);
+    const station = STATIONS.find((p) => p.id === "st_counter")!;
+    noteEvent({ kind: "moved", cell: station.cell });
+    expect(useCafeStore.getState().progress.objectiveIndex).toBe(1);
+    expect(woken()).toBe(true);
+  });
+
+  it("stays down when nothing actually closed", () => {
+    noteEvent({ kind: "moved", cell: { x: 6, y: 7 } });
+    expect(useCafeStore.getState().progress).toEqual(SEASON_START);
+    expect(woken()).toBe(false);
+  });
+});
+
 describe("somebody walking in", () => {
   it("puts them in the room without closing what is waiting on them", () => {
     // The cloud over a `wait_for` target hangs off that person, so there has to
