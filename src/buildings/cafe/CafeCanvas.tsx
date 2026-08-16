@@ -428,7 +428,11 @@ export function CafeCanvas({
         // somebody can walk up to a player who is standing still. Nadia comes in
         // at 8:05 while you are already at the counter, and if this only ran on
         // your own movement she would arrive un-speakable-to.
-        store.setNearCast(castNear(curCell, cast.positions())?.id ?? null);
+        //
+        // Fed who we are already holding, because running every frame is exactly
+        // what makes the release band necessary — see `castNear`.
+        const held = useCafeStore.getState().nearCastId;
+        store.setNearCast(castNear(curCell, cast.positions(), held)?.id ?? null);
 
         // ── Ambient ───────────────────────────────────────────────────────────
         // Somebody is at the machine when Priya is standing on the two cells in

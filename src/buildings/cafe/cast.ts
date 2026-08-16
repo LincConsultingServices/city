@@ -238,18 +238,45 @@ export function atAnchors(present: readonly CastId[]): CastAt[] {
  * The person you are close enough to speak to, if any. Ties go to whoever is
  * nearer, then to declaration order, so the answer never depends on which way
  * you happened to walk in.
+ *
+ * **Hysteretic.** You acquire somebody at their `talkRadius` and only lose them
+ * a cell further out. Without the extra cell this flickers: the player's own
+ * position is cell-quantised and cannot oscillate, but the cast walk their
+ * patrols and this runs every frame, so anybody pausing at exactly their radius
+ * turns the prompt and the cloud over their head on and off several times a
+ * second. `held` is who the room is currently holding — pass it and the release
+ * band applies, omit it and this is the plain nearest-in-range answer.
+ *
+ * Somebody who walks genuinely closer than the held person still takes over,
+ * because the alternative is being stuck talking to whoever you met first while
+ * a second person stands in front of you.
  */
-export function castNear(cell: Cell, present: readonly CastAt[]): CastMember | null {
+export function castNear(
+  cell: Cell,
+  present: readonly CastAt[],
+  held: CastId | null = null,
+): CastMember | null {
   let best: CastMember | null = null;
   let bestDist = Infinity;
+  let heldMember: CastMember | null = null;
+  let heldDist = Infinity;
+
   for (const { member, cell: theirs } of present) {
     const d = manhattan(cell, theirs);
+    if (member.id === held) {
+      heldMember = member;
+      heldDist = d;
+    }
     if (d <= member.talkRadius && d < bestDist) {
       best = member;
       bestDist = d;
     }
   }
-  return best;
+
+  // Out of the room, or past the release band: let them go.
+  if (!heldMember || heldDist > heldMember.talkRadius + 1) return best;
+  // Nobody else is in range, or nobody else is nearer: keep who we had.
+  return best !== null && bestDist < heldDist ? best : heldMember;
 }
 
 /**

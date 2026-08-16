@@ -152,6 +152,55 @@ describe("standing near the cast", () => {
   });
 });
 
+/**
+ * This runs every frame, and the cast walk their patrols, so somebody pausing at
+ * exactly their `talkRadius` used to flip the prompt — and the cloud over their
+ * head — on and off several times a second. You acquire at the radius and lose
+ * them a cell further out.
+ */
+describe("holding on to whoever you are near", () => {
+  const priya = castById("priya")!;
+  /** Straight out from her anchor, so the distance is the offset. */
+  const away = (n: number) => ({ x: priya.anchor.x, y: priya.anchor.y + n });
+  const here = atAnchors(["priya"]);
+
+  it("keeps somebody one cell past their radius once you have them", () => {
+    const edge = away(priya.talkRadius + 1);
+    expect(castNear(edge, here), "acquires past the radius").toBeNull();
+    expect(castNear(edge, here, "priya")?.id, "but holds what it had").toBe("priya");
+  });
+
+  it("lets go a cell beyond that", () => {
+    expect(castNear(away(priya.talkRadius + 2), here, "priya")).toBeNull();
+  });
+
+  it("lets go the moment they leave the room, wherever you are standing", () => {
+    expect(castNear(priya.anchor, atAnchors([]), "priya")).toBeNull();
+  });
+
+  it("does not flicker while somebody stands on the boundary", () => {
+    // The frame-by-frame case: one cell in, one cell out, one cell in again.
+    const inside = away(priya.talkRadius);
+    const edge = away(priya.talkRadius + 1);
+    let held = castNear(inside, here, null)?.id ?? null;
+    for (const cell of [edge, inside, edge, edge, inside]) {
+      held = castNear(cell, here, held)?.id ?? null;
+      expect(held, "let go mid-conversation").toBe("priya");
+    }
+  });
+
+  it("still hands over to somebody who walks genuinely closer", () => {
+    // Otherwise you are stuck talking to whoever you met first while a second
+    // person stands in front of you.
+    const marcus = castById("marcus")!;
+    const present = [
+      { member: priya, cell: { x: 4, y: 6 } },
+      { member: marcus, cell: { x: 4, y: 5 } },
+    ];
+    expect(castNear({ x: 4, y: 5 }, present, "priya")?.id).toBe("marcus");
+  });
+});
+
 describe("what the cast says", () => {
   it("gives everyone something to say", () => {
     for (const m of CAST) {
