@@ -34,12 +34,15 @@ function everyLine(): { where: string; text: string }[] {
   for (const tree of Object.values(TREES)) {
     out.push({ where: `${tree.activityId} stage`, text: tree.stage });
     out.push({ where: `${tree.activityId} prompt`, text: tree.prompt });
+    if (tree.says) out.push({ where: `${tree.activityId} spoken`, text: tree.says });
     for (const c of tree.seed) {
       out.push({ where: `${tree.activityId} seed.${c.id}`, text: c.text });
       out.push({ where: `${tree.activityId} seed.${c.id} says`, text: c.consequence });
     }
     for (const [b, follow] of Object.entries(tree.follow)) {
       out.push({ where: `${tree.activityId} follow.${b} prompt`, text: follow.prompt });
+      if (follow.says)
+        out.push({ where: `${tree.activityId} follow.${b} spoken`, text: follow.says });
       for (const c of follow.choices) {
         out.push({ where: `${tree.activityId} ${b}.${c.id}`, text: c.text });
         out.push({ where: `${tree.activityId} ${b}.${c.id} says`, text: c.consequence });
@@ -48,6 +51,7 @@ function everyLine(): { where: string; text: string }[] {
   }
   for (const beat of Object.values(FOLLOWUPS)) {
     out.push({ where: `${beat.activityId} transfer prompt`, text: beat.prompt(OPENING_WORLD) });
+    if (beat.says) out.push({ where: `${beat.activityId} transfer spoken`, text: beat.says });
     for (const o of beat.options) {
       out.push({ where: `${beat.activityId} transfer.${o.id}`, text: o.text });
       out.push({ where: `${beat.activityId} transfer.${o.id} says`, text: o.consequence });
@@ -218,10 +222,75 @@ describe("the season is completely written", () => {
   });
 
   it("writes a distinct decision for every week", () => {
-    const prompts = Object.values(TREES).map((t) => t.prompt);
-    expect(new Set(prompts).size, "two weeks ask the same question").toBe(prompts.length);
+    // The question is `says` where somebody asks it out loud and `prompt` where
+    // the room does — the night beat has no host to hang a cloud on, by design.
+    const asked = Object.values(TREES).map((t) => t.says || t.prompt);
+    expect(new Set(asked).size, "two weeks ask the same question").toBe(asked.length);
     const stages = Object.values(TREES).map((t) => t.stage);
     expect(new Set(stages).size, "two weeks open on the same scene").toBe(stages.length);
+  });
+
+  it("gives every beat with a speaker a line to say", () => {
+    // The cloud over somebody's head carries `says`. A beat that has a speaker
+    // and no line is a beat where the room goes quiet for no reason, and one
+    // that appears on some weeks and not others reads as broken rather than as
+    // deliberate — so the only beats without one are the beats where nobody is
+    // there to say it (PRD §9.6.2: mission 4 is alone in the room by design).
+    for (const m of SEASONS) {
+      const tree = TREES[m.activityId];
+      if (!tree) continue;
+      const narrates = m.standIn === "room";
+      const nodes: [string, string | undefined][] = [
+        [`${m.activityId} seed`, tree.says],
+        ...Object.entries(tree.follow).map(
+          ([b, f]) => [`${m.activityId} follow.${b}`, f.says] as [string, string | undefined],
+        ),
+      ];
+      for (const [where, says] of nodes) {
+        if (narrates) expect(says, `${where}: the room does not speak`).toBeUndefined();
+        else expect(says, `${where}: nobody says anything`).toBeTruthy();
+      }
+    }
+  });
+
+  it("gives every transfer beat with a speaker a line to say", () => {
+    for (const beat of Object.values(FOLLOWUPS)) {
+      if (beat.speakerId === "room") {
+        expect(beat.says, `${beat.activityId} transfer: the room does not speak`).toBeUndefined();
+      } else {
+        expect(beat.says, `${beat.activityId} transfer: nobody says anything`).toBeTruthy();
+      }
+    }
+  });
+
+  it("keeps a spoken line short enough to sit over a head", () => {
+    // It is drawn into the room at 13px over a sprite about twenty pixels tall.
+    // Past about this length the cloud stops being a cloud and starts being a
+    // panel that happens to have a tail (calloutView.ts wraps at 250px).
+    for (const { where, text } of everyLine()) {
+      if (!where.endsWith("spoken")) continue;
+      expect(words(text), `${where} is ${words(text)} words: "${text}"`).toBeLessThanOrEqual(18);
+    }
+  });
+
+  it("never says out loud what the narration already said", () => {
+    for (const tree of Object.values(TREES)) {
+      if (tree.says)
+        expect(tree.prompt, `${tree.activityId} seed doubles up`).not.toContain(tree.says);
+      for (const [b, f] of Object.entries(tree.follow)) {
+        if (f.says)
+          expect(f.prompt, `${tree.activityId} follow.${b} doubles up`).not.toContain(f.says);
+      }
+    }
+  });
+
+  it("hands a line to somebody who is actually in the cast", () => {
+    for (const tree of Object.values(TREES)) {
+      for (const [b, f] of Object.entries(tree.follow)) {
+        if (!f.saysBy) continue;
+        expect(castIds.has(f.saysBy), `${tree.activityId} follow.${b} → ${f.saysBy}`).toBe(true);
+      }
+    }
   });
 
   it("never repeats an option anywhere in the season", () => {

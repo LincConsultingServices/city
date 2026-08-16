@@ -21,7 +21,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C1-PRO-01",
     stage:
       "8:05, and you have stood behind a counter at this hour before. Nadia is already reaching for her card. Tomas is on the bar because Priya cannot do six mornings, and you can hear him not quite keeping up behind you.",
-    prompt: "You still don't do oat, do you? I'm not having a go. I plan my morning round it now.",
+    prompt: "",
+    says: "You still don't do oat, do you? Not having a go — I plan my morning round it.",
     seed: [
       {
         id: "a",
@@ -49,6 +50,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "Nine minutes each way, three mornings a week, for a coffee. She has been doing it since March and she is not the only one.",
+        says: "Nine minutes each way. Since March. She's not the only one, either.",
+        saysBy: "priya",
         choices: [
           {
             id: "a",
@@ -76,6 +79,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "The oat moves and the almond does not, and the crate you are still paying for is behind the fridge. Priya has not said anything about it, which is Priya saying something.",
+        says: "The crate's still behind the fridge. I'm not going to keep moving it.",
+        saysBy: "priya",
         choices: [
           {
             id: "a",
@@ -103,6 +108,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "Eleven ticks, nine of them before half eight, and two names you do not recognise. Tomas says one of them asks him every Tuesday and he has been saying no.",
+        says: "One of them asks me every Tuesday. I've been saying no every Tuesday.",
+        saysBy: "tomas",
         choices: [
           {
             id: "a",
@@ -138,7 +145,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C2-PRO-01",
     stage:
       "The iced drink has been on three weeks because you told the team to get behind it. Tomas rewrote the board for it on a Monday. Priya has the dockets folded in her apron and has not offered them.",
-    prompt: "Do you want the numbers, or do you want to leave it another week?",
+    prompt: "",
+    says: "Do you want the numbers, or do you want to leave it another week?",
     seed: [
       {
         id: "a",
@@ -166,6 +174,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "It cleared the threshold by two cups, which is inside anything you would honestly call noise. Priya asks, not unkindly, whether two cups is a result.",
+        says: "Two cups. Is that a result? I genuinely don't know.",
         choices: [
           {
             id: "a",
@@ -193,6 +202,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "Three more weeks, still flat, and the board has not been rewritten since the Monday Tomas gave up on it. Nobody has said anything to you about any of it.",
+        says: "Nobody's said anything. I thought you should know that's what it is.",
         choices: [
           {
             id: "a",
@@ -220,6 +230,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "It lifted about a fifth, and you changed the recipe and the name in the same week. Tomas asks which one worked, and he is not being difficult.",
+        says: "Which one worked, the price or the name? I'm asking properly.",
+        saysBy: "tomas",
         choices: [
           {
             id: "a",
@@ -253,8 +265,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C3-PRO-01",
     stage:
       "The letter has been on the hatch a week. Ray comes in with the folder rather than the truck: thirty per cent off a quarter's beans, placed today, back to list on Monday. The saving is real and it is most of your spare cash.",
-    prompt:
-      "It's a real number, I'm not going to pretend it isn't. But you'd be paying me now for coffee you'll be drinking in November.",
+    prompt: "",
+    says: "It's a real number. But you'd be paying me now for coffee you drink in November.",
     seed: [
       {
         id: "a",
@@ -282,6 +294,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "Two months on the roaster has put the price up again, and Ray mentions, without meaning anything by it, that two other places took the deal.",
+        says: "Price is up again. Two other places went in on it, for what that's worth.",
         choices: [
           {
             id: "a",
@@ -309,6 +322,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "October comes in a fifth worse than your bad-October number. The reserve holds and is visibly draining, and there is a quarter of beans in the stockroom that will not turn back into cash.",
+        says: "There's a quarter of beans in the stockroom and October's a fifth down.",
+        saysBy: "priya",
         choices: [
           {
             id: "a",
@@ -336,6 +351,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "The option expires Friday. The first third has been fine and the quarter after next is exactly as unclear as it was in September.",
+        says: "Friday's the last day on the rest of it. Same number, same terms.",
         choices: [
           {
             id: "a",
@@ -484,7 +500,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C5-PRO-01",
     stage:
       "A card on the community board you did not pin, and forty per cent of last month's orders behind it. The commission letter came Tuesday. Whatever you settle today you will be living inside for two years.",
-    prompt: "I still order through the app. Is that bad? You've gone quiet about it.",
+    prompt: "",
+    says: "I still order through the app. Is that bad? You've gone quiet about it.",
     seed: [
       {
         id: "a",
@@ -512,6 +529,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "They raise it again in March, by less, and the letter is otherwise the same letter. Priya asks what happens the third time.",
+        says: "Same letter, smaller number. What happens the third time?",
+        saysBy: "priya",
         choices: [
           {
             id: "a",
@@ -539,6 +558,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "One bag in nine is real and it is slow. The app has noticed the separate pricing and has asked you, politely, to stop.",
+        says: "They've asked us to stop pricing it separately. Politely, but they've asked.",
+        saysBy: "priya",
         choices: [
           {
             id: "a",
@@ -566,6 +587,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "A third of your orders are your own now, and the app has started promoting the place across the road inside your own postcode.",
+        says: "They're promoting the place over the road. In our postcode.",
+        saysBy: "priya",
         choices: [
           {
             id: "a",
@@ -599,8 +622,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C6-PRO-01",
     stage:
       "She has taken Marcus's table again, and this time there is a contract in the folder. A year's commitment, forty covers a week, and terms that would leave you working at roughly nothing.",
-    prompt:
-      "I should say we're also talking to the place by the station. That isn't a threat, it's just where we are.",
+    prompt: "",
+    says: "We're also talking to the place by the station. Not a threat — just where we are.",
     seed: [
       {
         id: "a",
@@ -628,6 +651,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "Three months in they ask for the same terms on a second site. Priya is doing six days and Marcus's table has been theirs every Tuesday since April.",
+        says: "A second site, same terms. Marcus has had Tuesdays since April, I know.",
         choices: [
           {
             id: "a",
@@ -655,6 +679,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "They come back in October wanting the eight o'clock moved to half seven, which is before Priya starts and after you have run out of goodwill about it.",
+        says: "Half seven rather than eight. I know what I'm asking for.",
         choices: [
           {
             id: "a",
@@ -682,6 +707,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "The nine-fifteen holds all year. In March a new buyer takes the account over and asks, pleasantly, for fifteen per cent.",
+        says: "There's a new buyer, and she'd like fifteen per cent. I'd rather she didn't.",
         choices: [
           {
             id: "a",
@@ -715,7 +741,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C7-PRO-01",
     stage:
       "First grey day. Tomas is the fastest pair of hands you have and the reason two other people have started swapping shifts to avoid him. The rota by the hatch has been rewritten twice this fortnight, and not by you.",
-    prompt: "You've seen it. I'm not going to keep rewriting the rota round it.",
+    prompt: "",
+    says: "You've seen it. I'm not going to keep rewriting the rota round it.",
     seed: [
       {
         id: "a",
@@ -743,6 +770,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "The notice is on your desk. Tomas asks, without much interest either way, whether he is picking up those shifts.",
+        says: "So am I picking those shifts up, or are we getting somebody in?",
+        saysBy: "tomas",
         choices: [
           {
             id: "a",
@@ -770,6 +799,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "He holds it for six weeks and then slips badly on a Saturday you are not in. Priya tells you on the Monday, and tells you she nearly did not.",
+        says: "Saturday. You weren't in. I nearly didn't tell you either.",
         choices: [
           {
             id: "a",
@@ -797,6 +827,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "He is better and he is slower, and the queue at half eight is four deep in a way it was not in September.",
+        says: "Half eight's four deep. It wasn't in September.",
         choices: [
           {
             id: "a",
@@ -830,7 +861,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C8-PRO-01",
     stage:
       "The sample is on the counter end with the invoice folded underneath it. There is a reduction here that this quarter needs and almost nobody would notice for a while. Marcus is in his chair behind you, reading.",
-    prompt: "It's fine under milk. I'm not saying take it. I'm saying it's fine under milk.",
+    prompt: "",
+    says: "It's fine under milk. I'm not saying take it. I'm saying it's fine under milk.",
     seed: [
       {
         id: "a",
@@ -858,6 +890,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "Five weeks of nobody noticing, and then Marcus leaves half a cup. He does not say anything about it, and he is in as usual the next morning.",
+        says: "It's a bit different, isn't it. I'll have the same tomorrow.",
+        saysBy: "marcus",
         choices: [
           {
             id: "a",
@@ -885,6 +919,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "Two thirds came out of the room and the last third came out of hours. Priya has done the arithmetic and knows exactly whose hours those were.",
+        says: "Two thirds of it came out of the room. The last third came out of hours.",
         choices: [
           {
             id: "a",
@@ -912,6 +947,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "The name is up and three people have asked about it. The invoice has not moved, and the quarter still needs the money it needed in September.",
+        says: "Three people have asked about the name. The invoice is the same invoice.",
         choices: [
           {
             id: "a",
@@ -945,7 +981,8 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C9-PRO-01",
     stage:
       "Well-funded competition, three straight weeks of decline, and staff who have started reading the room. Marcus's chair has been empty twice this fortnight. This is the third hard stretch this year and the first that has not turned by itself.",
-    prompt: "Three weeks. I'm not panicking. I'd just like to know what we're doing.",
+    prompt: "",
+    says: "Three weeks. I'm not panicking. I'd just like to know what we're doing.",
     seed: [
       {
         id: "a",
@@ -973,6 +1010,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "Nine good days, and then the fourth week comes in under the third. The board is still out on the pavement and the prices are still down.",
+        says: "Fourth week's under the third. The board's still out on the pavement.",
         choices: [
           {
             id: "a",
@@ -1000,6 +1038,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "It is the seven o'clock opening. Matching it costs a staff hour a day that you have not budgeted for and cannot obviously find.",
+        says: "Seven o'clock is a staff hour a day. Where's that coming from?",
         choices: [
           {
             id: "a",
@@ -1027,6 +1066,7 @@ export const PRO_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "A fortnight of nothing, and then two of the four changes start working at once. Priya asks which of them you are planning to keep.",
+        says: "Two of them are working at once. Which ones are we keeping?",
         choices: [
           {
             id: "a",

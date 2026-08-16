@@ -18,8 +18,9 @@ export const PRO_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
         world.regulars === "thin"
           ? "The mornings are thinner than they were in the spring."
           : "The 7:50 window is yours again.";
-      return `Six weeks on. ${room} The station café has started opening at seven, and Nadia mentions it on her way out: “Do I need to start planning round that as well?”`;
+      return `Six weeks on. ${room} The station café has started opening at seven, and Nadia mentions it.`;
     },
+    says: "Do I need to start planning round that as well?",
     options: [
       {
         id: "o_p1a",
@@ -54,8 +55,9 @@ export const PRO_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
         world.staff === "strained"
           ? "She catches you at the hatch rather than at the bar, which is new."
           : "She has the docket out before you have got your coat off.";
-      return `Three weeks later. ${room} “The pastries. Same question as last time — do you want me to just try something, or do you want to do it the way we did the drink?”`;
+      return `Three weeks later. ${room}`;
     },
+    says: "The pastries. Do I just try something, or do we do it properly this time?",
     options: [
       {
         id: "o_p2a",
@@ -89,8 +91,9 @@ export const PRO_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
         world.till === "strained"
           ? "He has noticed you counting the float twice and has not said anything about it."
           : "He is in a good mood and the van is double-parked outside.";
-      return `February, and the folder is back. ${room} “Same again, better number, and I need to know inside the week. I'd rather you told me no early than yes slowly.”`;
+      return `February, and the folder is back. ${room}`;
     },
+    says: "Same again, better number, inside the week. I'd rather have no early than yes slowly.",
     options: [
       {
         id: "o_p3a",
@@ -159,8 +162,9 @@ export const PRO_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
         world.board === "direct_card"
           ? "There is a card with your own number on it by the door now."
           : "The promo card is still pinned where somebody else put it.";
-      return `Spring. ${room} Nadia, waiting for her change: “There's a new one. Cheaper for them, and it says it pays the shops more. Are you going on it?”`;
+      return `Spring. ${room}.`;
     },
+    says: "There's a new one. Cheaper for them, pays the shops more. Are you going on?",
     options: [
       {
         id: "o_p5a",
@@ -194,8 +198,9 @@ export const PRO_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
         world.till === "tight"
           ? "You have been doing the covers arithmetic in your head since she sat down."
           : "The drawer can take a bad month now, which is a new feeling.";
-      return `June, and she is back at the same table. ${room} “There's an event. Two hundred, one morning, four weeks' notice. I'd need a number by Friday.”`;
+      return `June, and she is back at the same table. ${room}`;
     },
+    says: "There's an event. Two hundred, one morning, four weeks' notice. I'd need a number by Friday.",
     options: [
       {
         id: "o_p6a",
@@ -230,8 +235,9 @@ export const PRO_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
         world.staff === "trusting"
           ? "The rota has been in your handwriting for six weeks and nobody has been near it."
           : "There is fresh pencil on the rota again, in two different hands.";
-      return `A month on. ${room} Priya, at the hatch: “The new one starts Monday. What do you want me to tell her about how it works in here?”`;
+      return `A month on. ${room}.`;
     },
+    says: "The new one starts Monday. What do I tell her about how it works here?",
     options: [
       {
         id: "o_p7a",
@@ -265,8 +271,9 @@ export const PRO_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
         world.beans === "cheap"
           ? "He has been finishing about two thirds of it for a month."
           : "He has been finishing them, which he does not always.";
-      return `Late autumn, and Marcus has folded the paper down. ${room} “There's a man doing tastings up at the market. He asked whether you'd want to do one here.”`;
+      return `Late autumn, and Marcus has folded the paper down. ${room}`;
     },
+    says: "There's a man doing tastings up at the market. He asked whether you'd want to do one here.",
     options: [
       {
         id: "o_p8a",
@@ -300,8 +307,9 @@ export const PRO_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
         world.regulars === "thin"
           ? "The four-top has been quiet long enough that neither of you mentions it any more."
           : "The four-top has been full every morning this week.";
-      return `March, and the place across the road has changed hands again. ${room} Priya, restacking: “They're shut for a refit. Six weeks, apparently. Do we do anything about that?”`;
+      return `March, and the place across the road has changed hands again. ${room}.`;
     },
+    says: "They're shut for a refit. Six weeks, apparently. Do we do anything about that?",
     options: [
       {
         id: "o_p9a",

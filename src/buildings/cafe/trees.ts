@@ -85,7 +85,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C1-HARD-01",
     stage:
       "8:05. The bell goes. Nadia's already reaching for her card before she's at the counter, the way she is every morning. She orders, then stops halfway through putting her phone away. It's the third time this week someone's asked. Behind you, Priya doesn't say anything, which is Priya's way of saying something. There's enough in the till for one move this month.",
-    prompt: "You still don't do oat, do you?",
+    prompt: "",
+    says: "You still don't do oat, do you?",
     seed: [
       {
         id: "a",
@@ -112,7 +113,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     follow: {
       a: {
         prompt:
-          "The crate arrives. Oat sells — nine cups, then eleven, then seven. Not the flood the card suggested. Priya, wiping down: “So is that good or not?”",
+          "The crate arrives. Oat sells — nine cups, then eleven, then seven. Not the flood the card suggested.",
+        says: "So is that good or not?",
         choices: [
           {
             id: "a",
@@ -139,7 +141,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       },
       b: {
         prompt:
-          "The almond's a write-off and the till is thinner than it should be in a good month. Priya, not looking up: “We keeping the almond?”",
+          "The almond's a write-off and the till is thinner than it should be in a good month.",
+        says: "We keeping the almond?",
         choices: [
           {
             id: "a",
@@ -166,7 +169,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       },
       c: {
         prompt:
-          "You know now: it's the commuters, and it's the station café. Priya's already worked out what you're going to say. “So do we chase them, or do we not?”",
+          "You know now: it's the commuters, and it's the station café. Priya's already worked out what you're going to say.",
+        says: "So do we chase them, or do we not?",
         choices: [
           {
             id: "a",
@@ -201,7 +205,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C2-HARD-01",
     stage:
       "Two weeks in. Priya has the numbers on the back of a docket and has clearly been waiting for you to ask. The iced drink went up on the board in your handwriting and it has been doing four a day since.",
-    prompt: "So. Are we talking about the iced thing, or are we leaving it up there?",
+    prompt: "",
+    says: "So. Are we talking about the iced thing, or are we leaving it up there?",
     seed: [
       {
         id: "a",
@@ -227,8 +232,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     ],
     follow: {
       a: {
-        prompt:
-          "Less syrup, and it moves — six, then eight. Priya, rinsing a jug: “So do we do that again, or was that a one-off?”",
+        prompt: "Less syrup, and it moves — six, then eight.",
+        says: "So do we do that again, or was that a one-off?",
         choices: [
           {
             id: "a",
@@ -255,7 +260,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       },
       b: {
         prompt:
-          "A month gone and it is still four a day, in the hottest fortnight of the year. Priya, not looking up from the docket: “I backed this too, you know.”",
+          "A month gone and it is still four a day, in the hottest fortnight of the year. Priya, not looking up from the docket.",
+        says: "I backed this too, you know.",
         choices: [
           {
             id: "a",
@@ -282,7 +288,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       },
       c: {
         prompt:
-          "It lifted — but you find the price went up the same week the name changed, because Tomas re-did the board. Priya: “So which one was it?”",
+          "It lifted — but you find the price went up the same week the name changed, because Tomas re-did the board.",
+        says: "So which one was it?",
         choices: [
           {
             id: "a",
@@ -314,7 +321,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C3-HARD-01",
     stage:
       "The hottest day of the year. Ray's truck is at the kerb before he is at the door, and the smell of it is in the room before he is. He needs an answer tomorrow, he says, because the market wants the same pitch.",
-    prompt: "Your crowd, my fries, Saturday. Tell me what's wrong with that.",
+    prompt: "",
+    says: "Your crowd, my fries, Saturday. Tell me what's wrong with that.",
     seed: [
       {
         id: "a",
@@ -340,8 +348,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     ],
     follow: {
       a: {
-        prompt:
-          "His crowd is enormous and it buys almost no coffee — chips, cans, gone. Ray, leaning on the counter: “Good day though, wasn't it.”",
+        prompt: "His crowd is enormous and it buys almost no coffee — chips, cans, gone.",
+        says: "Good day though, wasn't it.",
         choices: [
           {
             id: "a",
@@ -367,8 +375,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
         ],
       },
       b: {
-        prompt:
-          "He's across the road now and the queue is on his side of the street. Priya, watching through the glass: “That's our Saturday, that is.”",
+        prompt: "He's across the road now and the queue is on his side of the street.",
+        says: "That's our Saturday, that is.",
         choices: [
           {
             id: "a",
@@ -395,7 +403,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       },
       c: {
         prompt:
-          "The date arrives. The numbers are up, but so are the hours, and neither of you can say cleanly whether it worked. Ray: “Well?”",
+          "The date arrives. The numbers are up, but so are the hours, and neither of you can say cleanly whether it worked.",
+        says: "Well?",
         choices: [
           {
             id: "a",
@@ -540,7 +549,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C5-HARD-01",
     stage:
       "There is a promo card on the community board that you did not pin there. It is for a delivery app, and it is for this café. Nadia mentions, on her way past, that she has been ordering through it for a month. She means it as a compliment.",
-    prompt: "It's so much easier now you're on there. You did know you were on there?",
+    prompt: "",
+    says: "It's so much easier now you're on there. You did know you were on there?",
     seed: [
       {
         id: "a",
@@ -568,6 +578,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "It holds for two months. Then the app raises its commission by four points and emails you about it on a Friday afternoon.",
+        says: "Four points. Did they tell you, or did you have to go looking?",
         choices: [
           {
             id: "a",
@@ -593,8 +604,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
         ],
       },
       b: {
-        prompt:
-          "Forty orders a week now, and the app is a third of your revenue. Priya, boxing another one: “Are we a café or are we a kitchen?”",
+        prompt: "Forty orders a week now, and the app is a third of your revenue.",
+        says: "Are we a café or are we a kitchen?",
         choices: [
           {
             id: "a",
@@ -622,6 +633,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "The direct line is doing fourteen a week and the app is doing thirty. The app's rep calls to say they have noticed the cards in the bags.",
+        says: "They've spotted the cards. Are you meant to be doing that?",
         choices: [
           {
             id: "a",
@@ -653,8 +665,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C6-HARD-01",
     stage:
       "She has taken the four-top by the window — Marcus's table, which nobody mentions and everybody notices. Laptop open, a coffee she bought herself, and a number she decided on before she came in. Marcus is standing near the door with his paper.",
-    prompt:
-      "Forty per cent, and we'd take sixty cups a week, every week. That's a good problem to have.",
+    prompt: "",
+    says: "Forty per cent, and we'd take sixty cups a week, every week. That's a good problem to have.",
     seed: [
       {
         id: "a",
@@ -682,6 +694,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "Six weeks in it is running well, and she asks — pleasantly — whether the same arrangement could cover their second floor as well. That is a hundred and forty cups.",
+        says: "The second floor would double it. Same terms, or do we talk again?",
         choices: [
           {
             id: "a",
@@ -708,7 +721,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       },
       b: {
         prompt:
-          "Tuesdays are now a shift on their own and the margin on sixty cups is about the margin on nine. Priya, boxing them up: “Is this actually worth it?”",
+          "Tuesdays are now a shift on their own and the margin on sixty cups is about the margin on nine.",
+        says: "Is this actually worth it?",
         choices: [
           {
             id: "a",
@@ -736,6 +750,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "Two months in, a competitor offers her the same volume at your original forty. She mentions it, pleasantly, on her way past the counter.",
+        says: "Someone's offered me your old number. I'd rather stay, for what it's worth.",
         choices: [
           {
             id: "a",
@@ -767,7 +782,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C7-HARD-01",
     stage:
       "First grey day of the autumn. She has been late four times in two weeks, and it lands on whoever opened — which has been Tomas, twice, without saying anything about it. The rota by the pass-through has corrections on it that are not yours.",
-    prompt: "You wanted a word. Here, or out the back?",
+    prompt: "",
+    says: "You wanted a word. Here, or out the back?",
     seed: [
       {
         id: "a",
@@ -795,6 +811,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "It is sorted, quietly. Then Tomas asks — reasonably — why she gets a later start and he does not, and he has clearly been waiting to ask.",
+        says: "Tomas wants to know why I get half past and he doesn't.",
         choices: [
           {
             id: "a",
@@ -822,6 +839,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "On time for three weeks, and then late again — badly, on a Saturday. She does not offer an explanation this time, and does not seem to expect to be asked for one.",
+        says: "Saturday. I know. I'm not going to make you ask.",
         choices: [
           {
             id: "a",
@@ -849,6 +867,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "Half past holds. Then she asks whether the same flexibility could cover Fridays, which is the day this room genuinely cannot spare her.",
+        says: "Fridays as well, if that's possible. I know what Fridays are.",
         choices: [
           {
             id: "a",
@@ -880,7 +899,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C8-HARD-01",
     stage:
       "The delivery is in, and there is a bag on the counter end that you did not order: a kilo of the cheaper beans, with the invoice folded underneath it. The number on it would fix this month. Marcus is in his chair behind you, reading.",
-    prompt: "Priya, holding the bag up to the light: “They've sent us a present, then.”",
+    prompt: "Priya, holding the bag up to the light.",
+    says: "They've sent us a present, then.",
     seed: [
       {
         id: "a",
@@ -908,6 +928,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "The board is working — people are asking. Then the roaster puts their price up eight per cent, and you have just spent a month telling everyone their name.",
+        says: "Eight per cent. And we've spent a month telling everyone whose beans they are.",
         choices: [
           {
             id: "a",
@@ -935,6 +956,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "Three weeks on, Marcus asks — not unkindly, and not quietly, because the room is small — whether you have changed something about the coffee.",
+        says: "It's a bit different, isn't it. The coffee.",
+        saysBy: "marcus",
         choices: [
           {
             id: "a",
@@ -962,6 +985,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "The month closes short and the supplier calls to ask what you thought of the sample. Priya is at the machine and can hear every word of it.",
+        says: "He wants to know what you thought of it. I can hear him from here.",
         choices: [
           {
             id: "a",
@@ -993,8 +1017,8 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
     activityId: "C9-HARD-01",
     stage:
       "A new café across the road, open a fortnight. Through two panes of glass you can see two of your regulars sitting in it. The four-top by the window is empty for the first time since you took this place on, and Priya has noticed you noticing.",
-    prompt:
-      "Three of the Tuesday lot were in there this morning. I'm not saying it to be cheerful.",
+    prompt: "",
+    says: "Three of the Tuesday lot were in there this morning. I'm not saying it to be cheerful.",
     seed: [
       {
         id: "a",
@@ -1022,6 +1046,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       a: {
         prompt:
           "They run an opening promotion the following week — free pastry with any coffee — and your twenty pence stops being visible at all.",
+        says: "Free pastry with any coffee. That's what's on their board this week.",
         choices: [
           {
             id: "a",
@@ -1049,6 +1074,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       b: {
         prompt:
           "What they say they come for is the chair by the window, and Marcus, and being able to sit for an hour. None of which is on the menu.",
+        says: "It's the chair, and Marcus, and an hour. None of that's on our menu.",
         choices: [
           {
             id: "a",
@@ -1076,6 +1102,7 @@ const HARD_TREES: Readonly<Record<string, Tree>> = {
       c: {
         prompt:
           "You know what they are: fast, bright, and no good for sitting in. Then they put tables outside, and the weather turns fine for a fortnight.",
+        says: "They've put tables out. And the weather's turned, hasn't it.",
         choices: [
           {
             id: "a",

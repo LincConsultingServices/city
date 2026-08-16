@@ -63,8 +63,9 @@ const HARD_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
         world.regulars === "thin"
           ? "The room is thinner in the mornings than it was six weeks ago."
           : "The 7:50 window is yours again.";
-      return `Six weeks on. ${room} The station café has started opening at seven. Nadia, on her way out: “You going to keep doing this every time they move?”`;
+      return `Six weeks on. ${room} The station café has started opening at seven.`;
     },
+    says: "You going to keep doing this every time they move?",
     options: [
       {
         id: "o_c1a",
@@ -101,8 +102,9 @@ const HARD_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
           : world.chalkboard === "base"
             ? "which isn't on the board any more"
             : "the way it is now";
-      return `Somebody came in asking for the iced drink ${board}, and wanted it made how it was in July. Priya: “Do we do the old one for her, or do we not?”`;
+      return `Somebody came in asking for the iced drink ${board}, and wanted it made how it was in July.`;
     },
+    says: "Do we do the old one for her, or do we not?",
     options: [
       {
         id: "o_c2a",
@@ -138,8 +140,9 @@ const HARD_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
           : world.truck === "parked"
             ? "Ray's truck is at your kerb"
             : "Ray turns up on a Tuesday without the truck";
-      return `${where}, and he wants a second weekend booked before the first one has finished settling. “Same deal, the Sunday as well. Say yes now and I'll hold the pitch.”`;
+      return `${where}, and he wants a second weekend booked before the first one has finished settling.`;
     },
+    says: "Same deal, the Sunday as well. Say yes now and I'll hold the pitch.",
     options: [
       {
         id: "o_c3a",
@@ -213,8 +216,9 @@ const HARD_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
           : world.board === "app_card"
             ? "Their card is still on the board by the door."
             : "The board by the door is clear.";
-      return `${pinned} A second app has been in touch — twelve points cheaper, newer, and very keen. Nadia, phone in hand: “Are you on this one as well now?”`;
+      return `${pinned} A second app has been in touch — twelve points cheaper, newer, and very keen.`;
     },
+    says: "Are you on this one as well now?",
     options: [
       {
         id: "o_c5a",
@@ -250,8 +254,9 @@ const HARD_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
           : world.till === "healthy"
             ? "It is a month where you can think about it properly."
             : "It is a tight month and she has picked it well.";
-      return `Ellery's company is opening a second office on the other side of the park, and she would like the same arrangement to cover it. ${room} “Same terms, double the cups. Easy, I'd have thought.”`;
+      return `Ellery's company is opening a second office on the other side of the park, and she would like the same arrangement to cover it. ${room}`;
     },
+    says: "Same terms, double the cups. Easy, I'd have thought.",
     options: [
       {
         id: "o_c6a",
@@ -290,6 +295,7 @@ const HARD_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
             : "Nothing much has changed either way since.";
       return `${room} She asks whether, given what you agreed, she could also drop the Saturday close — which is not what you agreed, but is what the conversation sounded like.`;
     },
+    says: "And the Saturday close — could that go as well? While we're at it.",
     options: [
       {
         id: "o_c7a",
@@ -323,6 +329,7 @@ const HARD_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
       world.beans === "cheap"
         ? `A woman at the till asks, straight out and in front of the queue, what changed about the coffee. Marcus is two feet away with his paper and does not look up, which is not the same as not listening.`
         : `A woman at the till asks, straight out and in front of the queue, whether the coffee has changed — because a friend told her it had. Marcus is two feet away and does not look up.`,
+    says: "That's twice this week somebody's asked.",
     options: [
       {
         id: "o_c8a",
@@ -358,8 +365,9 @@ const HARD_FOLLOWUPS: Readonly<Record<string, FollowupBeat>> = {
           : world.rival === "open"
             ? "They have been open two months now."
             : "The unit opposite is quiet again.";
-      return `${across} From Monday they are running free coffee before eight, for a month. Priya, looking at the same window you are: “That's the whole of your morning, that is.”`;
+      return `${across} From Monday they are running free coffee before eight, for a month. Priya, looking at the same window you are.`;
     },
+    says: "That's the whole of your morning, that is.",
     options: [
       {
         id: "o_c9a",
