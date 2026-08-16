@@ -1,7 +1,9 @@
-// The cloud itself — one reusable Pixi object, in the city's venue-sign colours
-// (world/CityCanvas.tsx): same ink, same hairline gold edge, same Outfit. The
-// silhouette differs from the street's flat plate on purpose. Outdoors a sign
-// names a place you can walk into; in here somebody is speaking.
+// The cloud itself — one reusable Pixi object: a plain comic speech balloon, a
+// light plate under a heavy near-black outline with a tail leaning off its
+// underside. It inverts the street's venue sign (world/CityCanvas.tsx), which is
+// dark ink under a gold hairline, and that is the point. Outdoors a sign names a
+// place you can walk into; in here somebody is speaking, and speech is the one
+// thing in the building that gets to be louder than the room.
 //
 // Extracted from castView.ts because there are now three things that want one
 // and they hang off different parents: the objective marker and a speaker's line
@@ -14,19 +16,21 @@
 // as a child of whoever it belongs to and rides their container.
 import { Container, Graphics, NineSliceSprite, Text } from "pixi.js";
 import { UI_SPRITE, cafeTex } from "./assets";
-import {
-  CLOUD_PAD_X,
-  CLOUD_PAD_Y,
-  TAIL_H,
-  TAIL_W,
-  cloudLobes,
-  lobeArc,
-  type CloudLobes,
-} from "./cloud";
+import { CLOUD_PAD_X, CLOUD_PAD_Y, cloudOval, ovalRim, ovalSteps, type CloudOval } from "./cloud";
 
-/** The venue sign's own colours — one UI language indoors and out. */
+/**
+ * The balloon's plate, and the ink used for both its outline and its text — the
+ * building's one ink, which reads as black at this size and keeps the balloon
+ * from being the only pure black in a room of oxbloods and dark woods.
+ */
+const CLOUD_FILL = 0xe7e7e7;
 const CLOUD_INK = 0x11151f;
-const CLOUD_EDGE = 0xe2be78;
+/**
+ * Heavy rather than a hairline: a comic balloon's outline is a fraction of its
+ * own width, not of the display's, and a 1px edge around a 150px plate reads as
+ * a sticker.
+ */
+const CLOUD_EDGE_W = 2;
 /**
  * A line longer than this wraps. Wide enough for a tracker line on one row and
  * for a chosen option — which the content rules hold to 13–33 words — on four or
@@ -67,8 +71,11 @@ export function createCallout(): Callout {
   const label = new Text({
     text: "",
     style: {
-      fill: 0xf3f6fb,
-      stroke: { color: 0x0f121a, width: 1 },
+      // Dark on a light plate, and no outline under it. The old light-on-dark
+      // label carried a 1px dark stroke to hold it off the ink behind it; the
+      // same trick here would only fur the glyphs, because the plate is already
+      // the contrast.
+      fill: CLOUD_INK,
       fontFamily: "Outfit, sans-serif",
       fontSize: 13,
       fontWeight: "600",
@@ -80,7 +87,9 @@ export function createCallout(): Callout {
     // and a rasterised label scaled up is a blurry label.
     resolution: Math.max(2, Math.ceil(window.devicePixelRatio || 1) * 2),
   });
-  label.anchor.set(0.5, 1);
+  // Centred, not bottom-aligned: an oval is symmetric about its middle and the
+  // text has to be too, or it rides up into the curve on one side.
+  label.anchor.set(0.5, 0.5);
   view.addChild(label);
   view.visible = false;
 
@@ -98,23 +107,26 @@ export function createCallout(): Callout {
       }
       label.text = line;
 
-      const w = label.width + CLOUD_PAD_X * 2;
-      const h = label.height + CLOUD_PAD_Y * 2;
+      // What the oval has to contain, not what it comes out as: `cloudOval`
+      // grows it by √2 to get the box's corners onto the curve.
+      const oval = cloudOval(label.width + CLOUD_PAD_X * 2, label.height + CLOUD_PAD_Y * 2);
 
       if (sprite) {
-        // The tail is part of the art, so the sprite covers the cloud and the
+        // The tail is part of the art, so the sprite covers the balloon and the
         // tail together and its bottom edge sits on the origin.
-        sprite.width = w;
-        sprite.height = h + TAIL_H;
-        sprite.position.set(-w / 2, -(h + TAIL_H));
+        sprite.width = oval.a * 2;
+        sprite.height = oval.b * 2 + oval.tailH;
+        sprite.position.set(-oval.a, oval.top);
       } else if (plate) {
         plate.clear();
-        outline(plate, w, cloudLobes(w, h));
-        plate
-          .fill({ color: CLOUD_INK, alpha: 0.9 })
-          .stroke({ color: CLOUD_EDGE, alpha: 0.55, width: 1 });
+        outline(plate, oval);
+        // Opaque, where the scalloped cloud let the room through at 0.9. A light
+        // plate at that alpha picks up whatever is behind it and takes the dark
+        // text down with it; a balloon that is hard to read is worse than one
+        // that hides a chair.
+        plate.fill(CLOUD_FILL).stroke({ color: CLOUD_INK, width: CLOUD_EDGE_W });
       }
-      label.position.set(0, -CLOUD_PAD_Y - TAIL_H);
+      label.position.set(0, oval.cy);
       // Drawing a line is what makes it appear. The cast's cloud got away with
       // this because callOut() flips `visible` itself; the player's had nobody
       // to do that for it and stayed hidden with a perfectly good cloud in it.
@@ -136,30 +148,30 @@ export function createCallout(): Callout {
 }
 
 /**
- * The cloud, as **one** closed path: a scalloped top, straight sides, a flat
- * base, and the tail cut into that base at the origin.
+ * The balloon, as **one** closed path: the oval's rim from the right corner of
+ * the tail's mouth over the top to the left corner, then the two curved edges of
+ * the tail down to the point at the origin and back.
  *
- * One path rather than two matters more than it looks. The fill is drawn at 0.9
- * alpha, so two overlapping shapes would show their overlap as a darker patch,
- * and two abutting shapes would leave the base's stroke drawn straight across
- * the tail's mouth. Walking the whole silhouette once gives a single fill and a
- * single continuous outline, and the tail is genuinely part of the cloud.
+ * One path rather than an ellipse with a tail stuck under it, and the reason
+ * survives the fill going opaque: two abutting shapes would leave the oval's own
+ * outline stroked straight across the mouth, with the tail hanging off a closed
+ * balloon like a flag. Walking the whole silhouette once gives a single
+ * continuous outline and a tail that is genuinely part of the shape.
  *
- * The base is flat on purpose: it puts the tail on solid edge wherever the line
- * length lands, instead of in a valley between two bottom lobes.
+ * The rim is a polyline because Pixi's `arc` draws circles and this is an
+ * ellipse, and because the mouth has to interrupt it at an arbitrary angle —
+ * `ellipse()` would only draw the closed whole. At `ovalSteps` density its worst
+ * chord falls under a sixteenth of a pixel short of the true curve, across every
+ * line the building can produce.
  */
-function outline(g: Graphics, w: number, lobes: CloudLobes): void {
-  const { base, cy, first, d, count, r } = lobes;
+function outline(g: Graphics, oval: CloudOval): void {
+  const rim = ovalRim(oval, ovalSteps(oval));
 
-  g.moveTo(-w / 2, base);
-  g.lineTo(-w / 2, cy);
-  for (let i = 0; i < count; i++) {
-    const { start, end } = lobeArc(lobes, i);
-    g.arc(first + d * i, cy, r, start, end);
-  }
-  g.lineTo(w / 2, base);
-  g.lineTo(TAIL_W / 2, base);
-  g.lineTo(0, 0);
-  g.lineTo(-TAIL_W / 2, base);
+  g.moveTo(rim[0].x, rim[0].y);
+  for (let i = 1; i < rim.length; i++) g.lineTo(rim[i].x, rim[i].y);
+  // `rim` ends on the left corner of the mouth; `closePath` returns to rim[0],
+  // which is the right corner the second curve already arrived at.
+  g.quadraticCurveTo(oval.tail.left.x, oval.tail.left.y, 0, 0);
+  g.quadraticCurveTo(oval.tail.right.x, oval.tail.right.y, oval.mouth.x, oval.mouth.y);
   g.closePath();
 }

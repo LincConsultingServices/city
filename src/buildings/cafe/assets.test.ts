@@ -53,9 +53,9 @@ describe("Café sprites", () => {
 });
 
 // The same guard for UI art, which is nine-sliced rather than drawn at a fixed
-// width: the thing that goes soft here is a corner or a lobe stretched by insets
-// that do not leave a middle band to take the stretch. Empty today, like the
-// table above — the callout cloud is a path (castView.ts).
+// width: the thing that goes soft here is a corner or a round end stretched by
+// insets that do not leave a middle band to take the stretch. Empty today, like
+// the table above — the callout balloon is a path (calloutView.ts).
 const uiEntries = Object.entries(UI_SPRITE) as Array<[string, UiSprite]>;
 
 describe("Café UI sprites", () => {

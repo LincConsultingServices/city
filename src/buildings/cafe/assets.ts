@@ -36,9 +36,13 @@ export interface UiSprite {
   key: CafeAssetKey;
   /**
    * Nine-slice insets in source pixels. A callout is re-cut every time its line
-   * changes and runs from about fifty to a hundred and forty pixels wide, so a
-   * plain sprite stretched to fit pulls the lobes out of shape. Only the flat
-   * middle bands may stretch; the corners, the lobes and the tail hold.
+   * changes and runs from about fifty to nearly four hundred pixels wide, so a
+   * plain sprite stretched to fit pulls the balloon's round ends out of shape.
+   * Only the flat middle bands may stretch; the corners and the ends hold.
+   *
+   * The tail cannot be held that way — it sits in the middle of the bottom band,
+   * which is exactly the band that stretches. Art that ships here has to accept
+   * a tail widening with the line, or arrive as a separate piece.
    */
   slice: { left: number; top: number; right: number; bottom: number };
 }
@@ -46,9 +50,9 @@ export interface UiSprite {
 /**
  * Kept apart from `PROP_SPRITE` because that table is keyed by `PropKind` and a
  * label over somebody's head is not a prop. Empty for the same reason the table
- * above is: the callout cloud is drawn as a path today (castView.ts). A real
- * cloud PNG — tail baked into the bottom band, so the tail point stays the
- * sprite's origin — drops in here with one line and needs no other change.
+ * above is: the callout balloon is drawn as a path today (calloutView.ts). A
+ * real balloon PNG — tail baked into the bottom band, so the tail point stays
+ * the sprite's origin — drops in here with one line and needs no other change.
  */
 export const UI_SPRITE: Partial<Record<"callout", UiSprite>> = {};
 
