@@ -79,6 +79,12 @@ interface CafeState {
   dialogue: DialogueState | null;
   /** The room's answer to what you just chose, shown before the room returns. */
   consequence: string | null;
+  /**
+   * What you just said, for the cloud over your own head. The option's own text,
+   * verbatim — the room repeats you rather than summarising you, because a
+   * summary would be somebody's reading of what you meant.
+   */
+  playerSaid: string | null;
   /** The letters taken so far this mission — what goes on the wire. */
   taken: DecisionSoFar;
   /**
@@ -151,6 +157,7 @@ export const useCafeStore = create<CafeState>((set) => ({
   progress: SEASON_START,
   dialogue: null,
   consequence: null,
+  playerSaid: null,
   taken: {},
   unsent: [],
   visitors: [],
@@ -242,6 +249,7 @@ export function resetCafeState(): void {
     progress: season.progress,
     dialogue: null,
     consequence: null,
+    playerSaid: null,
     taken: season.taken,
     unsent: season.unsent,
     visitors: season.visitors,
@@ -412,8 +420,13 @@ export function openDialogue(beat: Beat): void {
     noteEvent({ kind: "decided", beat });
     return;
   }
-  useCafeStore.setState({ dialogue: next, consequence: null, inputLocked: true });
-  s.announce(`${next.stage ? next.stage + " " : ""}${next.prompt}`);
+  useCafeStore.setState({ dialogue: next, consequence: null, playerSaid: null, inputLocked: true });
+  // `says` is announced with the rest. It is drawn over somebody's head in the
+  // room, and a line that exists only on the canvas is a line half the audience
+  // never receives (PRD §15).
+  s.announce(
+    [next.stage, next.prompt, next.says].filter((part) => part && part.length > 0).join(" "),
+  );
   // A player who left mid-decision and has just walked back in gets the question
   // before they have touched anything. The room asking you something is the week
   // having arrived, whoever started it, so the tracker comes up with it.
@@ -434,8 +447,15 @@ export function chooseOption(optionId: string): void {
   const outcome = resolve(mission.activityId, open.beat, s.taken, optionId);
   const taken: DecisionSoFar = { ...s.taken, [open.beat]: optionId };
 
+  const said = open.options.find((o) => o.id === optionId)?.text ?? null;
+
   audio.play("ui_confirm");
-  useCafeStore.setState({ taken, dialogue: null, consequence: outcome?.consequence ?? null });
+  useCafeStore.setState({
+    taken,
+    dialogue: null,
+    consequence: outcome?.consequence ?? null,
+    playerSaid: said,
+  });
   if (outcome?.consequence) s.announce(outcome.consequence);
   if (outcome?.world) writeWorld(outcome.world);
   // Immediate, not debounced. This is the one write that must never be lost.
@@ -450,7 +470,7 @@ export function chooseOption(optionId: string): void {
 export function closeConsequence(): void {
   const s = useCafeStore.getState();
   const beat = s.dialogue?.beat ?? lastBeatTaken(s.taken);
-  useCafeStore.setState({ consequence: null, inputLocked: false });
+  useCafeStore.setState({ consequence: null, playerSaid: null, inputLocked: false });
   if (!beat) return;
 
   // Read the mission before advancing: noteEvent below can close this mission

@@ -17,6 +17,7 @@
 //   * no option marks itself with hedging, glibness or author's praise;
 //   * no consequence tells the player whether they did well. The room reports
 //     what happened and stops there.
+import type { CastId } from "./cast";
 import type { WorldPatch } from "./world";
 import { PRO_TREES } from "./treesPro";
 
@@ -30,8 +31,23 @@ export interface Choice {
 }
 
 export interface FollowBranch {
-  /** Where the branch picks up, in the host's voice. */
+  /** Where the branch picks up: the room, the numbers, what has changed. */
   prompt: string;
+  /**
+   * The one line the speaker says out loud, for the cloud over their head.
+   * Narration stays in `prompt`; this is speech and nothing else.
+   *
+   * Absent when nobody is speaking — the night beat has no host by design, and a
+   * cloud over an empty room is a cloud pointing at nothing.
+   */
+  says?: string;
+  /**
+   * Who says it, when that is not the mission's own speaker. A branch can hand
+   * the line to somebody else in the room: week 16's middle branch is Marcus
+   * asking what changed about the coffee, and putting his question over Priya's
+   * head would be the room misquoting itself.
+   */
+  saysBy?: CastId;
   choices: readonly Choice[];
 }
 
@@ -39,8 +55,10 @@ export interface Tree {
   activityId: string;
   /** The scene, before anybody says anything. */
   stage: string;
-  /** The question that opens it. */
+  /** The situation the question arrives in. Narration, not speech. */
   prompt: string;
+  /** The line the host actually says, for the cloud. Absent when nobody speaks. */
+  says?: string;
   seed: readonly Choice[];
   /** Keyed by the seed choice that led here — the follow-up is branch-specific. */
   follow: Readonly<Record<string, FollowBranch>>;

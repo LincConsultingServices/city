@@ -30,7 +30,18 @@ export interface DialogueState {
   speaker: string;
   /** Set on the first beat only: the scene before anybody speaks. */
   stage?: string;
+  /** The situation. Narration — it goes in the panel. */
   prompt: string;
+  /**
+   * The line the speaker says out loud, for the cloud over their head. Absent
+   * when the register is narration and there is nobody to hang a cloud on.
+   *
+   * It is *also* announced to the live region, because a line that exists only
+   * on the canvas is a line half the audience never receives (PRD §15).
+   */
+  says?: string;
+  /** Who says it, when the branch hands the line to somebody other than the host. */
+  saysBy?: string;
   options: readonly DialogueOption[];
 }
 
@@ -71,6 +82,7 @@ export function openBeat(
       // the same question from Priya.
       speaker: present.includes(bank.speakerId) ? bank.speakerId : speaker,
       prompt: bank.prompt(world),
+      says: bank.says,
       options: bank.options.map((o) => ({ id: o.id, text: o.text })),
     };
   }
@@ -84,6 +96,7 @@ export function openBeat(
       speaker,
       stage: tree.stage,
       prompt: tree.prompt,
+      says: tree.says,
       options: tree.seed.map((c) => ({ id: c.id, text: c.text })),
     };
   }
@@ -94,6 +107,8 @@ export function openBeat(
     beat,
     speaker,
     prompt: branch.prompt,
+    says: branch.says,
+    saysBy: branch.saysBy,
     options: branch.choices.map((c) => ({ id: c.id, text: c.text })),
   };
 }

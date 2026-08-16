@@ -40,10 +40,20 @@ export function Dialogue() {
         <p className="mb-4 text-sm leading-relaxed text-muted">{dialogue.stage}</p>
       )}
 
+      {/* The situation. What the speaker actually says goes over their head in
+          the room (calloutView.ts) rather than being printed here as well —
+          except when nobody is speaking, or when they are not in the room to
+          hang a cloud on, and then this is the only place it can live. */}
       <p className="text-sm leading-relaxed text-text">
-        {speaker && <span className="font-semibold text-gold">{speaker.name}: </span>}
-        {speaker ? `“${dialogue.prompt}”` : dialogue.prompt}
+        {speaker && !dialogue.says && (
+          <span className="font-semibold text-gold">{speaker.name}: </span>
+        )}
+        {dialogue.prompt}
       </p>
+
+      {dialogue.says && !speaker && (
+        <p className="mt-2 text-sm leading-relaxed text-text">{dialogue.says}</p>
+      )}
 
       <ul className="mt-5 space-y-2">
         {dialogue.options.map((o) => (

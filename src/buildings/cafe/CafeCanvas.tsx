@@ -45,8 +45,10 @@ import {
 } from "./room";
 import { noteEvent, presentCast, toggleFlap, useCafeStore } from "./cafeStore";
 import { createTeardown } from "./teardown";
-import { CAST, castNear } from "./cast";
+import { CAST, castNear, type CastId } from "./cast";
 import { createCast } from "./castView";
+import { createCallout } from "./calloutView";
+import { CLOUD_FLOAT, CLOUD_FLOAT_HZ, CLOUD_LIFT } from "./cloud";
 import { calloutFor } from "./missionRunner";
 import { FADE_S, lightForMission, mixLight, type Light } from "./light";
 import { createCustomers } from "./customersView";
@@ -187,6 +189,20 @@ export function CafeCanvas({
       charBody.anchor.set(0.5, 1);
       char.addChild(charShadow, charBody);
       actors.addChild(char);
+
+      // Your own cloud, for what you have just said. Parented to the player for
+      // the same reason the cast's is parented to them: it rides the container
+      // and needs no per-frame screen maths. Its rest height is taken from the
+      // idle frame rather than from `charBody.position.y`, which the walk bob
+      // moves — the cloud drifts on its own clock and must not bounce with the
+      // stride.
+      const playerCloud = createCallout();
+      const playerCloudY = -charBody.height - CLOUD_LIFT;
+      playerCloud.view.position.set(0, playerCloudY);
+      char.addChild(playerCloud.view);
+      // Before the container that holds it, so its generated Text texture is
+      // freed by the thing that made it and an Assets-cached sprite survives.
+      borrowed.onUndo(() => playerCloud.destroy());
 
       // ── The cast ────────────────────────────────────────────────────────────
       // Added to the same sorted container as the furniture and the player, so
@@ -491,14 +507,31 @@ export function CafeCanvas({
         // does with it is a cell-distance question, and a cell changes ~30× less
         // often than a position does.
         cast.update(dt, curCell, presentNow());
-        // Whoever the live objective is pointing at gets the line over their
-        // head. The tracker says what to do; this says who to walk to, which is
-        // the one question a panel cannot answer from across the room.
+        // What the one cloud in the room is carrying, in order of precedence.
         //
-        // Down until the player has touched something, with the tracker and for
-        // the same reason: the room should be a room first (see `missionWoken`).
-        const call = woken ? calloutFor(progress) : null;
+        // **Speech wins.** Somebody asking you something outranks a marker
+        // telling you where to walk, and while a question is open the answer to
+        // "who do I approach" is standing in front of you anyway.
+        //
+        // Otherwise it is whoever the live objective points at. The tracker says
+        // what to do; this says who to walk to, which is the one question a panel
+        // cannot answer from across the room. Down until the player has touched
+        // something, with the tracker and for the same reason: the room should be
+        // a room first (see `missionWoken`).
+        const open = useCafeStore.getState().dialogue;
+        const mouth = open?.saysBy ?? open?.speaker;
+        const speaking =
+          open?.says && mouth && mouth !== "room" && presentNow().has(mouth as CastId)
+            ? { id: mouth as CastId, line: open.says }
+            : null;
+        const call = speaking ?? (woken ? calloutFor(progress) : null);
         cast.callOut(call?.id ?? null, call?.line ?? "");
+
+        // Your own reply, over your own head. Same object, different parent —
+        // the player is not part of the cast, so this one is built here.
+        playerCloud.draw(useCafeStore.getState().playerSaid ?? "");
+        playerCloud.view.position.y =
+          playerCloudY + (reduced ? 0 : Math.sin(elapsed * CLOUD_FLOAT_HZ) * CLOUD_FLOAT);
         customers.update(dt, useCafeStore.getState().world, order, ringBell);
 
         // The flap swing. Linear over FLAP_SWING_S so it reads as a hinge rather

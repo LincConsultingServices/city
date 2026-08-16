@@ -42,6 +42,12 @@ export interface FollowupBeat {
   variesOn: WorldKey;
   /** The situation, as a function of the one key this beat varies on. */
   prompt: (world: World) => string;
+  /**
+   * The line the speaker says out loud, for the cloud over their head. Constant
+   * rather than a function of the world: what varies between a full room and a
+   * thin one is the situation, not the sentence somebody says about it.
+   */
+  says?: string;
   options: readonly FollowupOption[];
 }
 
