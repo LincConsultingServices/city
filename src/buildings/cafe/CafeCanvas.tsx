@@ -39,19 +39,18 @@ import {
   SPAWN,
   exitNear,
   gateNear,
-  hotspotNear,
   makeRoomGrid,
   type GateId,
 } from "./room";
-import { presentCast, toggleFlap, useCafeStore } from "./cafeStore";
+import { toggleFlap, useRoomStore } from "./roomStore";
 import { createTeardown } from "./teardown";
-import { CAST, castNear } from "./cast";
+import { CAST, castFor, castNear } from "./cast";
+import { useJourneyStore } from "./journeyStore";
 import { createCast } from "./castView";
 import { interviewLight, type Light } from "./light";
 import { createCustomers } from "./customersView";
 import { createSchedule } from "./ambient";
 import { createPigeon } from "./pigeon";
-import { marcusIsIn } from "./world";
 
 const WALK_SPEED = 175; // px/sec — the city's pace, so indoors feels like outdoors
 const STEP_S = 0.18; // seconds per walk-cycle frame
@@ -82,7 +81,7 @@ export function CafeCanvas({
     let detach: (() => void) | null = null;
     const reduced = prefersReducedMotion();
 
-    const store = useCafeStore.getState();
+    const store = useRoomStore.getState();
     const keys = new Set<string>();
     const onKeyDown = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
@@ -196,7 +195,7 @@ export function CafeCanvas({
       // question the world state and the live mission answer between them.
       const cast = createCast(app.renderer, CAST, reduced, actors);
       baked.push(...cast.textures);
-      const presentNow = () => new Set(presentCast());
+      const presentNow = () => new Set(castFor(useJourneyStore.getState().role));
 
       // ── The room's population ───────────────────────────────────────────────
       // Unnamed, never an objective, and the reason the café reads as a café
@@ -235,14 +234,14 @@ export function CafeCanvas({
       // also order the player to walk into the counter.
       flap.children[0].on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
-        if (useCafeStore.getState().inputLocked) return;
+        if (useRoomStore.getState().inputLocked) return;
         toggleFlap();
       });
 
       // The city has its own stage listener; it no-ops the whole time a venue is
       // open because the world's `inputLocked` is set. Ours comes off by name.
       const onStageDown = (e: FederatedPointerEvent) => {
-        if (useCafeStore.getState().inputLocked) return;
+        if (useRoomStore.getState().inputLocked) return;
         const local = world.toLocal(e.global);
         const goal = roundCell(worldToMap(local.x, local.y));
         if (!grid.isWalkable(goal.x, goal.y)) return;
@@ -256,7 +255,7 @@ export function CafeCanvas({
 
       // ── The flap, reacting to the store ─────────────────────────────────────
       let flapTarget = 0;
-      unsubscribe = useCafeStore.subscribe((s, prev) => {
+      unsubscribe = useRoomStore.subscribe((s, prev) => {
         if (destroyed || s.flapOpen === prev.flapOpen) return;
         if (s.flapOpen) openGates.add(GATES[0].id);
         else openGates.delete(GATES[0].id);
@@ -289,12 +288,12 @@ export function CafeCanvas({
         if (destroyed) return;
         const dt = ticker.deltaMS / 1000;
         elapsed += dt;
-        const locked = useCafeStore.getState().inputLocked;
+        const locked = useRoomStore.getState().inputLocked;
 
         // A station button asking the room to walk somewhere. Polled rather than
         // subscribed: the ticker is already reading this store every frame, and a
         // re-entrant setState inside a subscriber is a needless puzzle.
-        const want = useCafeStore.getState().walkTo;
+        const want = useRoomStore.getState().walkTo;
         if (want) {
           store.setWalkTo(null);
           const path = findPath(grid, curCell, want);
@@ -308,7 +307,7 @@ export function CafeCanvas({
             // does nothing reads as broken, and it is the only signal a player
             // navigating by keyboard gets.
             store.announce(
-              useCafeStore.getState().flapOpen
+              useRoomStore.getState().flapOpen
                 ? "There's no way through to there."
                 : GATES[0].closedSays,
             );
@@ -394,7 +393,6 @@ export function CafeCanvas({
           store.setCharCell(curCell);
           store.setNearExit(exitNear(curCell));
           store.setNearGate(gateNear(curCell)?.id ?? null);
-          store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
           // The runner decides whether arriving here was an objective. Most of
           // the time it is not, and it says so by not moving.
         }
@@ -408,7 +406,7 @@ export function CafeCanvas({
         // ── Ambient ───────────────────────────────────────────────────────────
         // Somebody is at the machine when Priya is standing on the two cells in
         // front of it. The steam is hers, not the room's.
-        const roomWorld = useCafeStore.getState().world;
+        const roomWorld = useRoomStore.getState().world;
         const atMachine = cast
           .positions()
           .some((p) => p.cell.y <= 1 && p.cell.x >= 3 && p.cell.x <= 5);
@@ -434,8 +432,8 @@ export function CafeCanvas({
             case "wipe":
               cast.nudge("priya");
               break;
-            case "page":
-              if (marcusIsIn(roomWorld)) cast.nudge("marcus");
+            case "typing":
+              cast.nudge("owen");
               break;
             case "pigeon":
               pigeon.land();
@@ -461,7 +459,7 @@ export function CafeCanvas({
         // does with it is a cell-distance question, and a cell changes ~30× less
         // often than a position does.
         cast.update(dt, curCell, presentNow());
-        customers.update(dt, useCafeStore.getState().world, ringBell);
+        customers.update(dt, useRoomStore.getState().world, ringBell);
 
         // The flap swing. Linear over FLAP_SWING_S so it reads as a hinge rather
         // than a spring; reduced motion snapped it already, above.
@@ -508,7 +506,6 @@ export function CafeCanvas({
 
       store.setNearExit(exitNear(curCell));
       store.setNearGate(gateNear(curCell)?.id ?? null);
-      store.setNearHotspot(hotspotNear(curCell)?.id ?? null);
       store.setNearCast(castNear(curCell, cast.positions())?.id ?? null);
       audio.preload(["step_hard_1", "step_hard_2"]);
       // What time of year you have walked back into. A returning player mid-season

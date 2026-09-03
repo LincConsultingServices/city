@@ -6,9 +6,8 @@ import {
   setTrack,
   trackOrDefault,
 } from "@/framework/city/track";
-import { QUESTIONS, activityAt } from "./interview";
-import { castFor } from "./cast";
-import { OPENING_WORLD, openingWorldFor, passThroughBody } from "./world";
+import { COMPETENCIES, activityAt } from "./trees";
+import { openingWorldFor } from "./world";
 import { cooled, lightForWeek } from "./light";
 
 beforeEach(() => {
@@ -47,15 +46,17 @@ describe("the eighteen registry rows", () => {
   });
 
   it("gives every competency a row on both tracks, all eighteen distinct", () => {
-    const ids = (["SCA", "SCB"] as const).flatMap((t) => QUESTIONS.map((c) => activityIdFor(c, t)));
+    const ids = (["SCA", "SCB"] as const).flatMap((t) =>
+      COMPETENCIES.map((c) => activityIdFor(c, t)),
+    );
     expect(ids).toHaveLength(18);
     expect(new Set(ids).size).toBe(18);
   });
 
   it("asks the nine in the blueprint's order, on whichever track was answered", () => {
     setTrack("SCB");
-    expect(QUESTIONS.map((_, i) => activityAt(i))).toEqual(
-      QUESTIONS.map((c) => activityIdFor(c, "SCB")),
+    expect(COMPETENCIES.map((_, i) => activityAt(i))).toEqual(
+      COMPETENCIES.map((c) => activityIdFor(c, "SCB")),
     );
     setTrack("SCA");
     expect(activityAt(0)).toBe("C1-SCA-01");
@@ -68,32 +69,9 @@ describe("the eighteen registry rows", () => {
 });
 
 describe("the Level B room", () => {
-  it("puts Tomas on the floor from week one", () => {
-    // The staffing problem is in the room from the start rather than arriving in
-    // week 14, and that is most of what makes the same nine weeks read heavier.
-    expect(castFor(OPENING_WORLD, "SCB")).toContain("tomas");
-    expect(castFor(OPENING_WORLD, "SCA")).not.toContain("tomas");
-  });
-
-  it("keeps Priya unremovable on both tracks", () => {
-    for (const track of ["SCA", "SCB"] as const) {
-      for (const regulars of ["full", "steady", "thin", "returning"] as const) {
-        expect(castFor({ ...OPENING_WORLD, regulars }, track), track).toContain("priya");
-      }
-    }
-  });
-
   it("has the rival's awning already up across the road", () => {
     expect(openingWorldFor("SCB").rival).toBe("open");
     expect(openingWorldFor("SCA").rival).toBe("none");
-  });
-
-  it("pins the supplier's letter and the corrected rota by the hatch", () => {
-    const pro = passThroughBody(OPENING_WORLD, "SCB");
-    const hard = passThroughBody(OPENING_WORLD, "SCA");
-    expect(pro).toContain("supplier");
-    expect(pro).toContain("rota");
-    expect(hard).not.toContain("supplier");
   });
 
   it("runs a stop cooler without going dark", () => {

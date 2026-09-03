@@ -9,74 +9,52 @@ import { useCallback, useEffect, useState } from "react";
 import type { InteriorProps } from "@/framework/building/manifest";
 import { audio } from "@/framework/audio/audioManager";
 import { Icon } from "@/ui/Icon";
-import { Modal } from "@/ui/Modal";
 import { CafeCanvas } from "./CafeCanvas";
 import { armBeacon, hydrateSession, setSessionTrack } from "@/framework/session/sync";
 import { trackOrDefault } from "@/framework/city/track";
-
-/** The beat in which she finishes writing before she looks up and asks. */
-const BEAT_MS = 900;
 import {
-  beginInterview,
-  closeHotspot,
-  openDialogue,
-  openOffer,
-  flushNow,
-  openHotspot,
-  resetCafeState,
-  retryUnsent,
+  resetRoomState,
   speakTo,
   stopSpeaking,
   toggleFlap,
-  useCafeStore,
-} from "./cafeStore";
-import { GATES, HOTSPOTS, zoneAt } from "./room";
+  useRoomStore,
+  writeWorld,
+} from "./roomStore";
+import { GATES, guideFor, zoneAt } from "./room";
 import { atAnchors, castById, castFor, guideWithCast } from "./cast";
-import { hotspotBody } from "./world";
-import { Dialogue } from "./Dialogue";
-import { InterviewPanel } from "./InterviewPanel";
-import { Offer } from "./Offer";
-import { isOver, type InterviewProgress } from "./interview";
-import { BUILDING_ID } from "./session";
-import { STATIONS } from "./room";
-
-/** Where she takes the interview. Not behind the counter — you do not work here yet. */
-const INTERVIEW_STATION = "st_tables";
-/** Close enough to the table to be sitting at it. */
-const SIT_RADIUS = 1;
-
-function atTable(x: number, y: number): boolean {
-  const cell = STATIONS.find((p) => p.id === INTERVIEW_STATION)?.cell;
-  return !!cell && Math.abs(cell.x - x) <= SIT_RADIUS && Math.abs(cell.y - y) <= SIT_RADIUS;
-}
-
-/** Standing at the table, with an interview still to have. */
-function sittingDown(
-  x: number,
-  y: number,
-  interviewing: boolean,
-  progress: InterviewProgress,
-): boolean {
-  return atTable(x, y) && !interviewing && !isOver(progress);
-}
+import { Decision } from "./Decision";
+import { StageChip } from "./StageChip";
+import { QA } from "./QA";
+import { Gate } from "./Gate";
+import { Report } from "./Report";
+import {
+  closeStage,
+  currentStage,
+  goToNextStage,
+  leave as flushJourneyNow,
+  retryUnsent,
+  stageIsDone,
+  useJourneyStore,
+} from "./journeyStore";
+import { BUILDING_ID, freshJourney, loadJourney } from "./journeySession";
 
 export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const [ready, setReady] = useState(false);
-  const charCell = useCafeStore((s) => s.charCell);
-  const nearExit = useCafeStore((s) => s.nearExit);
-  const nearGateId = useCafeStore((s) => s.nearGateId);
-  const nearHotspotId = useCafeStore((s) => s.nearHotspotId);
-  const nearCastId = useCafeStore((s) => s.nearCastId);
-  const openHotspotId = useCafeStore((s) => s.openHotspotId);
-  const speakingToId = useCafeStore((s) => s.speakingToId);
-  const spokenLine = useCafeStore((s) => s.spokenLine);
-  const flapOpen = useCafeStore((s) => s.flapOpen);
-  const announcement = useCafeStore((s) => s.announcement);
-  const world = useCafeStore((s) => s.world);
-  const progress = useCafeStore((s) => s.progress);
-  const interviewing = useCafeStore((s) => s.interviewing);
-  const dialogue = useCafeStore((s) => s.dialogue);
-  const consequence = useCafeStore((s) => s.consequence);
+  const charCell = useRoomStore((s) => s.charCell);
+  const nearExit = useRoomStore((s) => s.nearExit);
+  const nearGateId = useRoomStore((s) => s.nearGateId);
+  const nearCastId = useRoomStore((s) => s.nearCastId);
+  const speakingToId = useRoomStore((s) => s.speakingToId);
+  const spokenLine = useRoomStore((s) => s.spokenLine);
+  const flapOpen = useRoomStore((s) => s.flapOpen);
+  const announcement = useRoomStore((s) => s.announcement);
+
+  const role = useJourneyStore((s) => s.role);
+  const stageId = useJourneyStore((s) => s.stageId);
+  const index = useJourneyStore((s) => s.index);
+  const journeyWorld = useJourneyStore((s) => s.world);
+  const consequence = useJourneyStore((s) => s.consequence);
+  const [reportOpen, setReportOpen] = useState(false);
 
   // Every visit starts at the door with the flap down, which keeps the store and
   // the canvas's own gate set in step (the canvas boots with no gates open).
@@ -94,11 +72,15 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     setSessionTrack(BUILDING_ID, trackOrDefault());
     void hydrateSession(BUILDING_ID).finally(() => {
       if (!live) return;
-      resetCafeState();
+      // The career is whatever was left behind; the room always restarts at the
+      // door with the flap down, because the canvas boots with no gates open.
+      const saved = loadJourney() ?? freshJourney();
+      useJourneyStore.setState({ ...saved, consequence: null, outcome: null, closing: false });
+      resetRoomState(saved.world);
       setSeasonIn(true);
-      // Questions answered while the backend was unreachable are owed a score
-      // and the coins that come with it. The door opening is when a connection
-      // is most likely to be back.
+      // Sittings that never reached the server are owed a score and the coins
+      // that come with it. The door opening is when a connection is most likely
+      // to be back.
       void retryUnsent();
     });
     return () => {
@@ -106,37 +88,55 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     };
   }, []);
 
-  // The next beat arriving is her asking. The pause before it is her finishing
-  // what she was writing — never a spinner, and never anything that marks out
-  // which of the three came from a model (PRD §11.2).
-  //
-  // Nothing is on screen and nothing is pending: that is the gap between
-  // committing one answer and being asked the next, and it closes itself.
-  const dueBeat = interviewing && !dialogue && !consequence ? progress.beat : null;
+  // The room reflects the career: a decision writes world state into the
+  // journey, and the room is what draws it.
   useEffect(() => {
-    if (!dueBeat) return;
-    const t = window.setTimeout(() => void openDialogue(dueBeat), BEAT_MS);
-    return () => window.clearTimeout(t);
-  }, [dueBeat]);
+    if (!seasonIn) return;
+    writeWorld(journeyWorld);
+  }, [seasonIn, journeyWorld]);
+
+  /**
+   * A stage that has run out of things to ask closes itself.
+   *
+   * Deliberately automatic. A "finish" button implies something is being
+   * computed and invites the player to wonder what; they have already made every
+   * decision there was to make, and the grading, the revenue reveal and the
+   * per-competency settle are the server's business rather than theirs.
+   *
+   * Gates are excluded because a gate *is* the pause — it shows three roads and
+   * waits. The exit closes to bank the revenue, and then the report opens.
+   */
+  const stageKind = currentStage().kind;
+  const readyToClose = seasonIn && stageIsDone() && consequence === null;
+  useEffect(() => {
+    if (!readyToClose || stageKind === "gate") return;
+    let live = true;
+    void closeStage().then(() => {
+      if (!live) return;
+      if (stageKind === "exit") setReportOpen(true);
+      else goToNextStage();
+    });
+    return () => {
+      live = false;
+    };
+  }, [readyToClose, stageKind, stageId, index]);
+
+  /** The exit stage has nothing to ask, so it closes the moment you reach it. */
+  useEffect(() => {
+    if (seasonIn && stageKind === "exit" && !reportOpen) setReportOpen(true);
+  }, [seasonIn, stageKind, reportOpen]);
 
   const gate = nearGateId ? (GATES.find((g) => g.id === nearGateId) ?? null) : null;
-  const hotspot = nearHotspotId ? (HOTSPOTS.find((h) => h.id === nearHotspotId) ?? null) : null;
-  const openSpot = openHotspotId ? (HOTSPOTS.find((h) => h.id === openHotspotId) ?? null) : null;
   const person = nearCastId ? castById(nearCastId) : null;
   const speaking = speakingToId ? castById(speakingToId) : null;
-  const atTheTable = atTable(charCell.x, charCell.y);
 
   // The list is rebuilt from where people are standing, so walking to Priya
   // means walking to Priya rather than to the spot she left. Anchors are the
   // fallback for the frame or two before the canvas has reported in.
-  const guide = guideWithCast(atAnchors(castFor(world)));
-  // The tables come first while there is still an interview to sit down for —
-  // it is the one place in the room the player actually has to reach.
-  const table = STATIONS.find((p) => p.id === INTERVIEW_STATION);
-  const nav =
-    table && !interviewing && !isOver(progress)
-      ? [table, ...guide.filter((p) => p.id !== table.id)]
-      : guide;
+  // One destination and two people. It used to carry six stations and four
+  // noticeboards, which read as a to-do list rather than as a way of crossing
+  // the room without a mouse.
+  const nav = guideWithCast(atAnchors(castFor(role)), guideFor(role));
 
   /**
    * Leaving flushes the season first. "Leaving the building" and "closing the
@@ -145,39 +145,35 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
    * else is going to run.
    */
   const leaveNow = useCallback(() => {
-    flushNow();
+    flushJourneyNow();
     onExit();
   }, [onExit]);
 
   /**
-   * One prompt slot, four things competing for it. The door wins when you are
+   * One prompt slot, three things competing for it. The door wins when you are
    * standing in it — leaving must never be harder than anything else in the room.
    * Then the flap, which has to beat the person behind it: Priya works at the
    * machine one cell from the hinge, and if she won there you could never lower
-   * the flap from the staff side. Then people, because someone standing in front
-   * of you outranks a noticeboard. Then whatever you can read.
+   * the flap from the staff side. Then people — which, in this room, means Owen,
+   * and speaking to Owen is the interview.
    *
    * Reads live state rather than closing over props, so the keyboard and the
    * button can share it.
    */
   const act = useCallback(() => {
-    const s = useCafeStore.getState();
+    const s = useRoomStore.getState();
     if (s.nearExit) {
       audio.play("ui_close");
       leaveNow();
     } else if (s.nearGateId) {
       toggleFlap();
-    } else if (sittingDown(s.charCell.x, s.charCell.y, s.interviewing, s.progress)) {
-      beginInterview();
     } else if (s.nearCastId) {
       speakTo(s.nearCastId);
-    } else if (s.nearHotspotId) {
-      openHotspot(s.nearHotspotId);
     }
   }, [leaveNow]);
 
   useEffect(() => {
-    const flush = () => flushNow();
+    const flush = () => flushJourneyNow();
     window.addEventListener("pagehide", flush);
     const onHidden = () => {
       if (document.visibilityState === "hidden") flush();
@@ -198,20 +194,19 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   useEffect(() => {
     if (!seasonIn) return;
     void armBeacon(BUILDING_ID);
-  }, [seasonIn, progress.index]);
+  }, [seasonIn, stageId]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         // A panel closes first; only then does Escape mean "leave".
-        const s = useCafeStore.getState();
+        const s = useRoomStore.getState();
         if (s.speakingToId) stopSpeaking();
-        else if (s.openHotspotId) closeHotspot();
         else leave();
         return;
       }
       if (e.key !== "e" && e.key !== "E" && e.key !== "Enter") return;
-      if (useCafeStore.getState().inputLocked) return;
+      if (useRoomStore.getState().inputLocked) return;
       act();
     }
     function leave() {
@@ -228,11 +223,9 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
       ? flapOpen
         ? gate.closePrompt
         : gate.openPrompt
-      : atTheTable && !interviewing && !isOver(progress)
-        ? "sit down for the interview"
-        : person
-          ? person.name
-          : (hotspot?.prompt ?? null);
+      : person
+        ? person.name
+        : null;
 
   return (
     // Transparent, and click-through by default. The room is drawn into the
@@ -245,9 +238,11 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
           has already given the city back by the time this fires. */}
       <CafeCanvas onReady={() => setReady(true)} onError={onExit} />
 
-      {ready && seasonIn && interviewing && !isOver(progress) && <InterviewPanel />}
-      <Dialogue />
-      <Offer />
+      {ready && seasonIn && <StageChip />}
+      {ready && seasonIn && <Decision />}
+      {ready && seasonIn && stageKind === "qa" && consequence === null && <QA />}
+      {ready && seasonIn && stageKind === "gate" && <Gate />}
+      {reportOpen && <Report onClose={leaveNow} />}
 
       {(!ready || !seasonIn) && (
         <div className="absolute inset-0 grid place-items-center bg-ink">
@@ -274,21 +269,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         <span className="rounded bg-line/50 px-1.5 py-0.5 text-xs text-muted">Esc</span>
       </button>
 
-      {/* The interview is the one thing there is to do here, so it is never more
-          than one click away. Walking to the table is the nicer way in — she is
-          sitting there — and this is the way in that cannot be missed. It is why
-          the flow has no dead end for a player who never finds the tile: she
-          comes over to wherever they are standing. */}
-      {ready && seasonIn && !interviewing && !isOver(progress) && !openSpot && !speaking && (
-        <button
-          onClick={beginInterview}
-          className="pointer-events-auto absolute right-5 top-20 z-10 flex items-center gap-2 rounded-full border border-gold/60 bg-surface/90 px-4 py-2 text-sm text-text shadow-lg backdrop-blur hover:brightness-110"
-        >
-          <span className="font-semibold text-gold">Sit down for the interview</span>
-        </button>
-      )}
-
-      {prompt && !openSpot && !speaking && (
+      {prompt && !speaking && (
         <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 animate-slide-up">
           <button
             onClick={act}
@@ -310,7 +291,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         {nav.map((s) => (
           <button
             key={s.id}
-            onClick={() => useCafeStore.getState().setWalkTo(s.cell)}
+            onClick={() => useRoomStore.getState().setWalkTo(s.cell)}
             className="rounded-full border border-line/70 bg-surface/70 px-2.5 py-1 text-xs text-muted backdrop-blur hover:border-gold/60 hover:text-text"
           >
             {s.label}
@@ -322,26 +303,9 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         WASD or click to move · E to interact
       </p>
 
-      {openSpot && (
-        <div className="pointer-events-auto">
-          <Modal onClose={closeHotspot} width="sm">
-            <h2 className="font-display text-xl font-semibold text-gold">{openSpot.title}</h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted">
-              {hotspotBody(openSpot.id, world)}
-            </p>
-            <button
-              onClick={closeHotspot}
-              className="mt-5 rounded-lg bg-gold px-5 py-2 font-medium text-ink hover:brightness-110"
-            >
-              Back to the room
-            </button>
-          </Modal>
-        </div>
-      )}
-
-      {/* Somebody talking to you. Deliberately not the hotspot panel's shape: a
-          line of speech is a person, not an exhibit, so it sits low and narrow
-          near where they are standing rather than taking over the screen. */}
+      {/* Somebody talking to you. Deliberately not a panel: a line of speech is a
+          person, not an exhibit, so it sits low and narrow near where they are
+          standing rather than taking over the screen. */}
       {speaking && (
         <div className="pointer-events-auto absolute bottom-16 left-1/2 z-20 w-[min(30rem,90vw)] -translate-x-1/2 animate-slide-up">
           <div className="rounded-2xl border border-line/70 bg-surface/95 p-5 shadow-xl backdrop-blur">

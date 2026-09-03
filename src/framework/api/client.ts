@@ -14,6 +14,8 @@ import {
   ProfileResponse,
   FollowupPublic,
   FollowupCommit,
+  JourneyStageResult,
+  ConsequenceResult,
   StateEnvelope,
   BuildingStateEnvelope,
   StateAck,
@@ -26,6 +28,28 @@ import {
 } from "./schemas";
 
 /** What the client asks the server to write about the transfer beat. */
+/** What a stage close sends. `answers` for a typed stage, `units` for a scenario one. */
+export interface JourneyStageBody {
+  runId?: string;
+  stageId: string;
+  track?: string;
+  answers?: { unitId: string; text: string }[];
+  units?: { unitId: string; choice: string }[];
+}
+
+/**
+ * What a consequence request sends. Ids, a letter, and a closed-enum world map —
+ * and nothing a typed answer could travel in.
+ */
+export interface ConsequenceBody {
+  buildingId: string;
+  stageId?: string;
+  unitId: string;
+  choice: string;
+  speakerId?: string;
+  worldState?: Record<string, string>;
+}
+
 export interface FollowupParams {
   activityId: string;
   track: "SCA" | "SCB";
@@ -51,6 +75,22 @@ const backoff = (attempt: number) => Math.min(BASE_BACKOFF_MS * 2 ** (attempt - 
 export interface ApiClientOptions {
   onSessionLost?: (reason: string) => void;
   onRetryToast?: (message: string) => void;
+}
+
+interface PerformOpts {
+  allowRefresh?: boolean;
+  /**
+   * Suppress the retry toast. For paths that already have their own
+   * silent-failure contract — the AI follow-up (ADR-006 §7.4: "not a spinner...
+   * the player is never told") and session-state writes (ADR-006 §11: "a
+   * backend outage degrades... never to a lost season", handled by the mirror
+   * and the next hydrate) — a "Reconnecting…" toast on retry is itself the leak
+   * those sections forbid, not a helpful status update.
+   */
+  silent?: boolean;
+  /** Lets a caller with its own deadline (the transfer beat's 4 s race) cancel
+   *  an attempt already in flight instead of leaving it to keep retrying. */
+  signal?: AbortSignal;
 }
 
 export class ApiClient {
@@ -133,8 +173,15 @@ export class ApiClient {
    * rate limit all resolve to an authored beat. A failure here is therefore a
    * network or auth failure, and the caller falls through to its local bank.
    */
-  aiFollowup(params: FollowupParams) {
-    return this.request("POST", "/api/v1/ai/followup", FollowupPublic, params);
+  aiFollowup(params: FollowupParams, signal?: AbortSignal) {
+    // Silent, and cancellable: ADR-006 §7.4 forbids a spinner or any other tell
+    // during this wait, and the caller (transfer.ts) races it against its own
+    // 4 s deadline, so a losing attempt needs to actually stop rather than keep
+    // retrying in the background after the bank has already answered.
+    return this.request("POST", "/api/v1/ai/followup", FollowupPublic, params, {
+      silent: true,
+      signal,
+    });
   }
 
   /**
@@ -144,8 +191,49 @@ export class ApiClient {
    * consequences in the payload are three hints at which option is which.
    */
   commitFollowup(followupId: string, optionId: string) {
-    return this.request("POST", `/api/v1/ai/followup/${followupId}/commit`, FollowupCommit, {
-      optionId,
+    return this.request(
+      "POST",
+      `/api/v1/ai/followup/${followupId}/commit`,
+      FollowupCommit,
+      { optionId },
+      { silent: true },
+    );
+  }
+
+  // ── The career journey (ADR-007) ────────────────────────────────────────────
+
+  /**
+   * Close one journey stage: grade a typed sitting, append the attempt, and
+   * reveal the revenue that stage moved.
+   *
+   * Not silent. Unlike a generated beat, a stage close is a commitment the
+   * player made — losing one loses an interview they sat — so a failure here
+   * should surface and be retried rather than degrade quietly.
+   */
+  journeyStage(buildingId: string, body: JourneyStageBody) {
+    return this.request(
+      "POST",
+      `/api/v1/city/buildings/${buildingId}/journey/stage`,
+      JourneyStageResult,
+      body,
+    );
+  }
+
+  /**
+   * Ask what happened after an L1 or L2 choice.
+   *
+   * Silent and cancellable, exactly like `aiFollowup`: the caller races it
+   * against its own deadline and falls through to the authored line, and there
+   * must be no spinner or other tell that this beat is the generated one.
+   *
+   * Note what the body cannot carry: there is no free-text field, and there must
+   * never be one. That absence is what keeps the typed interview and the
+   * generator apart (ADR-007 §13).
+   */
+  aiConsequence(body: ConsequenceBody, signal?: AbortSignal) {
+    return this.request("POST", "/api/v1/ai/consequence", ConsequenceResult, body, {
+      silent: true,
+      signal,
     });
   }
 
@@ -153,7 +241,7 @@ export class ApiClient {
 
   /** City-wide: the track, FTUE flags, where they were standing. */
   getCityState() {
-    return this.request("GET", "/api/v1/city/state", StateEnvelope);
+    return this.request("GET", "/api/v1/city/state", StateEnvelope, undefined, { silent: true });
   }
 
   putCityState(rev: number, blob: unknown) {
@@ -162,7 +250,13 @@ export class ApiClient {
 
   /** The season: mission, objective, world, the pending transfer question. */
   getBuildingState(buildingId: string) {
-    return this.request("GET", `/api/v1/city/buildings/${buildingId}/state`, BuildingStateEnvelope);
+    return this.request(
+      "GET",
+      `/api/v1/city/buildings/${buildingId}/state`,
+      BuildingStateEnvelope,
+      undefined,
+      { silent: true },
+    );
   }
 
   putBuildingState(buildingId: string, rev: number, blob: unknown, track?: "SCA" | "SCB") {
@@ -180,6 +274,8 @@ export class ApiClient {
       "GET",
       `/api/v1/city/beacon-token?buildingId=${encodeURIComponent(buildingId)}`,
       BeaconToken,
+      undefined,
+      { silent: true },
     );
   }
 
@@ -191,7 +287,11 @@ export class ApiClient {
    * two tabs in the same building survivable. It is returned, not thrown.
    */
   private async writeState(path: string, body: unknown): Promise<StateWriteResult> {
-    const { status, body: raw } = await this.performAllowing([409], "PUT", path, body);
+    // Silent: a session write's failure story is already the mirror-and-next-
+    // hydrate one (ADR-006 §11), not a toast.
+    const { status, body: raw } = await this.performAllowing([409], "PUT", path, body, {
+      silent: true,
+    });
     if (status === 409) {
       const conflict = raw as { rev?: number; blob?: unknown; updatedAt?: string } | null;
       return {
@@ -213,8 +313,9 @@ export class ApiClient {
     path: string,
     schema: S,
     body?: unknown,
+    opts?: Pick<PerformOpts, "silent" | "signal">,
   ): Promise<z.output<S>> {
-    const raw = await this.perform(method, path, body);
+    const raw = await this.perform(method, path, body, opts);
     const parsed = schema.safeParse(raw);
     if (parsed.success) return parsed.data;
     throw new ApiError("BAD_RESPONSE", "Unexpected response from the server.");
@@ -232,9 +333,10 @@ export class ApiClient {
     method: string,
     path: string,
     body?: unknown,
+    opts?: Pick<PerformOpts, "silent" | "signal">,
   ): Promise<{ status: number; body: unknown }> {
     try {
-      return { status: 200, body: await this.perform(method, path, body) };
+      return { status: 200, body: await this.perform(method, path, body, opts) };
     } catch (e) {
       if (e instanceof ApiError && allowed.includes(e.httpStatus)) {
         return { status: e.httpStatus, body: e.body };
@@ -249,8 +351,9 @@ export class ApiClient {
     method: string,
     path: string,
     body?: unknown,
-    allowRefresh = true,
+    opts: PerformOpts = {},
   ): Promise<unknown> {
+    const { allowRefresh = true, silent = false, signal } = opts;
     const url = appConfig.apiBaseUrl + path;
     let attempt = 0;
 
@@ -265,11 +368,16 @@ export class ApiClient {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: body === undefined ? undefined : JSON.stringify(body),
+          signal,
         });
-      } catch {
+      } catch (e) {
+        // An intentional cancellation (the transfer beat's deadline losing the
+        // race) is not a connectivity failure — retrying it would spend the
+        // budget re-fetching something nobody is waiting on any more.
+        if (e instanceof DOMException && e.name === "AbortError") throw e;
         if (attempt < MAX_RETRIES) {
           attempt += 1;
-          this.opts.onRetryToast?.("Reconnecting…");
+          if (!silent) this.opts.onRetryToast?.("Reconnecting…");
           await sleep(backoff(attempt));
           continue;
         }
@@ -284,7 +392,7 @@ export class ApiClient {
       // 401 → one silent Firebase refresh, then retry once.
       if (err.code === "INVALID_TOKEN" && allowRefresh) {
         const fresh = await this.tokens.getIdToken(true).catch(() => null);
-        if (fresh) return this.perform(method, path, body, false);
+        if (fresh) return this.perform(method, path, body, { ...opts, allowRefresh: false });
         this.opts.onSessionLost?.("token_expired");
         throw err;
       }
@@ -292,7 +400,7 @@ export class ApiClient {
       // Transient server errors back off and retry (submits are idempotent).
       if (err.code === "SERVER_ERROR" && attempt < MAX_RETRIES) {
         attempt += 1;
-        this.opts.onRetryToast?.("Reconnecting…");
+        if (!silent) this.opts.onRetryToast?.("Reconnecting…");
         await sleep(backoff(attempt));
         continue;
       }
