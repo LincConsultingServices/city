@@ -95,6 +95,31 @@ describe("the gate", () => {
     expect(screen.getByText(/Nothing came back on the record/)).toBeInTheDocument();
   });
 
+  it("says the same honest thing when a verdict came back with nothing in it", () => {
+    // The bug this locks down: an outcome object that arrived (the network
+    // call succeeded) but whose band and feedback are both empty reads, on a
+    // truthy check alone, as "there is a verdict to show" — and shows neither
+    // the honest line nor anything else, a blank gap under the stage title
+    // where a player came here to read something.
+    useJourneyStore.setState({
+      stageId: "cafe.gate1",
+      outcome: {
+        stageId: "cafe.interview",
+        attemptNo: 1,
+        bestAttemptNo: 1,
+        rawScore: 0,
+        questionScores: [],
+        band: "",
+        feedback: "",
+        revenue: 0,
+        revenueDelta: 0,
+        coinsBanked: 0,
+      },
+    });
+    render(<Gate />);
+    expect(screen.getByText(/Nothing came back on the record/)).toBeInTheDocument();
+  });
+
   it("shows the band and the feedback when there is some", () => {
     useJourneyStore.setState({
       stageId: "cafe.gate1",
@@ -147,8 +172,9 @@ describe("the report", () => {
     render(<Report onClose={() => {}} />);
     expect(screen.getByText(/left as a Branch Manager/)).toBeInTheDocument();
     expect(screen.getByText(/1,240 better off/)).toBeInTheDocument();
-    // The gap is named rather than papered over.
-    expect(screen.getByText(/scored but not yet shown/)).toBeInTheDocument();
+    // The competency read-out is no longer a gap to apologise for — it is a
+    // door. What is on this screen is the year; the assessment is behind it.
+    expect(screen.getByRole("button", { name: /See your full assessment/i })).toBeInTheDocument();
   });
 
   it("says plainly when the business went backwards", () => {
@@ -187,9 +213,11 @@ describe("the decision", () => {
     render(<Decision />);
 
     const before = useJourneyStore.getState().index;
-    await userEvent.type(screen.getByRole("textbox"), "I would ask her what she wanted.");
-    await userEvent.click(screen.getByRole("button", { name: "Answer" }));
-    expect(useJourneyStore.getState().answers).toHaveLength(1);
+    // Answered by choosing again (ADR-009): the blueprint's three options are
+    // on screen, and taking one is what produces the consequence to read.
+    const options = screen.getAllByRole("button");
+    await userEvent.click(options[0]);
+    expect(useJourneyStore.getState().decided).toHaveLength(1);
 
     await userEvent.click(await screen.findByRole("button", { name: "Back to the room" }));
     expect(useJourneyStore.getState().index).toBe(before + 1);
