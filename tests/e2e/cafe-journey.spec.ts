@@ -90,6 +90,21 @@ test.describe("the Café career (dev world bypass)", () => {
   }
 
   /**
+   * Walk to Owen and tell him you are ready. The interview waits for this — the
+   * door opens onto the room, not onto the first question — so every visit that
+   * means to be interviewed goes through it, the same way a player does: the
+   * guided list to cross the room, the prompt to speak, the button to say yes.
+   */
+  async function startTheInterview(page: Page) {
+    const goTo = page.getByRole("navigation", { name: /Places in the café/i });
+    await goTo.getByRole("button", { name: /^Owen/ }).click();
+    const speak = page.getByRole("button", { name: /^Owen\s*E$/ });
+    await expect(speak).toBeVisible({ timeout: 30_000 });
+    await speak.click();
+    await page.getByRole("button", { name: "Start the interview" }).click();
+  }
+
+  /**
    * Wait for a locator, and say so rather than throwing when it never arrives.
    *
    * The helpers below step between stages, and a stage close is a round trip —
@@ -228,7 +243,11 @@ test.describe("the Café career (dev world bypass)", () => {
     await expect(goTo.getByRole("button", { name: /the table/i })).toBeVisible();
     await expect(goTo.getByRole("button", { name: /the pass-through/i })).toHaveCount(0);
 
-    // The interview starts itself: it is the stage you are on when you walk in.
+    // The interview waits for you: walking in is for looking round, and nothing
+    // is asked until you go to Owen and say you are ready.
+    await expect(page.getByText(/Owen is ready for you/)).toBeVisible();
+    await expect(page.getByRole("textbox")).toHaveCount(0);
+    await startTheInterview(page);
     await expect(page.getByRole("textbox")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/1 of 5/)).toBeVisible();
     await page.screenshot({ path: "test-results/cafe-02-interview.png" });
@@ -329,6 +348,7 @@ test.describe("the Café career (dev world bypass)", () => {
     const openHistory = page.getByRole("button", { name: /What I have answered/i });
     await expect(openHistory).toHaveCount(0);
 
+    await startTheInterview(page);
     await sitTheQuestions(
       page,
       seen,
@@ -343,7 +363,7 @@ test.describe("the Café career (dev world bypass)", () => {
     const history = page.getByRole("dialog", { name: /What you have answered so far/i });
     await expect(history).toBeVisible();
     // The blueprint's question, and the player's own words against it.
-    await expect(history.getByText("Tell me about yourself.")).toBeVisible();
+    await expect(history.getByText(/Tell me about yourself/)).toBeVisible();
     await expect(history.getByText(/I have run a counter for two years/).first()).toBeVisible();
     await page.screenshot({ path: "test-results/cafe-07-history.png" });
 
@@ -369,6 +389,7 @@ test.describe("the Café career (dev world bypass)", () => {
     await answerTheGate(page);
     await enterTheCafe(page);
 
+    await startTheInterview(page);
     await sitTheQuestions(page, seen);
     await page.getByRole("button", { name: /Take it/i }).click();
     await workTheLevel(page, seen, 0);
@@ -398,6 +419,7 @@ test.describe("the Café career (dev world bypass)", () => {
     await enterTheCafe(page);
 
     // Answer two of the five, so the third is the one waiting.
+    await startTheInterview(page);
     for (let i = 0; i < 2; i++) {
       const panel = sittingPanel(page);
       await expect(panel).toBeVisible({ timeout: 30_000 });
@@ -411,6 +433,10 @@ test.describe("the Café career (dev world bypass)", () => {
     await expect(page.getByText("WASD")).toBeVisible({ timeout: 30_000 });
     await enterTheCafe(page);
 
+    // A new visit waits for Owen again, and sitting back down picks up where
+    // the last one stopped rather than starting over.
+    await expect(page.getByRole("textbox")).toHaveCount(0);
+    await startTheInterview(page);
     await expect(page.getByText(/3 of 5/)).toBeVisible({ timeout: 30_000 });
     expect(seen).toEqual([]);
     expect(problems, `the page complained:\n${problems.join("\n")}`).toEqual([]);

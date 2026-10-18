@@ -47,6 +47,7 @@ import { createTeardown } from "./teardown";
 import { CAST, castFor, castNear } from "./cast";
 import { useJourneyStore } from "./journeyStore";
 import { createCast } from "./castView";
+import { CREW, CREW_IDS } from "./crew";
 import { interviewLight, type Light } from "./light";
 import { createCustomers } from "./customersView";
 import { createSchedule } from "./ambient";
@@ -170,6 +171,12 @@ export function CafeCanvas({
       const steam = createSteam({ x: machine.x, y: machine.y - 46 }, reduced);
       steam.view.zIndex = 4 + 0 + 0.3;
       actors.addChild(steam.view);
+      // And off the griddle on the live counter, which is always cooking
+      // something — the kitchen in view is the point of a live counter.
+      const griddle = mapToWorld(9, 2);
+      const kitchenSteam = createSteam({ x: griddle.x, y: griddle.y - 50 }, reduced);
+      kitchenSteam.view.zIndex = 9 + 2 + 0.3;
+      actors.addChild(kitchenSteam.view);
 
       // ── The player ──────────────────────────────────────────────────────────
       // Same procedural rig as the street, so it is recognisably you indoors.
@@ -195,7 +202,13 @@ export function CafeCanvas({
       // question the world state and the live mission answer between them.
       const cast = createCast(app.renderer, CAST, reduced, actors);
       baked.push(...cast.textures);
-      const presentNow = () => new Set(castFor(useJourneyStore.getState().role));
+      const presentNow = () => new Set<string>(castFor(useJourneyStore.getState().role));
+
+      // The rest of the shift: somebody on the till and a cook on the live
+      // counter, in the same uniform as Priya. Drawn like the cast, but never
+      // asked who is near — nobody here talks to them.
+      const crew = createCast(app.renderer, CREW, reduced, actors);
+      baked.push(...crew.textures);
 
       // ── The room's population ───────────────────────────────────────────────
       // Unnamed, never an objective, and the reason the café reads as a café
@@ -214,9 +227,9 @@ export function CafeCanvas({
       // union and are filed to the maintainer — so what ships is the cadence and
       // the visuals, with the audio a one-table swap when the names land.
       const beats = createSchedule(reduced);
-      const pigeonAt = mapToWorld(9, 0);
+      const pigeonAt = mapToWorld(10, 0);
       const pigeon = createPigeon({ x: pigeonAt.x, y: pigeonAt.y - 24 }, reduced);
-      pigeon.view.zIndex = 9 + 0 + 0.4;
+      pigeon.view.zIndex = 10 + 0 + 0.4;
       actors.addChild(pigeon.view);
       // Seconds of grinder shudder still to play on the hero prop, and where it
       // sits when nothing is shaking it.
@@ -455,11 +468,19 @@ export function CafeCanvas({
         }
 
         steam.update(dt, steamFor > 0);
+        kitchenSteam.update(dt, true);
         // Fed the player's cell rather than their pixels: everything the cast
         // does with it is a cell-distance question, and a cell changes ~30× less
         // often than a position does.
         cast.update(dt, curCell, presentNow());
-        customers.update(dt, useRoomStore.getState().world, ringBell);
+        crew.update(dt, curCell, CREW_IDS);
+        customers.update(dt, useRoomStore.getState().world, {
+          bell: ringBell,
+          // The till takes the order and Priya hands it over at the pickup —
+          // a small movement from each, so the counter is seen to serve.
+          order: () => crew.nudge("crew_till"),
+          collect: () => cast.nudge("priya"),
+        });
 
         // The flap swing. Linear over FLAP_SWING_S so it reads as a hinge rather
         // than a spring; reduced motion snapped it already, above.

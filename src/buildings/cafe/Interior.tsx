@@ -13,6 +13,9 @@ import { CafeCanvas } from "./CafeCanvas";
 import { armBeacon, hydrateSession, setSessionTrack } from "@/framework/session/sync";
 import { trackOrDefault } from "@/framework/city/track";
 import {
+  acceptStage,
+  awaitsHost,
+  invite,
   resetRoomState,
   speakTo,
   stopSpeaking,
@@ -50,6 +53,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const spokenLine = useRoomStore((s) => s.spokenLine);
   const flapOpen = useRoomStore((s) => s.flapOpen);
   const announcement = useRoomStore((s) => s.announcement);
+  const acceptedStageId = useRoomStore((s) => s.acceptedStageId);
 
   const role = useJourneyStore((s) => s.role);
   const stageId = useJourneyStore((s) => s.stageId);
@@ -119,6 +123,13 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
    * waits. The exit closes to bank the revenue, and then the report opens.
    */
   const stageKind = currentStage().kind;
+  const stageHost = currentStage().hostNpc;
+  /**
+   * The interview waits for you. Walking in is for looking round; the questions
+   * start when you go to Owen and tell him you are ready. Until then nothing is
+   * on screen and the room is yours to walk.
+   */
+  const waitingForHost = awaitsHost(stageId, acceptedStageId);
   const readyToClose = seasonIn && stageIsDone() && consequence === null;
   useEffect(() => {
     if (!readyToClose || stageKind === "gate") return;
@@ -154,6 +165,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     closing ||
     (ready &&
       seasonIn &&
+      !waitingForHost &&
       (consequence !== null || sceneBeat !== null || stageKind === "gate" || !stageIsDone()));
   useEffect(() => {
     useRoomStore.getState().setInputLocked(panelOpen);
@@ -167,6 +179,9 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const gate = nearGateId ? (GATES.find((g) => g.id === nearGateId) ?? null) : null;
   const person = nearCastId ? castById(nearCastId) : null;
   const speaking = speakingToId ? castById(speakingToId) : null;
+  const hostMember = stageHost ? castById(stageHost as never) : null;
+  /** This conversation is the host asking whether you are ready to start. */
+  const inviting = speaking !== null && waitingForHost && speaking.id === stageHost;
 
   // The list is rebuilt from where people are standing, so walking to Priya
   // means walking to Priya rather than to the spot she left. Anchors are the
@@ -206,7 +221,14 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     } else if (s.nearGateId) {
       toggleFlap();
     } else if (s.nearCastId) {
-      speakTo(s.nearCastId);
+      // The host of a stage that is waiting on you asks whether you are ready,
+      // rather than making small talk.
+      const { stageId: id } = useJourneyStore.getState();
+      if (awaitsHost(id, s.acceptedStageId) && currentStage().hostNpc === s.nearCastId) {
+        invite(s.nearCastId);
+      } else {
+        speakTo(s.nearCastId);
+      }
     }
   }, [leaveNow]);
 
@@ -251,6 +273,12 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         return;
       }
       if (e.key !== "e" && e.key !== "E" && e.key !== "Enter") return;
+      // A held key is one press, not many. The E that opened the door from the
+      // street keeps auto-repeating as the room mounts, and must not land on
+      // whatever is in reach the moment it does — at the door, that is leaving.
+      if (e.repeat) return;
+      // Nothing to act on until the room is standing.
+      if (!ready || !seasonIn) return;
       if (useRoomStore.getState().inputLocked) return;
       act();
     }
@@ -260,7 +288,7 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [leaveNow, act, historyOpen]);
+  }, [leaveNow, act, historyOpen, ready, seasonIn]);
 
   const prompt = nearExit
     ? "leave the café"
@@ -283,9 +311,19 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
           has already given the city back by the time this fires. */}
       <CafeCanvas onReady={() => setReady(true)} onError={onExit} />
 
-      {ready && seasonIn && <StageChip />}
+      {/* While the interview waits, one quiet line under its title says who it
+          is waiting with — enough to find him, not enough to feel like a queue. */}
+      {ready && seasonIn && (
+        <StageChip
+          note={
+            waitingForHost && hostMember
+              ? `${hostMember.name} is ready for you whenever you are — take a look around first.`
+              : null
+          }
+        />
+      )}
       {ready && seasonIn && <Decision />}
-      {ready && seasonIn && stageKind === "qa" && consequence === null && <QA />}
+      {ready && seasonIn && stageKind === "qa" && consequence === null && !waitingForHost && <QA />}
       {ready && seasonIn && stageKind === "gate" && <Gate />}
       {reportOpen && <Report onClose={leaveNow} />}
       {historyOpen && <PhaseHistory onClose={() => setHistoryOpen(false)} />}
@@ -383,13 +421,32 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
               <span className="ml-2 normal-case tracking-normal text-muted">{speaking.role}</span>
             </p>
             <p className="mt-2 text-sm leading-relaxed text-text">{spokenLine}</p>
-            <button
-              onClick={stopSpeaking}
-              className="mt-4 rounded-lg border border-line/70 px-4 py-1.5 text-xs text-muted hover:border-gold/60 hover:text-text"
-            >
-              Leave it there
-              <span className="ml-2 rounded bg-line/50 px-1.5 py-0.5 text-[10px]">Esc</span>
-            </button>
+            {inviting ? (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button
+                  autoFocus
+                  onClick={() => acceptStage(stageId)}
+                  className="rounded-lg bg-gold px-4 py-1.5 text-xs font-medium text-ink transition hover:brightness-110"
+                >
+                  Start the interview
+                </button>
+                <button
+                  onClick={stopSpeaking}
+                  className="rounded-lg border border-line/70 px-4 py-1.5 text-xs text-muted hover:border-gold/60 hover:text-text"
+                >
+                  Not yet
+                  <span className="ml-2 rounded bg-line/50 px-1.5 py-0.5 text-[10px]">Esc</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={stopSpeaking}
+                className="mt-4 rounded-lg border border-line/70 px-4 py-1.5 text-xs text-muted hover:border-gold/60 hover:text-text"
+              >
+                Leave it there
+                <span className="ml-2 rounded bg-line/50 px-1.5 py-0.5 text-[10px]">Esc</span>
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -1,5 +1,39 @@
 import { describe, it, expect } from "vitest";
-import { DAY_LENGTH_S, MIN_CHANNEL, dayPhase, lerpColor } from "./daycycle";
+import {
+  DAY_LENGTH_S,
+  MIN_CHANNEL,
+  clockMinutes,
+  dayPhase,
+  formatHour,
+  lerpColor,
+} from "./daycycle";
+
+describe("clock", () => {
+  it("puts noon mid-day, midnight at deepest night, dusk at 6 pm", () => {
+    expect(formatHour(clockMinutes(0.25))).toBe("12 pm");
+    expect(formatHour(clockMinutes(0.75))).toBe("12 am");
+    expect(formatHour(clockMinutes(0.5))).toBe("6 pm");
+    expect(formatHour(clockMinutes(0))).toBe("6 am");
+  });
+
+  it("stays within one day", () => {
+    for (let i = 0; i < 1000; i++) {
+      const m = clockMinutes(i / 1000);
+      expect(m).toBeGreaterThanOrEqual(0);
+      expect(m).toBeLessThan(1440);
+    }
+  });
+
+  it("shows the hour only, 12-hour with am/pm", () => {
+    expect(formatHour(0)).toBe("12 am");
+    expect(formatHour(59)).toBe("12 am");
+    expect(formatHour(60)).toBe("1 am");
+    expect(formatHour(11 * 60 + 59)).toBe("11 am");
+    expect(formatHour(12 * 60)).toBe("12 pm");
+    expect(formatHour(17 * 60 + 30)).toBe("5 pm");
+    expect(formatHour(23 * 60 + 59)).toBe("11 pm");
+  });
+});
 
 describe("lerpColor", () => {
   it("interpolates per channel", () => {

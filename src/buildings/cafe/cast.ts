@@ -9,8 +9,10 @@
 //
 // Characters are drawn with the city's own procedural rig (world/characterArt.ts
 // §bakePersonTextures), which takes a palette, so seven people cost seven
-// palettes and no art. The palettes are pulled toward the room's own colours
-// rather than the city's, because these are people who work here.
+// palettes and no art. What they wear says who they are before they speak: the
+// staff are in the house uniform — white shirt, black apron, black trousers —
+// Owen is in a suit because he is the one person here who does not work in this
+// room, and everyone who comes in off the street is in their own clothes.
 import type { Cell } from "@/lib/pathfinding";
 import type { Cardinal } from "@/world/assets";
 import type { PersonPalette } from "@/world/characterArt";
@@ -18,7 +20,27 @@ import { GUIDE, type GuidePlace } from "./room";
 
 export type CastId = "priya" | "owen" | "tomas" | "marcus" | "nadia" | "ray" | "ellery";
 
-export interface CastMember {
+/**
+ * The house uniform: white shirt, black apron, black trousers. Everyone behind
+ * the counter wears it, named or not, so the staff read as staff at a glance.
+ */
+export const UNIFORM = { shirt: 0xf4f4f2, legs: 0x1d1d22, accent: 0x1d1d22 } as const;
+
+/**
+ * Anyone the room draws: somewhere to stand, a loop to walk, a palette, and how
+ * close you get before they look up. The cast are figures you can talk to; the
+ * crew (crew.ts) are figures you cannot.
+ */
+export interface Figure {
+  id: string;
+  palette: PersonPalette;
+  anchor: Cell;
+  patrol: readonly Cell[];
+  seated: boolean;
+  noticesAt: number;
+}
+
+export interface CastMember extends Figure {
   id: CastId;
   name: string;
   /** How they are introduced — "Priya, head barista" in the guided-nav list. */
@@ -76,9 +98,9 @@ export const CAST: readonly CastMember[] = [
     id: "priya",
     name: "Priya",
     role: "head barista",
-    // Warm skin, dark hair losing its tie, and the one green element that makes
-    // her findable across the room — the room's own green, so she belongs to it.
-    palette: { shirt: 0x4e7a3c, legs: 0x2f3a52, skin: 0xc98e5a, hair: 0x241d18 },
+    // Warm skin, dark hair losing its tie, in the house uniform like the rest
+    // of the staff. She is findable by where she stands: at the machine.
+    palette: { ...UNIFORM, outfit: "uniform", skin: 0xc98e5a, hair: 0x241d18 },
     anchor: { x: 4, y: 1 }, // at the machine, which stands on the wall behind her
     // machine → grinder → the end of the counter run → back. She rarely leaves
     // the bar and never leaves the staff side of it.
@@ -101,11 +123,11 @@ export const CAST: readonly CastMember[] = [
     id: "tomas",
     name: "Tomas",
     role: "second barista",
-    palette: { shirt: 0xb5836a, legs: 0x3a3134, skin: 0xf0d9b5, hair: 0x5a5a5a },
+    palette: { ...UNIFORM, outfit: "uniform", skin: 0xf0d9b5, hair: 0x5a5a5a },
     anchor: { x: 5, y: 1 }, // the grinder end
     patrol: [
       { x: 5, y: 1 },
-      { x: 2, y: 1 }, // through to the pass-through and back
+      { x: 8, y: 1 }, // through to the pass-through and back
     ],
     seated: false,
     noticesAt: 2,
@@ -172,9 +194,16 @@ export const CAST: readonly CastMember[] = [
     id: "owen",
     name: "Owen",
     role: "the area manager",
-    // Office clothes in a café: he is the one person here who does not work in
-    // this room, and he should read that way before he says anything.
-    palette: { shirt: 0xdfe3e8, legs: 0x2f3a4a, skin: 0xe8c9a6, hair: 0x2a2320 },
+    // A charcoal suit and a tie in a café: he is the one person here who does
+    // not work in this room, and he should read that way before he says anything.
+    palette: {
+      shirt: 0x2b3240,
+      legs: 0x2b3240,
+      skin: 0xe8c9a6,
+      hair: 0x2a2320,
+      outfit: "suit",
+      accent: 0x7a2a33,
+    },
     anchor: { x: 7, y: 6 }, // the room side of the four-top, laptop open on it
     approach: { x: 7, y: 7 }, // the empty floor you cross the room to stand on
     patrol: [],

@@ -63,6 +63,21 @@ function clampAmbient(color: number): number {
   return (r << 16) | (g << 8) | b;
 }
 
+/**
+ * In-game minute of the day (0..1439) for cycle position `t`. Anchored so noon
+ * sits mid-"day" (t=0.25) and midnight at deepest night (t=0.75); dusk then
+ * begins at 18:00 and the cycle wraps at 06:00.
+ */
+export function clockMinutes(t: number): number {
+  return Math.floor(((((t + 0.25) % 1) + 1) % 1) * 24 * 60) % (24 * 60);
+}
+
+/** Hour only, 12-hour with am/pm: "12 am", "1 am" … "12 pm", "5 pm". */
+export function formatHour(minutes: number): string {
+  const h = Math.floor(minutes / 60) % 24;
+  return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "am" : "pm"}`;
+}
+
 export function dayPhase(elapsedS: number): DayPhase {
   const t = (((elapsedS / DAY_LENGTH_S) % 1) + 1) % 1;
   let ambient = 0xffffff;

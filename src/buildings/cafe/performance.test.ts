@@ -7,8 +7,9 @@
 // and are named at the bottom — a test that asserted them from a headless
 // software renderer would be measuring the CI box, not the budget.
 import { describe, it, expect } from "vitest";
-import { FURNITURE, ROOM_H, ROOM_W } from "./room";
+import { FURNITURE, ROOM_H, ROOM_W, SIGNS } from "./room";
 import { CAST, castFor } from "./cast";
+import { CREW } from "./crew";
 import { SEATS, crowdSize } from "./customers";
 import { BEATS } from "./ambient";
 import { MAX_STEAM_PUFFS } from "./steam";
@@ -19,9 +20,11 @@ describe("sprites on screen", () => {
     // customers. The floor is one Graphics rather than 120 tiles, which is
     // where most of the headroom came from.
     const floor = 1;
-    const props = FURNITURE.length;
-    const people = CAST.length + SEATS.length + 1; // worst case, plus the player
-    const effects = MAX_STEAM_PUFFS + 1; // the steam pool and the pigeon
+    const props = FURNITURE.length + SIGNS.length;
+    // Worst case: everyone, the crew, a customer per seat each with a cup and a
+    // plate, and the player.
+    const people = CAST.length + CREW.length + SEATS.length * 3 + 1;
+    const effects = MAX_STEAM_PUFFS * 2 + 1; // two steam pools and the pigeon
     const overlays = 2; // the grade and the glow quads
     const total = floor + props + people + effects + overlays;
     expect(total, `${total} sprites`).toBeLessThanOrEqual(220);
@@ -31,14 +34,15 @@ describe("sprites on screen", () => {
     expect(FURNITURE.length).toBeLessThan(ROOM_W * ROOM_H);
   });
 
-  it("never has more than three people in the room at once", () => {
-    // Priya, Owen, and one customer coming and going. It used to be five, three
-    // of whom were there because a season needed them later, and a stranger you
-    // cannot talk to is something the player has to rule out before they can
-    // get on with what they came in for. This is a budget about clutter rather
-    // than about frame time, which is why it is a hard three and not a ceiling
-    // derived from §16.
-    expect(castFor().length + crowdSize()).toBeLessThanOrEqual(3);
+  it("keeps the room a working café, not a crowd", () => {
+    // It was a hard three — Priya, Owen and one customer — when the room was a
+    // set for one conversation. It is a working café now: a staffed counter and
+    // customers ordering, collecting and sitting, because a café with nobody in
+    // it does not read as one. The ceiling is still about clutter rather than
+    // frame time: the cast and crew, plus at most five customers, never more
+    // than ten people around the player at once.
+    expect(castFor().length + CREW.length + crowdSize()).toBeLessThanOrEqual(10);
+    expect(crowdSize()).toBeLessThan(SEATS.length);
   });
 });
 

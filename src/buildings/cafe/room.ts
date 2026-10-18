@@ -8,21 +8,30 @@
 //
 // A one-cell wall ring encloses the play area, because cafe.jpg is a closed room.
 // The two FAR edges (y0, x0) are full-height walls and carry the windows, menu
-// board, framed art and stairs. The two NEAR edges (y9, x11) are low sills: a
-// full wall there would stand between the camera and anyone walking along the
-// front of the room.
+// boards, framed art and the tiled kitchen back. The two NEAR edges (y9, x11)
+// are low sills: a full wall there would stand between the camera and anyone
+// walking along the front of the room.
+//
+// Laid out the way a real café is: one service counter across the back, read
+// left to right in the order a customer uses it — order and pay at the till,
+// collect at the pickup beside the machine, and the live kitchen at the far end
+// where the food is made in view. The floor in front of it is tables, with
+// aisles between them wide enough to walk without threading furniture.
 //
 //        x0  x1  x2  x3  x4  x5  x6  x7  x8  x9 x10 x11
-//  y0    ▓▓  ▓W  ▓P  ▓M  ▓E  ▓▓  ▓A  ▓T  ▓T  ▓W  ▓A  ▓▓   far wall
-//  y1    ▓▓  ·p  ·p  ·   ·   ·   ·   ▓L  ·   ·   ·   ▒▒   STAFF ZONE
-//  y2    ▓▓  ▓C  ▓C  ▓C  ╪F  ▓C  ▓C  ·   ·   ▓X  ▓X  ▒▒   counter run
-//  y3    ▓▓  ▓s  ▓s  ·   ·   ▓s  ·   ·   ▓J  ·   ▓X  ▒▒
-//  y4    ▓▓  ·   ·   ·   ▒r  ▒r  ·   ▒o  ·   ·   ▓R  ▒▒   open lane
-//  y5    ▓▓  ▓1  ▓c  ·   ▒r  ▒r  ▓2  ·   ·   ·   ·   ▒▒
-//  y6    ▓▓  ▓c  ·   ·   ·   ·   ▓c  ·   ▓3  ▓c  ·   ▒▒
-//  y7    ▓▓  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ▒▒
-//  y8    ▓▓  ·   ·   ·   ·   ·   ·   ·   ·   ·   ·   ▒▒
+//  y0    ▓▓  ▓W  ▓M  ▓M  ▓E  ▓S  ▓A  ▓F  ▓K  ▓K  ▓W  ▓▓   far wall (E/S/F stand in front)
+//  y1    ▓▓  ·   ·$  ·   ·p  ·   ·   ·   ·k  ·k  ·   ▒▒   STAFF ZONE
+//  y2    ▓▓  ▓D  ▓$  ▓C  ╪F  ▓U  ▓C  ▓C  ▓L  ▓L  ▓L  ▒▒   the service counter
+//  y3    ▓▓  ·   ·o  ·   ·   ·u  ·w  ·w  ·w  ·   ▓pl ▒▒   in front of it
+//  y4    ▓▓  ·   ·q  ·   ·   ·   ·   ·   ·   ·   ·   ▒▒
+//  y5    ▓▓  ▓c  ·q  ·   ▓c  ▓T  ▓c  ·   ·   ·   ·   ▒▒
+//  y6    ▓▓  ▓T  ·q  ▒r  ▒r  ·   ·   ▓c  ▓T  ▓c  ▓c  ▒▒   (7,6)-(9,6) the interview table
+//  y7    ▓▓  ▓c  ·   ▒r  ▒r  ·   ·   ·   ·   ·   ▓T  ▒▒
+//  y8    ▓▓  ▓pl ·   ·   ·   ▓c  ▓T  ▓c  ·   ·   ▓c  ▒▒
 //  y9    ▒▒  ▒▒  ▒▒  ▒▒  ▒D  ▒▒  ▒▒  ▒▒  ▒▒  ▒▒  ▒▒  ▒▒   near sill + door
+//
+//  D cake display · $ the till · U the pickup · L the live kitchen counter
+//  o where a customer orders · q the queue · u collect · w wait for an order
 import { TILE_W, TILE_H } from "@/lib/iso";
 import type { Cell, Grid } from "@/lib/pathfinding";
 
@@ -33,7 +42,13 @@ export const ROOM_H = 10;
 export const ROOM_PX_W = (ROOM_W + ROOM_H) * (TILE_W / 2);
 export const ROOM_PX_H = (ROOM_W + ROOM_H) * (TILE_H / 2);
 
-export const SPAWN: Cell = { x: 4, y: 8 }; // just inside the door, facing into the room
+/**
+ * A step inside the door, facing into the room — and deliberately two cells
+ * from it, not one. One cell away puts the player in reach of the door on
+ * arrival, so the room opens on a "leave the café" prompt and the very E that
+ * walked them in (held a moment, auto-repeating) walks them straight back out.
+ */
+export const SPAWN: Cell = { x: 4, y: 7 };
 export const EXIT: Cell = { x: 4, y: 9 }; // the door threshold, in the near sill
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -45,33 +60,37 @@ export type PropKind =
   | "wall_menu"
   | "wall_art"
   | "wall_board"
+  /** White tile and an extractor hood: the back of the live kitchen. */
+  | "wall_kitchen"
   /**
    * The near edge of the room. Kept low on purpose: a full-height wall between
    * the camera and the floor would stand in front of the player every time they
    * walked along the front of the room.
    */
   | "wall_sill"
-  | "stairs"
-  // the counter run
+  // the service counter
   | "counter"
   | "flap"
-  | "stool"
+  /** Steel-topped, glass sneeze guard, a griddle and pans: food made in view. */
+  | "live_counter"
   // furniture
   | "table"
   | "chair"
-  | "dresser"
   | "shelf"
-  | "jukebox"
-  | "radiator"
   | "plant"
   // walk-over dressing
   | "rug_persian"
-  | "rug_oval"
   | "door_mat"
   // overlays — drawn on a host cell without claiming it
-  | "pastry_case"
+  /** A glass cake dome on the counter, at the start of the run. */
+  | "cake_display"
+  /** A tall glass-door drinks fridge against the back wall. */
+  | "fridge"
   | "espresso_machine"
+  /** The cash register and card reader — where you order and pay. */
   | "till"
+  /** A service bell and a tray of cups — where an order is collected. */
+  | "pickup"
   | "laptop"
   | "pendant";
 
@@ -110,15 +129,19 @@ function ring(): Furniture[] {
   return out;
 }
 
-/** Cells on the far wall that carry something other than bare planking. */
+/**
+ * Cells on the far wall that carry something other than bare planking. The menu
+ * boards hang over the till, where you read them while you queue; the tiled
+ * kitchen back sits behind the live counter.
+ */
 const FAR_WALL_FEATURES: Array<[PropKind, number]> = [
   ["wall_window", 1],
+  ["wall_menu", 2],
   ["wall_menu", 3],
   ["wall_art", 6],
-  ["stairs", 7],
-  ["stairs", 8],
-  ["wall_window", 9],
-  ["wall_art", 10],
+  ["wall_kitchen", 8],
+  ["wall_kitchen", 9],
+  ["wall_window", 10],
 ];
 
 export const FURNITURE: readonly Furniture[] = [
@@ -136,54 +159,89 @@ export const FURNITURE: readonly Furniture[] = [
   f("door_mat", 4, ROOM_H - 1, false),
 
   // …with the tall units standing in front of the far wall, drawn but not blocking.
-  over("pastry_case", 2, 0),
   over("espresso_machine", 4, 0),
   over("shelf", 5, 0),
+  over("fridge", 7, 0),
 
-  // y1 — the staff zone. Walkable, and sealed except through the flap. The plant
-  // at (7,1) is what closes the right-hand approach; see the reachability tests.
-  f("plant", 7, 1),
+  // y1 — the staff zone, the whole length of the counter. Walkable, and sealed
+  // except through the flap: the counter runs wall to sill, so the only way
+  // behind it is (4,2). See the reachability tests.
 
-  // y2 — the counter run. (4,2) is the flap: a gate, not furniture — see GATES.
+  // y2 — the service counter. (4,2) is the flap: a gate, not furniture — see
+  // GATES. Left of it is where you order, right of it where you collect, and the
+  // far end is the live kitchen.
   f("counter", 1, 2),
+  over("cake_display", 1, 2),
   f("counter", 2, 2),
-  f("counter", 3, 2),
-  f("counter", 5, 2),
-  f("counter", 6, 2),
   over("till", 2, 2),
-  // Open on the four-top, facing Owen. The reason the table is a desk today.
-  over("laptop", 8, 6),
+  f("counter", 3, 2),
   over("pendant", 3, 2),
-  f("dresser", 9, 2),
-  f("dresser", 10, 2),
+  f("counter", 5, 2),
+  over("pickup", 5, 2),
+  f("counter", 6, 2),
+  over("pendant", 6, 2),
+  f("counter", 7, 2),
+  f("live_counter", 8, 2),
+  f("live_counter", 9, 2),
+  f("live_counter", 10, 2),
 
-  // y3 — stools along the bar, the jukebox against the wall, cabinets right.
-  f("stool", 1, 3),
-  f("stool", 2, 3),
-  f("stool", 5, 3),
-  f("jukebox", 8, 3),
-  f("dresser", 10, 3),
+  // y3 — the lane in front of the counter is kept clear: it is where people
+  // order, wait and collect. A plant closes the far end of it.
+  f("plant", 10, 3),
 
-  // y4 — the open lane. Rugs are walk-over; the radiator is not.
-  f("rug_persian", 4, 4, false),
-  f("rug_persian", 5, 4, false),
-  f("rug_oval", 7, 4, false),
-  f("radiator", 10, 4),
-
-  // y5 / y6 — the dining floor. The four-top at (8,6) is the interview table:
-  // one chair either side of it, Owen on the room side at (7,6) and the window
-  // seat opposite at (9,6). Both are on y6 rather than y5 so the lane along the
-  // front of the tables stays open — room.test.ts walks it.
-  f("table", 1, 5),
-  f("chair", 2, 5),
-  f("rug_persian", 4, 5, false),
-  f("rug_persian", 5, 5, false),
-  f("table", 6, 5),
-  f("chair", 1, 6),
-  f("chair", 6, 6),
+  // The dining floor. Two-tops and a four-top, every chair facing its table,
+  // with a clear aisle from the door to the counter and another along the front.
+  //
+  // By the wall, left: a two-top with a chair either side of it.
+  f("chair", 1, 5),
+  f("table", 1, 6),
+  f("chair", 1, 7),
+  // In the middle of the room.
+  f("chair", 4, 5),
+  f("table", 5, 5),
+  f("chair", 6, 5),
+  // The four-top at (8,6) is the interview table: one chair either side of it,
+  // Owen on the room side at (7,6) and the window seat opposite at (9,6). Both
+  // are on y6 so the lane along the front of the tables stays open.
   f("chair", 7, 6),
   f("table", 8, 6),
+  over("laptop", 8, 6),
   f("chair", 9, 6),
+  // By the window, right: a two-top along the wall.
+  f("chair", 10, 6),
+  f("table", 10, 7),
+  f("chair", 10, 8),
+  // Near the door.
+  f("chair", 5, 8),
+  f("table", 6, 8),
+  f("chair", 7, 8),
+  f("plant", 1, 8),
+
+  // A rug in the open floor between the tables. Walk-over.
+  f("rug_persian", 3, 6, false),
+  f("rug_persian", 4, 6, false),
+  f("rug_persian", 3, 7, false),
+  f("rug_persian", 4, 7, false),
+];
+
+// ── Signs ─────────────────────────────────────────────────────────────────────
+
+/** A board hung over the counter, naming the station under it. */
+export interface Sign {
+  /** The counter cell it hangs over. */
+  cell: Cell;
+  text: string;
+}
+
+/**
+ * The three stations a customer's visit passes through, in the order they use
+ * them. Read off the counter, they tell a player new to the room what the room
+ * is for before anybody has to explain it.
+ */
+export const SIGNS: readonly Sign[] = [
+  { cell: { x: 2, y: 2 }, text: "ORDER & PAY" },
+  { cell: { x: 5, y: 2 }, text: "PICK UP" },
+  { cell: { x: 9, y: 2 }, text: "LIVE KITCHEN" },
 ];
 
 /** Kinds that must never draw over the player — the near edge of the room. */
@@ -256,11 +314,15 @@ export interface Zone {
   contains: (cell: Cell) => boolean;
 }
 
-/** Ordered — first match wins, so the pass-through beats the wider staff zone. */
+/**
+ * Ordered — first match wins, so the pass-through beats the wider staff zone.
+ * The pass is the kitchen end of the counter, where food goes out: the cells
+ * behind the live counter.
+ */
 export const ZONES: readonly Zone[] = [
-  { id: "z_pass", label: "the pass-through", contains: (c) => c.y === 1 && c.x <= 2 },
-  { id: "z_behind", label: "behind the counter", contains: (c) => c.y === 1 && c.x <= 6 },
-  { id: "z_window", label: "by the window", contains: (c) => c.x >= 9 },
+  { id: "z_pass", label: "the pass-through", contains: (c) => c.y === 1 && c.x >= 8 },
+  { id: "z_behind", label: "behind the counter", contains: (c) => c.y === 1 },
+  { id: "z_window", label: "by the window", contains: (c) => c.x >= 9 && c.y >= 3 },
   { id: "z_floor", label: "the floor", contains: () => true },
 ];
 
@@ -269,7 +331,7 @@ export function zoneAt(cell: Cell): Zone {
 }
 
 /** Every cell the flap gates access to — the sealed side of the counter. */
-export const STAFF_CELLS: readonly Cell[] = Array.from({ length: 6 }, (_, i) => ({
+export const STAFF_CELLS: readonly Cell[] = Array.from({ length: ROOM_W - 2 }, (_, i) => ({
   x: i + 1,
   y: 1,
 }));
@@ -312,11 +374,11 @@ export interface Station {
  */
 export const STATIONS: readonly Station[] = [
   { id: "st_counter", label: "the counter", cell: { x: 3, y: 3 } },
-  // (2,1), not (2,2): the counter run is furniture and the staff zone is the
-  // row behind it. This is inside the sealed zone, so it is reachable only once
-  // the flap is yours — which is the point of it being where a branch manager
-  // works.
-  { id: "st_pass", label: "the pass-through", cell: { x: 2, y: 1 } },
+  // (8,1), not (8,2): the counter run is furniture and the staff zone is the
+  // row behind it — here, the kitchen end, where food goes out. Inside the
+  // sealed zone, so it is reachable only once the flap is yours — which is the
+  // point of it being where a branch manager works.
+  { id: "st_pass", label: "the pass-through", cell: { x: 8, y: 1 } },
   { id: "st_tables", label: "the table", cell: { x: 8, y: 5 } },
   { id: "st_door", label: "the door", cell: { x: 4, y: 8 } },
 ];

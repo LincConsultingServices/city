@@ -16,14 +16,7 @@ import { mapToWorld, roundCell, worldToMap } from "@/lib/iso";
 import { bakePersonTextures, bakeShadowTexture, type PersonTextures } from "@/world/characterArt";
 import type { Cardinal } from "@/world/assets";
 import type { Cell } from "@/lib/pathfinding";
-import {
-  CAST_PAUSE_S,
-  CAST_WALK_SPEED,
-  facingFrom,
-  type CastAt,
-  type CastId,
-  type CastMember,
-} from "./cast";
+import { CAST_PAUSE_S, CAST_WALK_SPEED, facingFrom, type Figure } from "./cast";
 import { Z_CAST } from "./scene";
 
 /** Slower than the player's 0.18 — a shorter stride for a slower walk. */
@@ -31,8 +24,8 @@ const STEP_S = 0.26;
 const BOB_PX = 2;
 const BREATH = 0.012;
 
-interface Actor {
-  member: CastMember;
+interface Actor<M extends Figure> {
+  member: M;
   tex: PersonTextures;
   view: Container;
   body: Sprite;
@@ -50,7 +43,11 @@ interface Actor {
   nudge: number;
 }
 
-export interface CastView {
+/**
+ * Draws any set of figures — the cast, and the crew behind the counter, who are
+ * drawn exactly the same way and simply never answer the prompt to speak.
+ */
+export interface CastView<M extends Figure> {
   /** Everything baked here, for the canvas's teardown stack to free. */
   textures: Texture[];
   /**
@@ -58,13 +55,13 @@ export interface CastView {
    * the world says is in the room — Marcus goes when the regulars thin out, and
    * his chair being visibly empty is the point of week 18.
    */
-  update(dtS: number, player: Cell, present: ReadonlySet<CastId>): void;
+  update(dtS: number, player: Cell, present: ReadonlySet<string>): void;
   /**
    * Where everyone is standing right now. The room asks this rather than reading
    * anchors, so the prompt to speak to somebody tracks the person and not the
    * spot they started from.
    */
-  positions(): CastAt[];
+  positions(): Array<{ member: M; cell: Cell }>;
   /**
    * A one-off movement from the ambient layer: Priya wiping down, Marcus turning
    * a page (PRD §6). Deliberately not a new animation — it is a short squash on
@@ -72,7 +69,7 @@ export interface CastView {
    * shifting in their seat and costs no textures. Ignored for anyone not in the
    * room, and ignored under reduced motion.
    */
-  nudge(id: CastId): void;
+  nudge(id: string): void;
   destroy(): void;
 }
 
@@ -83,17 +80,17 @@ export interface CastView {
  * whole cast would sort as one block and Priya would end up either in front of
  * the counter or behind it, never passing along it.
  */
-export function createCast(
+export function createCast<M extends Figure>(
   renderer: Renderer,
-  members: readonly CastMember[],
+  members: readonly M[],
   reduced: boolean,
   parent: Container,
-): CastView {
+): CastView<M> {
   const textures: Texture[] = [];
   const shadowTex = bakeShadowTexture(renderer);
   textures.push(shadowTex);
 
-  const actors: Actor[] = members.map((member, i) => {
+  const actors: Actor<M>[] = members.map((member, i) => {
     const tex = bakePersonTextures(renderer, member.palette);
     textures.push(...tex.all);
 
@@ -243,7 +240,7 @@ const NUDGE_S = 0.9;
 const NUDGE = 0.03;
 
 /** Standing still: face the way they were left, and breathe. */
-function idlePose(a: Actor, elapsed: number, reduced: boolean): void {
+function idlePose<M extends Figure>(a: Actor<M>, elapsed: number, reduced: boolean): void {
   a.body.position.y = a.member.seated ? 4 : 0;
   a.body.scale.x = a.facing === "W" ? -1 : 1;
   const rest = a.member.seated ? 0.82 : 1;

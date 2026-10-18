@@ -86,7 +86,7 @@ export function QA() {
         rows={4}
         autoFocus
         className="w-full resize-y rounded-xl border border-line/70 bg-surface-2/50 px-4 py-3 text-sm leading-relaxed text-text outline-none transition-colors placeholder:text-muted/70 focus:border-gold/50"
-        placeholder="Type your response, or use the microphone."
+        placeholder="Answer the way you would out loud — a few sentences is plenty. Type, or use the microphone."
       />
 
       <div className="mt-3">

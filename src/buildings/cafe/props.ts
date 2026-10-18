@@ -33,6 +33,9 @@ export const CAFE_PALETTE = {
   green: 0x4e7a3c,
   brass: 0xc9a227,
   glass: 0x9fb7bd,
+  /** The kitchen back wall: white tile and grey grout. */
+  tile: 0xe9e6df,
+  grout: 0xb9b3a8,
   /** The warm pool of light the room sits in. */
   lamp: 0xffc98a,
 } as const;
@@ -224,23 +227,31 @@ function drawProp(kind: PropKind): Graphics {
       return g;
     }
 
-    case "stairs": {
-      // A flight climbing away from the camera — decorative, never walked.
-      for (let i = 0; i < 5; i++) {
-        const h = 18 + i * 18;
-        const off = -i * 6;
-        g.poly([off - HW, -h, off, HH - h, off, HH - h + 16, off - HW, -h + 16]).fill(
-          shade(P.woodDark, LEFT_FACE),
-        );
-        g.poly([off, HH - h, off + HW, -h, off + HW, -h + 16, off, HH - h + 16]).fill(
-          shade(P.woodDark, RIGHT_FACE),
-        );
-        g.poly([off, -HH - h, off + HW, -h, off, HH - h, off - HW, -h]).fill(P.woodMid);
+    case "wall_kitchen": {
+      // The back of the live kitchen: white tile to shoulder height, then a
+      // steel extractor hood over where the griddle stands.
+      isoBox(g, 1, WALL_H, P.tile, shade(P.tile, 0.9));
+      for (let i = 1; i < 6; i++) {
+        const v = 0.3 + i * 0.11;
+        g.poly(faceRect("left", WALL_H, 0, v, 1, v + 0.01)).fill({
+          color: P.grout,
+          alpha: 0.6,
+        });
       }
-      // Newel post only. A full rail spans two tiles and this prop is baked
-      // per-cell, so a climbing rail draws twice and reads as stray bars.
-      g.rect(HW - 14, -46, 7, 46).fill(shade(P.woodDark, 0.8));
-      g.rect(HW - 16, -52, 11, 7).fill(P.woodMid);
+      for (let i = 1; i < 6; i++) {
+        const u = i / 6;
+        g.poly(faceRect("left", WALL_H, u, 0.3, u + 0.008, 1)).fill({
+          color: P.grout,
+          alpha: 0.6,
+        });
+      }
+      // The hood: a steel trapezoid on the face, with its lit underside.
+      g.poly(faceRect("left", WALL_H, 0.08, 0.04, 0.92, 0.3)).fill(shade(P.steel, 0.9));
+      g.poly(faceRect("left", WALL_H, 0.04, 0.26, 0.96, 0.32)).fill(shade(P.steel, 0.7));
+      g.poly(faceRect("left", WALL_H, 0.12, 0.31, 0.88, 0.34)).fill({
+        color: P.lamp,
+        alpha: 0.55,
+      });
       return g;
     }
 
@@ -261,11 +272,43 @@ function drawProp(kind: PropKind): Graphics {
       });
       return g;
 
-    case "stool":
-      isoBox(g, 0.18, 24, shade(P.woodDark, 0.7));
-      isoBox(g, 0.34, 4, P.oxblood);
-      isoFlatAt(g, 0.42, shade(P.oxblood, 1.25), -28);
+    case "live_counter": {
+      // Steel-fronted base with a cream top, a griddle with food on it, a pan
+      // and a glass sneeze guard angled over the customer side.
+      isoBox(g, 1, 40, shade(P.steel, 0.82), P.cream);
+      for (let i = 0; i < 3; i++) {
+        // Panel seams on the front face, so it reads as kitchen steel, not wood.
+        const u = 0.25 + i * 0.25;
+        g.poly([
+          -HW + u * HW,
+          -40 + u * HH,
+          -HW + u * HW + 1.5,
+          -40 + u * HH + 0.75,
+          -HW + u * HW + 1.5,
+          u * HH + 0.75,
+          -HW + u * HW,
+          u * HH,
+        ]).fill({
+          color: 0x000000,
+          alpha: 0.12,
+        });
+      }
+      // The griddle, and what is on it.
+      isoFlatAt(g, 0.62, P.espresso, -41);
+      g.ellipse(-12, -43, 7, 3.5).fill(shade(P.brass, 0.95));
+      g.ellipse(4, -46, 7, 3.5).fill(shade(P.brass, 0.85));
+      g.ellipse(12, -40, 6, 3).fill(shade(P.oxblood, 1.2));
+      // A pan with a handle, at the back.
+      g.ellipse(-2, -54, 9, 4.5).fill(shade(P.steel, 0.55));
+      g.ellipse(-2, -55, 7.5, 3.5).fill(shade(P.green, 1.1));
+      g.rect(6, -56, 12, 2).fill(shade(P.espresso, 1.3));
+      // The sneeze guard: a glass pane on two posts at the front edge.
+      g.rect(-HW + 10, -64, 2, 24).fill(P.steel);
+      g.rect(-4, -48, 2, 22).fill(P.steel);
+      g.poly([-HW + 10, -64, -2, -48, -2, -66, -HW + 10, -82]).fill({ color: P.glass, alpha: 0.3 });
+      g.poly([-HW + 10, -82, -2, -66]).stroke({ color: P.steel, width: 1.5, alpha: 0.9 });
       return g;
+    }
 
     case "table": {
       g.rect(-3, -30, 6, 30).fill(shade(P.woodDark, 0.55));
@@ -282,15 +325,6 @@ function drawProp(kind: PropKind): Graphics {
       return g;
     }
 
-    case "dresser":
-      isoBox(g, 0.92, 52, P.oxblood, P.woodMid);
-      for (let i = 0; i < 2; i++) {
-        const t = -44 + i * 18;
-        g.poly([6, t, 52, t + 24, 52, t + 34, 6, t + 10]).fill(shade(P.oxblood, 0.46));
-        g.circle(30, t + 21, 2).fill(P.brass);
-      }
-      return g;
-
     case "shelf": {
       // Back-bar shelving: uprights, three shelves, a row of bottles.
       isoBox(g, 0.86, 8, P.woodDark, P.woodMid);
@@ -302,28 +336,6 @@ function drawProp(kind: PropKind): Graphics {
           const by = y - 4 - (b % 2) * 3;
           g.rect(bx, by - 16, 5, 16).fill(b % 3 === 0 ? P.glass : shade(P.brass, 0.85 + b * 0.05));
         }
-      }
-      return g;
-    }
-
-    case "jukebox": {
-      isoBox(g, 0.62, 30, P.woodDark, P.woodMid);
-      isoBox(g, 0.56, 84, P.woodDark, P.woodMid);
-      // The lit arch — the one warm glow on the far wall.
-      g.poly([-20, -86, 20, -86, 26, -52, -26, -52]).fill(shade(P.brass, 0.7));
-      g.poly([-15, -83, 15, -83, 20, -56, -20, -56]).fill({ color: P.lamp, alpha: 0.7 });
-      g.ellipse(0, -84, 20, 7).fill(shade(P.brass, 0.8));
-      // Chrome trim and the selection grille.
-      g.rect(-24, -50, 48, 4).fill(P.steel);
-      for (let i = 0; i < 6; i++) g.rect(-20 + i * 7, -44, 3, 10).fill(shade(P.espresso, 1.3));
-      return g;
-    }
-
-    case "radiator": {
-      isoBox(g, 0.72, 26, P.steel);
-      for (let i = 0; i < 5; i++) {
-        const o = -18 + i * 9;
-        g.poly([o, -26, o + 4, -24, o + 4, -4, o, -6]).fill(shade(P.steel, 0.7));
       }
       return g;
     }
@@ -354,33 +366,49 @@ function drawProp(kind: PropKind): Graphics {
       isoFlat(g, 0.34, P.brass, 0.5);
       return g;
 
-    case "rug_oval":
-      isoFlat(g, 0.9, P.woodMid);
-      isoFlat(g, 0.62, shade(P.oxblood, 0.9));
-      isoFlat(g, 0.32, shade(P.woodMid, 1.15));
-      return g;
-
     case "door_mat":
       isoFlat(g, 0.8, P.espresso);
       isoFlat(g, 0.58, shade(P.espresso, 1.5));
       return g;
 
     // ── Overlays: drawn on a host cell without claiming it ──
-    case "pastry_case": {
-      isoBox(g, 0.68, 26, P.woodMid);
-      // Glass box: two shelves of pastries, then a translucent front.
-      for (let s = 0; s < 2; s++) {
-        const y = -34 - s * 20;
-        isoFlatAt(g, 0.58, shade(P.steel, 1.05), y);
-        for (let i = 0; i < 3; i++) {
-          g.ellipse(-18 + i * 18, y - 4, 7, 4).fill(shade(P.brass, 0.9 + i * 0.08));
+    case "cake_display": {
+      // Sits on the counter top (40px up): a cake stand under a glass dome,
+      // and a second, smaller plate of slices beside it.
+      const top = -40;
+      g.ellipse(-6, top - 3, 18, 7).fill(shade(P.steel, 1.05));
+      g.rect(-8, top - 12, 4, 9).fill(P.steel);
+      g.ellipse(-6, top - 13, 15, 6).fill(shade(P.steel, 1.1));
+      g.ellipse(-6, top - 18, 12, 5).fill(shade(P.woodMid, 1.25));
+      g.rect(-18, top - 24, 24, 6).fill(shade(P.woodMid, 1.25));
+      g.ellipse(-6, top - 24, 12, 5).fill(P.cream);
+      g.circle(-9, top - 26, 1.6).fill(P.oxblood);
+      g.circle(-3, top - 25, 1.6).fill(P.oxblood);
+      g.ellipse(-6, top - 24, 17, 22).fill({ color: P.glass, alpha: 0.22 });
+      g.ellipse(-6, top - 24, 17, 22).stroke({ color: P.steel, width: 1.2, alpha: 0.6 });
+      g.circle(-6, top - 47, 2.5).fill(P.steel);
+      // A plate of slices.
+      g.ellipse(18, top - 2, 11, 4.5).fill(P.cream);
+      g.poly([12, top - 4, 22, top - 6, 18, top - 10]).fill(shade(P.brass, 1.1));
+      g.poly([18, top - 2, 26, top - 4, 24, top - 9]).fill(shade(P.woodMid, 1.3));
+      return g;
+    }
+
+    case "fridge": {
+      // A tall glass-door drinks fridge standing against the back wall.
+      isoBox(g, 0.7, 92, shade(P.steel, 0.75), shade(P.steel, 0.9));
+      // The door: glass on the front-left face, lit from inside, bottles on shelves.
+      g.poly([-42, -88, -4, -69, -4, -4, -42, -23]).fill({ color: P.glass, alpha: 0.75 });
+      for (let s = 0; s < 4; s++) {
+        const y = -78 + s * 18;
+        for (let b = 0; b < 4; b++) {
+          const x = -38 + b * 9;
+          const by = y + b * 4.5;
+          g.rect(x, by, 4.5, 12).fill([P.oxblood, P.green, P.brass, P.cream][(b + s) % 4]);
         }
+        g.poly([-42, y + 13, -4, y + 32, -4, y + 33.5, -42, y + 14.5]).fill(shade(P.steel, 1.1));
       }
-      g.poly([-30, -30, 0, -15, 30, -30, 30, -66, 0, -81, -30, -66]).fill({
-        color: P.glass,
-        alpha: 0.26,
-      });
-      g.poly([-30, -66, 0, -81, 30, -66]).stroke({ color: P.steel, width: 2, alpha: 0.8 });
+      g.rect(-8, -56, 2, 20).fill(P.steel);
       return g;
     }
 
@@ -398,11 +426,41 @@ function drawProp(kind: PropKind): Graphics {
       return g;
     }
 
-    case "till":
-      isoBox(g, 0.34, 16, P.espresso, P.steel);
-      g.poly([-10, -18, 0, -13, 10, -18, 10, -30, 0, -35, -10, -30]).fill(shade(P.steel, 0.85));
-      g.rect(-6, -28, 12, 6).fill(shade(P.glass, 0.9));
+    case "till": {
+      // On the counter top: the register with its customer-facing screen, the
+      // cash drawer, and a card reader on a stand beside it.
+      const top = -40;
+      g.poly([-22, top - 2, -2, top + 8, 14, top, -6, top - 10]).fill(shade(P.espresso, 1.2));
+      g.poly([-22, top - 2, -2, top + 8, -2, top + 2, -22, top - 8]).fill(shade(P.espresso, 0.9));
+      g.poly([-16, top - 10, -4, top - 4, -4, top - 22, -16, top - 28]).fill(P.espresso);
+      g.poly([-14.5, top - 12, -5.5, top - 7.5, -5.5, top - 20, -14.5, top - 24.5]).fill(
+        shade(P.glass, 1.15),
+      );
+      // The card reader.
+      g.rect(14, top - 14, 2, 10).fill(shade(P.espresso, 1.3));
+      g.poly([10, top - 22, 20, top - 18, 20, top - 10, 10, top - 14]).fill(P.espresso);
+      g.rect(12, top - 19, 6, 3).fill(shade(P.green, 1.3));
       return g;
+    }
+
+    case "pickup": {
+      // On the counter top: a brass service bell, and a tray with two cups
+      // waiting to be collected.
+      const top = -40;
+      g.poly([-26, top - 2, -6, top + 8, 10, top, -10, top - 10]).fill(shade(P.woodDark, 1.2));
+      for (const [x, y] of [
+        [-12, top - 4],
+        [-2, top + 1],
+      ]) {
+        g.rect(x - 4, y - 10, 8, 10).fill(P.cream);
+        g.ellipse(x, y - 10, 4, 1.6).fill(shade(P.woodMid, 0.8));
+        g.rect(x - 4, y - 6, 8, 2).fill(shade(P.oxblood, 1.1));
+      }
+      g.ellipse(18, top + 1, 8, 3).fill(shade(P.brass, 0.75));
+      g.ellipse(18, top - 4, 7, 6).fill(P.brass);
+      g.circle(18, top - 11, 1.8).fill(shade(P.brass, 1.2));
+      return g;
+    }
 
     case "laptop":
       // Screen up, lid angled away from the player so the room can see the back
@@ -413,11 +471,13 @@ function drawProp(kind: PropKind): Graphics {
       return g;
 
     case "pendant": {
-      // Hangs from above the counter: flex, shade, and the bulb's glow.
-      g.rect(-1, -128, 2, 46).fill(shade(P.woodDark, 0.7));
-      g.poly([-16, -82, 16, -82, 9, -96, -9, -96]).fill(P.oxblood);
-      g.ellipse(0, -82, 16, 5).fill(shade(P.lamp, 1.05));
-      g.ellipse(0, -76, 9, 5).fill({ color: P.lamp, alpha: 0.5 });
+      // Hangs from above the counter: flex, shade, and the bulb's glow. High
+      // enough to clear the head of anyone working behind the counter — they
+      // stand directly above it on screen, and a lower shade hid their face.
+      g.rect(-1, -160, 2, 46).fill(shade(P.woodDark, 0.7));
+      g.poly([-16, -114, 16, -114, 9, -128, -9, -128]).fill(P.oxblood);
+      g.ellipse(0, -114, 16, 5).fill(shade(P.lamp, 1.05));
+      g.ellipse(0, -108, 9, 5).fill({ color: P.lamp, alpha: 0.5 });
       return g;
     }
   }
@@ -437,24 +497,23 @@ const ALL_KINDS: PropKind[] = [
   "wall_menu",
   "wall_art",
   "wall_board",
+  "wall_kitchen",
   "wall_sill",
-  "stairs",
   "counter",
   "flap",
-  "stool",
+  "live_counter",
   "table",
   "chair",
-  "dresser",
   "shelf",
-  "jukebox",
-  "radiator",
   "plant",
   "rug_persian",
-  "rug_oval",
   "door_mat",
-  "pastry_case",
+  "cake_display",
+  "fridge",
   "espresso_machine",
   "till",
+  "pickup",
+  "laptop",
   "pendant",
 ];
 

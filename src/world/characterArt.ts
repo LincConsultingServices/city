@@ -11,7 +11,23 @@ export interface PersonPalette {
   legs: number;
   skin: number;
   hair: number;
+  /**
+   * What they are wearing over the base rig. Omitted is `casual` — the street's
+   * own look, backpack and all. Indoors the Café dresses its staff and its
+   * manager differently from its customers, so who works there reads before
+   * anybody says a word.
+   *
+   *   - `uniform`: `shirt` is the shirt (white), `accent` the apron (black).
+   *   - `chef`: a uniform with a white cap.
+   *   - `suit`: `shirt` is the jacket, `accent` the tie, with a white shirt
+   *     showing at the collar.
+   */
+  outfit?: Outfit;
+  /** Apron or tie colour, depending on `outfit`. */
+  accent?: number;
 }
+
+export type Outfit = "casual" | "uniform" | "chef" | "suit";
 
 export const PLAYER_PALETTE: PersonPalette = {
   shirt: 0x3d78d8,
@@ -57,14 +73,17 @@ function drawPerson(palette: PersonPalette, facing: BakeFacing, frame: 0 | 1 | 2
   if (frame === 2) g.roundRect(0.5, -3, 5, 3, 1.5).fill({ color: 0x000000, alpha: 0.12 });
 
   // Body
+  const outfit = palette.outfit ?? "casual";
   g.roundRect(-7, -25, 14, 18, 5).fill(palette.shirt);
-  if (facing === "N") {
-    // Backpack on the back view
+  if (facing === "N" && outfit === "casual") {
+    // Backpack on the back view — the street's look, not a uniform's.
     g.roundRect(-5, -23, 10, 11, 3).fill({ color: 0x000000, alpha: 0.22 });
-  } else {
+  } else if (facing !== "N") {
     // Subtle shading edge on the front/profile
     g.roundRect(-7, -12, 14, 5, 2).fill({ color: 0x000000, alpha: 0.08 });
   }
+  if (outfit === "uniform" || outfit === "chef") drawApron(g, facing, palette.accent ?? 0x1d1d22);
+  if (outfit === "suit") drawSuit(g, facing, palette.accent ?? 0x7a2a33);
 
   // Head
   g.circle(0, -30, 7.5).fill(palette.skin);
@@ -81,7 +100,54 @@ function drawPerson(palette: PersonPalette, facing: BakeFacing, frame: 0 | 1 | 2
       g.circle(3.4, -29.5, 1.1).fill(0x22262e);
     }
   }
+  if (outfit === "chef") {
+    // A short white cap, sitting on the hair line.
+    g.roundRect(-6.5, -41, 13, 6, 2.5).fill(0xf6f6f4);
+    g.rect(-6.5, -36.5, 13, 1.5).fill({ color: 0x000000, alpha: 0.1 });
+  }
   return g;
+}
+
+/** A bib apron over the shirt: body and skirt to the knee, straps over the shoulders. */
+function drawApron(g: Graphics, facing: BakeFacing, color: number): void {
+  if (facing === "S") {
+    g.roundRect(-5.5, -20, 11, 15, 2).fill(color);
+    g.rect(-4.5, -25, 1.6, 5).fill(color);
+    g.rect(2.9, -25, 1.6, 5).fill(color);
+    // The waist tie, one shade lighter so the apron has a waist.
+    g.rect(-5.5, -15, 11, 1.2).fill({ color: 0xffffff, alpha: 0.12 });
+  } else if (facing === "E") {
+    // Profile: the front edge of the apron, on the facing side.
+    g.roundRect(1, -20, 6, 15, 2).fill(color);
+    g.rect(2, -25, 1.6, 5).fill(color);
+  } else {
+    // Back view: crossed straps and the bow at the waist.
+    g.poly([-5, -24, -3.4, -24, 5, -15, 3.4, -15]).fill(color);
+    g.poly([5, -24, 3.4, -24, -5, -15, -3.4, -15]).fill(color);
+    g.ellipse(-2.4, -14.5, 2.2, 1.4).fill(color);
+    g.ellipse(2.4, -14.5, 2.2, 1.4).fill(color);
+  }
+}
+
+/** A jacket: white shirt and tie at the open collar, lapels, and nothing on the back. */
+function drawSuit(g: Graphics, facing: BakeFacing, tie: number): void {
+  if (facing === "S") {
+    g.poly([-3.4, -25, 3.4, -25, 0, -16]).fill(0xf4f4f2);
+    g.poly([-1, -24, 1, -24, 1.6, -18, 0, -16, -1.6, -18]).fill(tie);
+    // Lapels: a darker fold either side of the opening.
+    g.poly([-3.4, -25, -5.5, -24, -1.2, -16, 0, -16]).fill({ color: 0x000000, alpha: 0.18 });
+    g.poly([3.4, -25, 5.5, -24, 1.2, -16, 0, -16]).fill({ color: 0x000000, alpha: 0.18 });
+    // Two buttons.
+    g.circle(0, -13.5, 0.8).fill({ color: 0x000000, alpha: 0.35 });
+    g.circle(0, -10.5, 0.8).fill({ color: 0x000000, alpha: 0.35 });
+  } else if (facing === "E") {
+    // Profile: collar and a sliver of tie at the front.
+    g.poly([3, -25, 6.5, -24, 5.5, -20]).fill(0xf4f4f2);
+    g.rect(5, -23, 1.5, 5).fill(tie);
+  } else {
+    // Back view: the centre seam.
+    g.rect(-0.5, -24, 1, 16).fill({ color: 0x000000, alpha: 0.16 });
+  }
 }
 
 function bake(renderer: Renderer, g: Graphics): Texture {

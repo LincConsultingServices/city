@@ -8,10 +8,12 @@ import {
   NO_GATES_OPEN,
   ROOM_H,
   ROOM_W,
+  SIGNS,
   SPAWN,
   STAFF_CELLS,
   STATIONS,
   ZONES,
+  exitNear,
   makeRoomGrid,
   zoneAt,
   type GateId,
@@ -43,6 +45,12 @@ describe("the Café room", () => {
       findPath(closed, SPAWN, EXIT).length,
       "cannot reach the door from spawn",
     ).toBeGreaterThan(0);
+  });
+
+  it("does not put you in reach of the door the moment you arrive", () => {
+    // Arriving in reach of the door opens the room on "leave the café", and the
+    // E that walked you in — held a beat too long — walks you straight back out.
+    expect(exitNear(SPAWN), `spawn ${at(SPAWN)} is in reach of the door`).toBe(false);
   });
 
   it("keeps every cell, gate and station inside the room", () => {
@@ -143,11 +151,38 @@ describe("the Café room", () => {
     for (const c of everyCell()) {
       expect(zoneAt(c).label, `no zone for ${at(c)}`).toBeTruthy();
     }
-    expect(zoneAt({ x: 1, y: 1 }).id).toBe("z_pass");
+    // The pass is the kitchen end of the counter, behind the live counter.
+    expect(zoneAt({ x: 9, y: 1 }).id).toBe("z_pass");
+    expect(zoneAt({ x: 1, y: 1 }).id).toBe("z_behind");
     expect(zoneAt({ x: 5, y: 1 }).id).toBe("z_behind");
     expect(zoneAt({ x: 9, y: 4 }).id).toBe("z_window");
     expect(zoneAt(SPAWN).id).toBe("z_floor");
     expect(ZONES[ZONES.length - 1].contains(SPAWN), "the last zone must be a catch-all").toBe(true);
+  });
+});
+
+describe("the service counter", () => {
+  it("runs wall to sill, with a till, a pickup and a live kitchen on it", () => {
+    // Read left to right in the order a customer uses it.
+    const counters = FURNITURE.filter((p) => p.kind === "counter").length;
+    const till = FURNITURE.find((p) => p.kind === "till")!;
+    const pickup = FURNITURE.find((p) => p.kind === "pickup")!;
+    const kitchen = FURNITURE.filter((p) => p.kind === "live_counter");
+    expect(till.cell.y).toBe(2);
+    expect(pickup.cell.y).toBe(2);
+    expect(kitchen.length).toBeGreaterThan(0);
+    expect(till.cell.x).toBeLessThan(GATES[0].cell.x);
+    expect(pickup.cell.x).toBeGreaterThan(GATES[0].cell.x);
+    for (const k of kitchen) expect(k.cell.x).toBeGreaterThan(pickup.cell.x);
+    // Every interior column: the counters, the live counter and the flap.
+    expect(counters + kitchen.length + 1).toBe(ROOM_W - 2);
+  });
+
+  it("hangs a sign over each station, on the counter itself", () => {
+    for (const s of SIGNS) {
+      expect(s.cell.y, `${s.text} is not over the counter`).toBe(2);
+      expect(s.text, s.text).toMatch(/^[A-Z &]+$/);
+    }
   });
 });
 

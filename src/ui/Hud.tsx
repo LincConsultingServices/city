@@ -5,6 +5,7 @@ import { useEconomyStore } from "@/framework/economy/economyStore";
 import { events } from "@/framework/events";
 import { useWorldStore } from "@/world/worldStore";
 import { currentObjective } from "@/framework/city/firstMission";
+import { formatHour } from "@/lib/daycycle";
 import { useCountUp } from "./useCountUp";
 import { audio } from "@/framework/audio/audioManager";
 import { Icon } from "./Icon";
@@ -12,7 +13,7 @@ import { Icon } from "./Icon";
 // Persistent minimal HUD (PRD §9.1). Coin balance is server-authoritative; until
 // the economy endpoints land (§21 BE-1) it shows "—" — never fake data. The
 // count-up tween and +N floater only ever animate between real server values.
-export function Hud() {
+export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
   const { user, configured } = useAuth();
   const coins = useEconomyStore((s) => s.coinBalance);
   const displayCoins = useCountUp(coins);
@@ -20,6 +21,9 @@ export function Hud() {
   const [soundOn, setSoundOn] = useState(audio.isEnabled());
   // A panel is open (inputLocked) while the result modal covers the screen.
   const panelOpen = useWorldStore((s) => s.inputLocked);
+  // Select the hour, not the minute, so the HUD re-renders once per game hour.
+  const hour = useWorldStore((s) => Math.floor(s.clockMinutes / 60));
+  const clock = formatHour(hour * 60);
   // `currentObjective()` reads the session mirror rather than React state, so
   // nothing re-renders this on its own. Nothing has to: the objective only
   // changes inside the Café, CityScreen unmounts the HUD while an interior is
@@ -81,8 +85,16 @@ export function Hud() {
         </div>
       )}
 
-      {/* Top-right: coins + logout */}
+      {/* Top-right: clock + coins + logout */}
       <div className="pointer-events-auto absolute right-4 top-4 flex items-center gap-2">
+        <div
+          className="rounded-full border border-line/70 bg-surface/80 px-3 py-1.5 backdrop-blur"
+          title="City time"
+          role="timer"
+          aria-label={`City time ${clock}`}
+        >
+          <span className="text-sm font-semibold tabular-nums text-text">{clock}</span>
+        </div>
         <div className="relative">
           <div
             key={coins ?? "empty"}
@@ -115,6 +127,19 @@ export function Hud() {
         >
           <Icon name={soundOn ? "audio-on" : "audio-off"} className="h-4 w-4" />
         </button>
+        {onOptions && (
+          <button
+            onClick={() => {
+              audio.play("ui_open");
+              onOptions();
+            }}
+            className="grid h-9 w-9 place-items-center rounded-full border border-line/70 bg-surface/80 text-muted backdrop-blur transition hover:text-text"
+            aria-label="Options"
+            title="Options"
+          >
+            <GearIcon />
+          </button>
+        )}
         {configured && (
           <button
             onClick={() => void signOutUser()}
@@ -125,5 +150,17 @@ export function Hud() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * A gear. Inline because the icon pack has none; drawn in currentColor so it
+ * follows the button's colour exactly like the masked icons beside it.
+ */
+function GearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden fill="currentColor">
+      <path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.3 7.3 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 0-.5.4l-.4 2.7a7.3 7.3 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6a.5.5 0 0 0-.1.6l2 3.5c.1.2.4.3.6.2l2.5-1c.5.4 1.1.7 1.7 1l.4 2.6c0 .3.2.5.5.5h4c.3 0 .5-.2.5-.4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1c.2.1.5 0 .6-.2l2-3.5a.5.5 0 0 0-.1-.6L19.4 13ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" />
+    </svg>
   );
 }

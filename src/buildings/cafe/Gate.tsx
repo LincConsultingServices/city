@@ -52,9 +52,8 @@ export function Gate() {
             pronouned: the host differs by stage, and the sentence should read
             the same whoever is sitting across the table.
           */}
-          {host?.name ?? "The interviewer"} heard you out. Nothing came back on the record this
-          time, so take this as a conversation rather than a decision — the roads below are all
-          still open.
+          {host?.name ?? "The interviewer"} heard you out, but your answers couldn&apos;t be scored
+          this time, so there&apos;s no feedback to show. Every option below is still open to you.
         </p>
       )}
 
@@ -64,7 +63,9 @@ export function Gate() {
             <span className="block text-sm font-medium text-text">
               {nextRole ? `Take it — ${nextRole}` : "Take it"}
             </span>
-            <span className="mt-0.5 block text-xs text-muted">Start the next posting.</span>
+            <span className="mt-0.5 block text-xs text-muted">
+              Accept the offer and start the new role.
+            </span>
           </ChoiceButton>
         </li>
         <li>
@@ -74,14 +75,14 @@ export function Gate() {
                 the record either way — it is the baseline the report measures
                 improvement from, and it is never overwritten. */}
             <span className="mt-0.5 block text-xs text-muted">
-              Sit it a second time. What you said the first time stays on the record.
+              Answer the questions again. Your first answers stay on the record.
             </span>
           </ChoiceButton>
         </li>
         <li>
           <ChoiceButton onClick={go("exit")}>
             <span className="block text-sm font-medium text-text">Leave the café</span>
-            <span className="mt-0.5 block text-xs text-muted">Take what you have and go.</span>
+            <span className="mt-0.5 block text-xs text-muted">Stop here and see your summary.</span>
           </ChoiceButton>
         </li>
       </ul>

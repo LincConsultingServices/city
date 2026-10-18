@@ -4,6 +4,8 @@
 import { create } from "zustand";
 import type { Cell } from "@/lib/pathfinding";
 import { SPAWN } from "./cityMap";
+import { BOOT_PHASE_OFFSET_S, clockMinutes, dayPhase } from "@/lib/daycycle";
+import type { Destination } from "./navigation";
 
 interface WorldState {
   charCell: Cell;
@@ -15,10 +17,25 @@ interface WorldState {
    * rather than render a second world nobody can see (PRD §12.3 budgets).
    */
   interiorOpen: boolean;
+  /** In-game minute of the day (0..1439), from the day/night cycle. */
+  clockMinutes: number;
+  /**
+   * Where the player has marked on the map. The guide arrow points along the
+   * route to it, and it clears itself on arrival.
+   */
+  destination: Destination | null;
+  /**
+   * A request from the map to walk the player to the destination. The world
+   * paths there and clears it — the same shape the café's guided list uses.
+   */
+  walkRequested: boolean;
   setCharCell: (cell: Cell) => void;
   setNearVenue: (id: string | null) => void;
   setInputLocked: (locked: boolean) => void;
   setInteriorOpen: (open: boolean) => void;
+  setClockMinutes: (minutes: number) => void;
+  setDestination: (dest: Destination | null) => void;
+  requestWalk: (walk: boolean) => void;
 }
 
 export const useWorldStore = create<WorldState>((set) => ({
@@ -26,9 +43,16 @@ export const useWorldStore = create<WorldState>((set) => ({
   nearVenueId: null,
   inputLocked: false,
   interiorOpen: false,
+  clockMinutes: clockMinutes(dayPhase(BOOT_PHASE_OFFSET_S).t),
+  destination: null,
+  walkRequested: false,
   setCharCell: (charCell) => set({ charCell }),
   setNearVenue: (nearVenueId) => set((s) => (s.nearVenueId === nearVenueId ? s : { nearVenueId })),
   setInputLocked: (inputLocked) => set({ inputLocked }),
   setInteriorOpen: (interiorOpen) =>
     set((s) => (s.interiorOpen === interiorOpen ? s : { interiorOpen })),
+  setClockMinutes: (minutes) =>
+    set((s) => (s.clockMinutes === minutes ? s : { clockMinutes: minutes })),
+  setDestination: (destination) => set({ destination, walkRequested: false }),
+  requestWalk: (walkRequested) => set({ walkRequested }),
 }));

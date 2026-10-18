@@ -92,7 +92,7 @@ describe("the gate", () => {
     useJourneyStore.setState({ stageId: "cafe.gate1", outcome: null });
     render(<Gate />);
     // Better than silence, and better than inventing a verdict.
-    expect(screen.getByText(/Nothing came back on the record/)).toBeInTheDocument();
+    expect(screen.getByText(/couldn't be scored this time/)).toBeInTheDocument();
   });
 
   it("says the same honest thing when a verdict came back with nothing in it", () => {
@@ -117,7 +117,7 @@ describe("the gate", () => {
       },
     });
     render(<Gate />);
-    expect(screen.getByText(/Nothing came back on the record/)).toBeInTheDocument();
+    expect(screen.getByText(/couldn't be scored this time/)).toBeInTheDocument();
   });
 
   it("shows the band and the feedback when there is some", () => {

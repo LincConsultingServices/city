@@ -367,27 +367,31 @@ export const STAGES: readonly Stage[] = [
       {
         unitId: "cafe.interview.q1",
         competency: "C6",
-        prompt: "Tell me about yourself.",
+        prompt:
+          "Let's start simple. Tell me about yourself — who you are and what you've been doing lately.",
       },
       {
         unitId: "cafe.interview.q2",
         competency: "C2",
-        prompt: "Why did you choose the Café?",
+        prompt: "Why do you want to work here at the Café, and not somewhere else?",
       },
       {
         unitId: "cafe.interview.q3",
         competency: "C2",
-        prompt: "Tell me about a challenge you faced and how you handled it.",
+        prompt:
+          "Tell me about a time something didn't go to plan — at work, at school or anywhere else. What happened, what did you do, and how did it turn out?",
       },
       {
         unitId: "cafe.interview.q4",
         competency: "C8",
-        prompt: "Strengths and one area to grow?",
+        prompt:
+          "What's one thing you're good at that would help you here? And one thing you're still working on?",
       },
       {
         unitId: "cafe.interview.q5",
         competency: "C6",
-        prompt: "Professional Responses.",
+        prompt:
+          "Picture a busy morning. A customer snaps at you because their drink is late — a colleague got the order wrong. What would you say to the customer, and what would you say to your colleague afterwards?",
       },
     ],
   },

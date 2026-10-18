@@ -10,6 +10,10 @@ import { EGG_COUNT, KONAMI, konamiStep } from "@/lib/eggs";
 import { audio } from "@/framework/audio/audioManager";
 import { Modal } from "./Modal";
 import { Hud } from "./Hud";
+import { Minimap } from "./Minimap";
+import { OptionsMenu } from "./OptionsMenu";
+import { useSettings } from "@/framework/settings";
+import { attachMusic } from "@/framework/audio/musicController";
 import { Toaster } from "./Toaster";
 import { Celebration } from "./Celebration";
 import { TrophyHall } from "./TrophyHall";
@@ -42,6 +46,9 @@ export function CityScreen() {
   const [openVenue, setOpenVenue] = useState<CityBuilding | null>(null);
   const [playing, setPlaying] = useState<LevelActivity | null>(null);
   const [worldPanel, setWorldPanel] = useState<WorldPanel | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const showMinimap = useSettings((s) => s.showMinimap);
   const [worldReady, setWorldReady] = useState(false);
   const [loadPct, setLoadPct] = useState(0);
   const konamiRef = useRef(0);
@@ -50,7 +57,8 @@ export function CityScreen() {
   const [askTrack, setAskTrack] = useState<boolean | null>(null);
 
   const nearVenue = nearVenueId ? (VENUES.find((v) => v.id === nearVenueId) ?? null) : null;
-  const panelOpen = openVenue !== null || playing !== null || worldPanel !== null;
+  const panelOpen =
+    openVenue !== null || playing !== null || worldPanel !== null || mapOpen || optionsOpen;
 
   // A venue with a registered building module gets a real walkable interior;
   // everything else keeps the framework's overlay panels (PRD §7.2).
@@ -98,6 +106,10 @@ export function CityScreen() {
     return () => setInteriorOpen(false);
   }, [inInterior, setInteriorOpen]);
 
+  // The background score follows the audio settings for as long as the city is
+  // on screen (framework/audio/musicController.ts).
+  useEffect(() => attachMusic(), []);
+
   // World-side prop clicks (billboard headlines, founders' plaque) open DOM panels.
   useEffect(() => events.on("world_interact", ({ kind }) => setWorldPanel(kind)), []);
 
@@ -117,8 +129,19 @@ export function CityScreen() {
         // InteriorProps contract) — don't close it twice and double the sound.
         if (playing) setPlaying(null);
         else if (inInterior) return;
+        else if (optionsOpen) setOptionsOpen(false);
+        else if (mapOpen) setMapOpen(false);
         else if (openVenue) setOpenVenue(null);
         else if (worldPanel) setWorldPanel(null);
+        return;
+      }
+      // M toggles the map, from the street only — never over a panel or a room.
+      if ((e.key === "m" || e.key === "M") && !e.repeat && !inInterior && askTrack === false) {
+        if (mapOpen) setMapOpen(false);
+        else if (!panelOpen) {
+          audio.play("ui_open");
+          setMapOpen(true);
+        }
         return;
       }
       if ((e.key === "e" || e.key === "E" || e.key === "Enter") && !panelOpen && nearVenue) {
@@ -127,7 +150,18 @@ export function CityScreen() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [nearVenue, panelOpen, openVenue, playing, worldPanel, inInterior, enterVenue]);
+  }, [
+    nearVenue,
+    panelOpen,
+    openVenue,
+    playing,
+    worldPanel,
+    inInterior,
+    enterVenue,
+    mapOpen,
+    optionsOpen,
+    askTrack,
+  ]);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-ink">
@@ -140,10 +174,29 @@ export function CityScreen() {
       {/* An interior owns the whole screen and brings its own chrome, so the
           street's HUD and control hint step aside rather than sit on top of it.
           Toasts and celebrations stay — they are about the player, not the view. */}
-      {!inInterior && <Hud />}
+      {!inInterior && <Hud onOptions={() => setOptionsOpen(true)} />}
+      {!inInterior && optionsOpen && (
+        <OptionsMenu
+          onClose={() => setOptionsOpen(false)}
+          onOpenMap={() => {
+            setOptionsOpen(false);
+            setMapOpen(true);
+          }}
+        />
+      )}
       <Toaster />
       <Celebration />
       {!inInterior && <ControlsHint />}
+      {/* The map: small in the corner while you walk, large when clicked. Out
+          of the way of any other panel, and gone indoors. */}
+      {!inInterior && worldReady && askTrack === false && (!panelOpen || mapOpen) && (
+        <Minimap
+          open={mapOpen}
+          showMini={showMinimap}
+          onOpen={() => setMapOpen(true)}
+          onClose={() => setMapOpen(false)}
+        />
+      )}
 
       {nearVenue && !panelOpen && (
         <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 animate-slide-up">
@@ -329,9 +382,10 @@ function InfoPanel({ venue, onClose }: { venue: CityBuilding; onClose: () => voi
 
 function ControlsHint() {
   return (
-    <div className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-lg border border-line/60 bg-surface/70 px-3 py-2 text-xs text-muted backdrop-blur">
+    // Bottom-right: the bottom-left corner is the map's.
+    <div className="pointer-events-none absolute bottom-4 right-4 z-10 rounded-lg border border-line/60 bg-surface/70 px-3 py-2 text-xs text-muted backdrop-blur">
       <span className="text-text">WASD</span> / <span className="text-text">click</span> to move ·{" "}
-      <span className="text-text">E</span> to enter
+      <span className="text-text">E</span> to enter · <span className="text-text">M</span> map
     </div>
   );
 }

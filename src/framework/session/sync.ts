@@ -76,9 +76,14 @@ interface Live {
    * to reach a state one request describes.
    */
   queued: { blob: unknown } | null;
+  /** Whether the last write to reach the network was accepted. */
+  lastOk: boolean;
 }
 
 const live = new Map<string, Live>();
+
+/** When this tab last had a write accepted by the server, for Options → Game save. */
+let lastServerSave: string | null = null;
 
 function state(buildingId: string): Live {
   const lk = liveKey(buildingId);
@@ -93,6 +98,7 @@ function state(buildingId: string): Live {
       token: null,
       inflight: null,
       queued: null,
+      lastOk: false,
     };
     live.set(lk, s);
   }
@@ -274,11 +280,13 @@ async function drain(buildingId: string): Promise<void> {
 
 async function send(buildingId: string, blob: unknown): Promise<void> {
   const s = state(buildingId);
+  s.lastOk = false;
   try {
     const res = await api.putBuildingState(buildingId, s.rev, blob, s.track);
     if (res.ok) {
       s.rev = res.rev;
       mirror(buildingId, blob, res.updatedAt || new Date().toISOString());
+      saved(s);
       return;
     }
     // A conflict that survives serialisation is a real one: the other tab, or
@@ -289,10 +297,65 @@ async function send(buildingId: string, blob: unknown): Promise<void> {
     if (retry.ok) {
       s.rev = retry.rev;
       mirror(buildingId, blob, retry.updatedAt || new Date().toISOString());
+      saved(s);
     }
   } catch {
     // The mirror holds it; the next hydrate pushes it.
   }
+}
+
+function saved(s: Live): void {
+  s.lastOk = true;
+  lastServerSave = new Date().toISOString();
+}
+
+/** The buildings this browser holds a saved session for, for the current player. */
+function heldBuildings(): string[] {
+  const prefix = `city.${currentUid()}.`;
+  const out: string[] = [];
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith(prefix) && k.endsWith(".session")) {
+        out.push(k.slice(prefix.length, -".session".length));
+      }
+    }
+  } catch {
+    /* storage unavailable — nothing held */
+  }
+  return out;
+}
+
+/** When this tab last had progress accepted by the server, if it has. */
+export function lastSavedToServer(): string | null {
+  return lastServerSave;
+}
+
+/**
+ * Push every session this browser holds to the server, now.
+ *
+ * Progress already saves itself as you play; this is the reassurance button.
+ * Resolves `saved` when every session was accepted, `offline` when any could
+ * not reach the server (the local copy still holds it, and the next visit
+ * uploads it), and `nothing` when there is no progress to save yet.
+ */
+export async function saveAllNow(): Promise<"saved" | "offline" | "nothing"> {
+  const ids = heldBuildings();
+  if (ids.length === 0) return "nothing";
+  let allOk = true;
+  for (const id of ids) {
+    const blob = readSession(id);
+    if (blob == null) continue;
+    const s = state(id);
+    if (s.timer !== null) {
+      window.clearTimeout(s.timer);
+      s.timer = null;
+    }
+    s.pending = null;
+    await push(id, blob);
+    if (!s.lastOk) allOk = false;
+  }
+  return allOk ? "saved" : "offline";
 }
 
 /** Tests only. */
@@ -301,4 +364,5 @@ export function resetSessionSync(): void {
     if (s.timer !== null) window.clearTimeout(s.timer);
   }
   live.clear();
+  lastServerSave = null;
 }

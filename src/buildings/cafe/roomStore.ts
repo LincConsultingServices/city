@@ -19,6 +19,7 @@ import { audio } from "@/framework/audio/audioManager";
 import type { Cell } from "@/lib/pathfinding";
 import { GATES, SPAWN, zoneAt, type GateId, type ZoneId } from "./room";
 import { castById, type CastId } from "./cast";
+import { START_STAGE } from "./journey";
 import {
   announcementFor,
   applyPatch,
@@ -57,6 +58,12 @@ interface RoomState {
   world: World;
   /** True while a DOM panel is up — the room ignores clicks and WASD. */
   inputLocked: boolean;
+  /**
+   * The stage the player has sat down for on this visit. A stage that waits for
+   * its host (see `awaitsHost`) stays closed until this names it, so walking in
+   * the door is exploring the room, not being interviewed.
+   */
+  acceptedStageId: string | null;
   announcement: Announcement;
 
   setCharCell: (cell: Cell) => void;
@@ -67,6 +74,7 @@ interface RoomState {
   setFlapOpen: (open: boolean) => void;
   setWalkTo: (cell: Cell | null) => void;
   setInputLocked: (locked: boolean) => void;
+  acceptStage: (id: string) => void;
   announce: (text: string) => void;
 }
 
@@ -82,6 +90,7 @@ export const useRoomStore = create<RoomState>((set) => ({
   flapOpen: false,
   walkTo: null,
   inputLocked: false,
+  acceptedStageId: null,
   announcement: { text: "", seq: 0 },
 
   setCharCell: (charCell) =>
@@ -99,6 +108,7 @@ export const useRoomStore = create<RoomState>((set) => ({
   setFlapOpen: (flapOpen) => set((s) => (s.flapOpen === flapOpen ? s : { flapOpen })),
   setInputLocked: (inputLocked) =>
     set((s) => (s.inputLocked === inputLocked ? s : { inputLocked })),
+  acceptStage: (acceptedStageId) => set({ acceptedStageId }),
   announce: (text) => set((s) => ({ announcement: { text, seq: s.announcement.seq + 1 } })),
 }));
 
@@ -149,9 +159,45 @@ export function resetRoomState(world: World): void {
     flapOpen: false,
     walkTo: null,
     inputLocked: false,
+    acceptedStageId: null,
     world,
     announcement: { text: "", seq: 0 },
   });
+}
+
+/**
+ * Stages that wait for the player to go to their host and say yes, rather than
+ * opening the moment the door does. Only the interview, for now: it is the first
+ * thing the building asks of you, and a room you are thrown straight out of
+ * into a question is a room you never get to look at.
+ */
+const HOST_ACCEPTED_STAGES: ReadonlySet<string> = new Set([START_STAGE]);
+
+/** True while `stageId` is waiting for the player to accept it from its host. */
+export function awaitsHost(stageId: string, acceptedStageId: string | null): boolean {
+  return HOST_ACCEPTED_STAGES.has(stageId) && acceptedStageId !== stageId;
+}
+
+/** What the host says when you walk up to them with the stage still waiting. */
+export const INVITATION =
+  "Good, you found me. It's a short one — a few questions about you and how you work, and I just want to hear it in your own words. A few sentences each is plenty. Ready when you are.";
+
+/** The host asks whether you are ready, in place of their idle chatter. */
+export function invite(id: CastId): void {
+  const member = castById(id);
+  if (!member) return;
+  const s = useRoomStore.getState();
+  audio.play("ui_open");
+  s.setSpeaking(id, INVITATION);
+  s.announce(`${member.name}. ${INVITATION}`);
+}
+
+/** Say yes to the host: the stage opens, and the conversation bubble closes. */
+export function acceptStage(stageId: string): void {
+  const s = useRoomStore.getState();
+  audio.play("ui_open");
+  s.setSpeaking(null, "");
+  s.acceptStage(stageId);
 }
 
 /**

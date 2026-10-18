@@ -8,7 +8,7 @@ import { Application, Container, Graphics, Sprite, Text, Texture, type Renderer 
 import { mapToWorld, worldToMap, roundCell, TILE_W, TILE_H } from "@/lib/iso";
 import { findPath, type Cell } from "@/lib/pathfinding";
 import { prefersReducedMotion } from "@/lib/motion";
-import { dayPhase, lerpColor, BOOT_PHASE_OFFSET_S } from "@/lib/daycycle";
+import { clockMinutes, dayPhase, lerpColor, BOOT_PHASE_OFFSET_S } from "@/lib/daycycle";
 import {
   bakePersonTextures,
   bakeShadowTexture,
@@ -55,6 +55,9 @@ import {
 } from "./assets";
 import { registerInteriorHost } from "@/framework/building/interiorStage";
 import { useWorldStore } from "./worldStore";
+import { createGuide } from "./guideView";
+import { hasArrived } from "./navigation";
+import { useSettings } from "@/framework/settings";
 
 const WALK_SPEED = 175; // px/sec (≈1.3 tiles/sec on the 132px grid)
 const STEP_S = 0.18; // seconds per walk-cycle frame
@@ -272,6 +275,12 @@ export function CityCanvas({
       // FX overlay (particles, glows, birds) draws above the y-sorted actors.
       const fx = new Container();
       world.addChild(fx);
+
+      // The map's guide: an arrow at the player's feet pointing along the route
+      // to wherever they marked, and a beacon on the spot (guideView.ts). In fx,
+      // above the night tint, so it stays legible after dark.
+      const guide = createGuide(reduced);
+      fx.addChild(guide.view);
 
       // Soft cloud shadows drifting over the whole city (topmost world layer).
       // Soft cloud texture; the old procedural ellipse stretched to ~2000px read
@@ -513,12 +522,38 @@ export function CityCanvas({
           store.setCharCell(curCell);
         }
 
+        // Navigation. "Walk me there" from the map is held until the map has
+        // closed and the street takes input again, then walked like a click.
+        const nav = useWorldStore.getState();
+        if (nav.walkRequested && nav.destination && !locked) {
+          store.requestWalk(false);
+          const path = findPath(cityGrid, curCell, nav.destination.cell);
+          if (path.length > 1) {
+            pathTargets = path.slice(1);
+            drawPathPreview(pathLine, charPixel, pathTargets);
+          }
+        }
+        // Options → Map → Guide arrow off hides the arrow and the beacon, but
+        // the marker still clears itself on arrival.
+        const shown = useSettings.getState().showGuide ? nav.destination : null;
+        if (!shown && nav.destination && hasArrived(curCell, nav.destination)) {
+          store.setDestination(null);
+        }
+        guide.update(dt, elapsed, charPixel, curCell, shown, (reached) => {
+          store.setDestination(null);
+          events.emit("toast", { message: `You've reached ${reached.label}.`, kind: "info" });
+        });
+
         // Ambient life: NPCs, vehicles, particles, pigeons — one call, culled to view.
         view.left = -world.position.x;
         view.top = -world.position.y;
         view.right = view.left + application.screen.width;
         view.bottom = view.top + application.screen.height;
         amb.update(dt, elapsed, view, curCell);
+
+        // HUD clock. The setter no-ops unless the in-game minute changed, so the
+        // DOM re-renders a few times a second, not every frame.
+        store.setClockMinutes(clockMinutes(dayPhase(elapsed + BOOT_PHASE_OFFSET_S).t));
 
         // Atmosphere: day/night tint, window lights, marker pulse, drifting clouds.
         sky.width = application.screen.width;

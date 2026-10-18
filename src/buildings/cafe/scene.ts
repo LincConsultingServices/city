@@ -3,11 +3,21 @@
 // graph. Placement follows the city's own conventions exactly (world/CityCanvas
 // .tsx §makeProp): anchor (0.5, 1) at `mapToWorld(cell) + TILE_H/2`, depth via
 // `zIndex = cell.x + cell.y` plus a per-class epsilon.
-import { Container, Graphics, Sprite } from "pixi.js";
+import { Container, Graphics, Sprite, Text } from "pixi.js";
 import { TILE_H, TILE_W, mapToWorld } from "@/lib/iso";
 import { CAFE_PALETTE, type CafeTextures } from "./props";
 import { PROP_SPRITE } from "./assets";
-import { FURNITURE, GATES, NEAR_EDGE, ROOM_H, ROOM_W, type Gate, type PropKind } from "./room";
+import {
+  FURNITURE,
+  GATES,
+  NEAR_EDGE,
+  ROOM_H,
+  ROOM_W,
+  SIGNS,
+  type Gate,
+  type PropKind,
+  type Sign,
+} from "./room";
 
 /** Depth offsets, so props sharing a cell stack in a sensible order. */
 const Z_FLAT = -0.1; // rugs and the doormat, under everything upright
@@ -145,7 +155,56 @@ export function buildFurniture(tex: CafeTextures): FurnitureLayer {
   const flap = buildFlap(tex, GATES[0]);
   root.addChild(flap);
 
+  for (const s of SIGNS) root.addChild(buildSign(s));
+
   return { root, flap, machine };
+}
+
+/**
+ * How far above its counter cell a sign hangs. Somebody working behind the
+ * counter one cell to the left stands directly above the counter on screen, with
+ * their head ~106px up — so the board hangs above that, or it hides their face.
+ */
+const SIGN_LIFT = 132;
+
+/**
+ * A board hanging over the counter, naming what happens beneath it. The room's
+ * stations are where a customer's visit goes — order, collect, the kitchen — and
+ * a player new to the room should be able to read that off the counter rather
+ * than work it out from where people stand.
+ */
+function buildSign(sign: Sign): Container {
+  const holder = new Container();
+  const w = mapToWorld(sign.cell.x, sign.cell.y);
+  holder.position.set(w.x, w.y - SIGN_LIFT);
+  // In front of the counter it hangs over, behind anyone standing in front of it.
+  holder.zIndex = sign.cell.x + sign.cell.y + 0.3;
+
+  const label = new Text({
+    text: sign.text,
+    style: {
+      fill: CAFE_PALETTE.cream,
+      fontFamily: "Outfit, sans-serif",
+      fontSize: 12,
+      fontWeight: "700",
+      letterSpacing: 1.5,
+    },
+    resolution: Math.max(2, Math.ceil(window.devicePixelRatio || 1) * 2),
+  });
+  label.anchor.set(0.5, 0.5);
+
+  const padX = 9;
+  const padY = 4;
+  const bw = label.width + padX * 2;
+  const bh = label.height + padY * 2;
+  const board = new Graphics();
+  // Two drop wires up to the ceiling, then a dark board with a brass edge.
+  board.rect(-bw / 2 + 8, -bh / 2 - 26, 1.2, 26).fill({ color: CAFE_PALETTE.steel, alpha: 0.7 });
+  board.rect(bw / 2 - 9, -bh / 2 - 26, 1.2, 26).fill({ color: CAFE_PALETTE.steel, alpha: 0.7 });
+  board.roundRect(-bw / 2, -bh / 2, bw, bh, 4).fill(CAFE_PALETTE.espresso);
+  board.roundRect(-bw / 2, -bh / 2, bw, bh, 4).stroke({ color: CAFE_PALETTE.brass, width: 1.5 });
+  holder.addChild(board, label);
+  return holder;
 }
 
 /**
