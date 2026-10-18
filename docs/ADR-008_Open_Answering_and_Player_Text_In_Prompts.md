@@ -14,6 +14,7 @@ _Content source: `FINAL_Cafe_Process_Flow.xlsx` — the same workbook ADR-007 wa
 Three things changed, and only the third needs an ADR:
 
 1. **The blueprint's own words.** Every interview and review question is now the workbook's text, unedited, in American English and a formal register. What used to be dramatized paraphrase (_"Start me off. Who am I talking to?"_) is now the question as written (_"Tell me about yourself."_).
+   _Amended 2026-10-14 (KK): the five **interview** questions are reworded into how a café manager would actually ask them, because two of the workbook's lines were category labels rather than questions ("Professional Responses.", "Strengths and one area to grow?"). Each keeps its competency and the server's `evaluate` criteria unchanged; question 5 becomes the concrete situation that criteria describes. The review questions are still the workbook's text._
 2. **Scenarios stopped being multiple choice.** The player types. The blueprint's three option texts were not deleted — they moved server-side and became the **grading rubric**, one tier descriptor each. What was the menu is now the answer key, and the answer key never leaves the server.
 3. **Typed text now reaches a generator prompt.** The client asked for consequences layered on what the player wrote in the interview and the reviews. ADR-007 §13 promised the opposite, in a table, and called the promise load-bearing. **That row is superseded. §4 is the replacement guarantee.**
 
