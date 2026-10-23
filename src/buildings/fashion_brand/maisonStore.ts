@@ -17,7 +17,8 @@ import { maisonContent } from "./content";
 import { countdownFor } from "./beats";
 import type { Track } from "./season";
 
-const STORAGE_KEY = "city.maison.v1";
+/** Exported for save files, which carry the season with the rest of the game. */
+export const STORAGE_KEY = "city.maison.v1";
 
 /** One decided beat: which activity, and the path through it. */
 export interface Decision {

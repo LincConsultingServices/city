@@ -1,0 +1,31 @@
+# Keep the build context small, and keep local config out of the image: the
+# Dockerfile takes its settings from build args, never from a developer's .env.
+
+# Local configuration (carries the Firebase key and a backend URL)
+.env
+.env.*
+!.env.example
+
+# Installed and built output — the image installs and builds its own
+node_modules/
+dist/
+dist-ssr/
+coverage/
+
+# Not needed to build the site
+.git/
+.github/
+.claude/
+.agents/
+.vscode/
+.idea/
+docs/
+reference/
+tests/
+test-results/
+playwright-report/
+*.log
+*.local
+cafe.jpg
+Thumbs.db
+.DS_Store
