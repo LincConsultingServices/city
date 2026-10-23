@@ -309,8 +309,18 @@ function saved(s: Live): void {
   lastServerSave = new Date().toISOString();
 }
 
+/**
+ * Whose saves this browser is reading and writing — the signed-in player's uid,
+ * or "anon" when there is no sign-in. Manual save files are scoped by it too,
+ * for the same reason the sessions are: two accounts in one browser must never
+ * load each other's game.
+ */
+export function sessionOwner(): string {
+  return currentUid();
+}
+
 /** The buildings this browser holds a saved session for, for the current player. */
-function heldBuildings(): string[] {
+export function heldBuildings(): string[] {
   const prefix = `city.${currentUid()}.`;
   const out: string[] = [];
   try {
@@ -324,6 +334,26 @@ function heldBuildings(): string[] {
     /* storage unavailable — nothing held */
   }
   return out;
+}
+
+/**
+ * Replace a building's session outright — loading a save file, or starting
+ * over (`null` is a building nobody has started). Written here first, then sent
+ * and waited for, so the caller knows whether the account has it too.
+ *
+ * Resolves true when the server accepted it. False means it is held on this
+ * device and goes up on the next good load, the same as any offline write.
+ */
+export async function replaceSession(buildingId: string, blob: unknown): Promise<boolean> {
+  const s = state(buildingId);
+  if (s.timer !== null) {
+    window.clearTimeout(s.timer);
+    s.timer = null;
+  }
+  s.pending = null;
+  mirror(buildingId, blob, new Date().toISOString());
+  await push(buildingId, blob);
+  return s.lastOk;
 }
 
 /** When this tab last had progress accepted by the server, if it has. */
