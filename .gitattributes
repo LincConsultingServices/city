@@ -9,6 +9,8 @@
 *.cfg   text eol=lf
 *.json  text eol=lf
 *.md    text eol=lf
+# Shell scripts run inside the Linux container; a CRLF breaks them.
+*.sh    text eol=lf
 
 # Binary assets
 *.png   binary

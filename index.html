@@ -32,6 +32,9 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Runtime settings (backend URL, Firebase key), written by the container
+         at startup. A plain script, so it has run before the app module does. -->
+    <script src="/config.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
