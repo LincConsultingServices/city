@@ -37,6 +37,13 @@ server {
         try_files $uri =404;
     }
 
+    # The runtime settings, written at container start: never cached, so a new
+    # value on the Cloud Run service reaches players on their next load.
+    location = /config.js {
+        add_header Cache-Control "no-cache";
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
     # The app shell is never cached, so a deploy reaches players on their next
     # load rather than whenever their cache expires.
     location = /index.html {
