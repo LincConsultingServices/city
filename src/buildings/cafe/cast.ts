@@ -16,15 +16,11 @@
 import type { Cell } from "@/lib/pathfinding";
 import type { Cardinal } from "@/world/assets";
 import type { PersonPalette } from "@/world/characterArt";
+import { CAFE_CAST, paletteOf } from "@/ui/characters";
 import { GUIDE, type GuidePlace } from "./room";
+import type { Speaker } from "./Sheet";
 
 export type CastId = "priya" | "owen" | "tomas" | "marcus" | "nadia" | "ray" | "ellery";
-
-/**
- * The house uniform: white shirt, black apron, black trousers. Everyone behind
- * the counter wears it, named or not, so the staff read as staff at a glance.
- */
-export const UNIFORM = { shirt: 0xf4f4f2, legs: 0x1d1d22, accent: 0x1d1d22 } as const;
 
 /**
  * Anyone the room draws: somewhere to stand, a loop to walk, a palette, and how
@@ -100,7 +96,7 @@ export const CAST: readonly CastMember[] = [
     role: "head barista",
     // Warm skin, dark hair losing its tie, in the house uniform like the rest
     // of the staff. She is findable by where she stands: at the machine.
-    palette: { ...UNIFORM, outfit: "uniform", skin: 0xc98e5a, hair: 0x241d18 },
+    palette: paletteOf(CAFE_CAST.priya.look),
     anchor: { x: 4, y: 1 }, // at the machine, which stands on the wall behind her
     // machine → grinder → the end of the counter run → back. She rarely leaves
     // the bar and never leaves the staff side of it.
@@ -109,9 +105,13 @@ export const CAST: readonly CastMember[] = [
       { x: 5, y: 1 },
       { x: 6, y: 1 },
     ],
+    // Where you go to speak to her: across the counter at the pickup, the one
+    // spot every point of her loop is in earshot of. Without it the guided list
+    // sends you to her cell, behind a counter you cannot walk through.
+    approach: { x: 5, y: 3 },
     seated: false,
     noticesAt: 3,
-    talkRadius: 2,
+    talkRadius: 3,
     ambientLines: [
       "Machine's warm. We're good for the morning.",
       "Two of the oat cartons are near date. I put them at the front so they go first.",
@@ -123,7 +123,7 @@ export const CAST: readonly CastMember[] = [
     id: "tomas",
     name: "Tomas",
     role: "second barista",
-    palette: { ...UNIFORM, outfit: "uniform", skin: 0xf0d9b5, hair: 0x5a5a5a },
+    palette: paletteOf(CAFE_CAST.tomas.look),
     anchor: { x: 5, y: 1 }, // the grinder end
     patrol: [
       { x: 5, y: 1 },
@@ -143,7 +143,7 @@ export const CAST: readonly CastMember[] = [
     name: "Marcus",
     role: "the regular",
     // A coat he never takes off, and the most static silhouette in the room.
-    palette: { shirt: 0x5c3a28, legs: 0x3a3134, skin: 0x8d5a3b, hair: 0xd8d2c8 },
+    palette: paletteOf(CAFE_CAST.marcus.look),
     anchor: { x: 9, y: 6 }, // T3's chair, the four-top by the window
     approach: { x: 9, y: 7 }, // the floor in front of his table
     patrol: [],
@@ -162,7 +162,7 @@ export const CAST: readonly CastMember[] = [
     id: "nadia",
     name: "Nadia",
     role: "the commuter",
-    palette: { shirt: 0x96453f, legs: 0x2c3a45, skin: 0xe8c9a0, hair: 0x201a14 },
+    palette: paletteOf(CAFE_CAST.nadia.look),
     anchor: { x: 3, y: 3 }, // at the till, the customer side. She never sits.
     patrol: [],
     seated: false,
@@ -178,7 +178,7 @@ export const CAST: readonly CastMember[] = [
     id: "ray",
     name: "Ray",
     role: "the food truck",
-    palette: { shirt: 0xc9a227, legs: 0x4a4139, skin: 0xd9a066, hair: 0x2e2622 },
+    palette: paletteOf(CAFE_CAST.ray.look),
     anchor: { x: 4, y: 3 }, // leaning on the counter, once he is finally inside
     patrol: [],
     seated: false,
@@ -196,14 +196,7 @@ export const CAST: readonly CastMember[] = [
     role: "the area manager",
     // A charcoal suit and a tie in a café: he is the one person here who does
     // not work in this room, and he should read that way before he says anything.
-    palette: {
-      shirt: 0x2b3240,
-      legs: 0x2b3240,
-      skin: 0xe8c9a6,
-      hair: 0x2a2320,
-      outfit: "suit",
-      accent: 0x7a2a33,
-    },
+    palette: paletteOf(CAFE_CAST.owen.look),
     anchor: { x: 7, y: 6 }, // the room side of the four-top, laptop open on it
     approach: { x: 7, y: 7 }, // the empty floor you cross the room to stand on
     patrol: [],
@@ -224,7 +217,7 @@ export const CAST: readonly CastMember[] = [
     role: "the office buyer",
     // Cooler than anything else in the room, on purpose — she is the one person
     // here lit slightly wrong for a café.
-    palette: { shirt: 0x9fb7bd, legs: 0x33415e, skin: 0xf5e0c4, hair: 0x3b2d23 },
+    palette: paletteOf(CAFE_CAST.ellery.look),
     anchor: { x: 9, y: 5 }, // standing over T3 — Marcus's table, which she takes
     patrol: [],
     seated: false,
@@ -287,6 +280,17 @@ export function castById(id: CastId): CastMember | null {
   return CAST.find((m) => m.id === id) ?? null;
 }
 
+/**
+ * Everything a conversation box needs to show who is speaking. The portrait is
+ * their design in ui/characters.ts — or their painted art, once it is dropped
+ * into assets/characters as `<id>.png`.
+ */
+export function speakerFor(id: CastId): Speaker | null {
+  const m = castById(id);
+  if (!m) return null;
+  return { id, name: m.name, role: m.role, look: CAFE_CAST[id].look };
+}
+
 /** The people in the room right now, in declaration order. */
 export function castPresent(present: readonly CastId[]): CastMember[] {
   return CAST.filter((m) => present.includes(m.id));
@@ -341,7 +345,10 @@ export function guideWithCast(
       id: member.id,
       label: `${member.name}, ${member.role}`,
       // Their own cell if you can stand on it, otherwise the floor beside them.
-      cell: member.approach ?? cell,
+      // Anyone working the staff row is spoken to across the counter, from the
+      // floor in front of where they are — their own cell is behind a flap
+      // that may well be down.
+      cell: member.approach ?? (cell.y === STAFF_ROW ? { x: cell.x, y: STAFF_ROW + 2 } : cell),
     })),
   ];
 }
@@ -357,6 +364,9 @@ export function facingFrom(from: Cell, to: Cell): Cardinal {
   if (dx === 0 && dy === 0) return "S";
   return Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? "E" : "W") : dy > 0 ? "S" : "N";
 }
+
+/** The row behind the counter run (room.ts §layout); the counter itself is the row below. */
+const STAFF_ROW = 1;
 
 const manhattan = (a: Cell, b: Cell) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 

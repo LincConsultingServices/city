@@ -5,6 +5,7 @@
 // No binary assets involved — palettes recolor one rig into a crowd.
 import { Graphics, Texture, type Renderer } from "pixi.js";
 import type { Cardinal } from "./assets";
+import { CROWD, PLAYER, paletteOf } from "@/ui/characters";
 
 export interface PersonPalette {
   shirt: number;
@@ -25,27 +26,26 @@ export interface PersonPalette {
   outfit?: Outfit;
   /** Apron or tie colour, depending on `outfit`. */
   accent?: number;
+  /**
+   * The cut of their hair, so a figure twelve pixels tall still reads as the
+   * person in their portrait (ui/characters.ts). Omitted is a plain crop.
+   */
+  hairStyle?: FigureHair;
+  /** A full beard or goatee, drawn in the hair colour. */
+  beard?: boolean;
+  /** Glasses worn on the face. */
+  glasses?: boolean;
 }
 
 export type Outfit = "casual" | "uniform" | "chef" | "suit";
 
-export const PLAYER_PALETTE: PersonPalette = {
-  shirt: 0x3d78d8,
-  legs: 0x2a3350,
-  skin: 0xf0d9b5,
-  hair: 0x3b2d23,
-};
+export type FigureHair =
+  "short" | "swept" | "buzz" | "curly" | "bun" | "ponytail" | "long" | "bob" | "receding";
 
-export const NPC_PALETTES: PersonPalette[] = [
-  { shirt: 0xc95f4e, legs: 0x33415e, skin: 0xf0d9b5, hair: 0x241d18 },
-  { shirt: 0x5fae6f, legs: 0x4a4139, skin: 0xc98e5a, hair: 0x101010 },
-  { shirt: 0xe2be78, legs: 0x2f3a52, skin: 0x8d5a3b, hair: 0x201a14 },
-  { shirt: 0x8a6fd1, legs: 0x3a3a3a, skin: 0xf5e0c4, hair: 0x8a4b2c },
-  { shirt: 0x4aa3c7, legs: 0x584a68, skin: 0xd9a066, hair: 0x2e2622 },
-  { shirt: 0xd987b5, legs: 0x2c3a45, skin: 0xf0d9b5, hair: 0xd8c15a },
-  { shirt: 0xececec, legs: 0x2f2f38, skin: 0xa9714b, hair: 0x30281f },
-  { shirt: 0xf0954f, legs: 0x40506e, skin: 0xe8c9a0, hair: 0x5a5a5a },
-];
+export const PLAYER_PALETTE: PersonPalette = paletteOf(PLAYER.look);
+
+/** The city's pedestrians, and the café's customers: the crowd in ui/characters.ts. */
+export const NPC_PALETTES: PersonPalette[] = CROWD.map(paletteOf);
 
 export interface PersonTextures {
   /** Two-frame walk cycle per facing (W reuses E — mirror the sprite). */
@@ -88,16 +88,25 @@ function drawPerson(palette: PersonPalette, facing: BakeFacing, frame: 0 | 1 | 2
   // Head
   g.circle(0, -30, 7.5).fill(palette.skin);
   g.circle(0, -30, 7.5).stroke({ color: 0xffffff, alpha: 0.2, width: 1 });
-  if (facing === "N") {
-    // Back of the head is mostly hair
-    g.ellipse(0, -31, 7.5, 6).fill(palette.hair);
-  } else {
-    g.ellipse(facing === "E" ? -1.5 : 0, -34, 7, 4).fill(palette.hair);
+  drawHair(g, facing, palette);
+  if (facing !== "N") {
     if (facing === "S") {
       g.circle(-2.6, -29.5, 1.1).fill(0x22262e);
       g.circle(2.6, -29.5, 1.1).fill(0x22262e);
     } else {
       g.circle(3.4, -29.5, 1.1).fill(0x22262e);
+    }
+    if (palette.beard) {
+      if (facing === "S") g.ellipse(0, -25.8, 4.8, 2.6).fill(palette.hair);
+      else g.ellipse(2.6, -26.2, 3.6, 2.4).fill(palette.hair);
+    }
+    if (palette.glasses) {
+      if (facing === "S") {
+        g.rect(-4.6, -30.8, 3.8, 2.6).stroke({ color: 0x22262e, width: 0.8 });
+        g.rect(0.8, -30.8, 3.8, 2.6).stroke({ color: 0x22262e, width: 0.8 });
+      } else {
+        g.rect(2, -30.8, 3.6, 2.6).stroke({ color: 0x22262e, width: 0.8 });
+      }
     }
   }
   if (outfit === "chef") {
@@ -106,6 +115,83 @@ function drawPerson(palette: PersonPalette, facing: BakeFacing, frame: 0 | 1 | 2
     g.rect(-6.5, -36.5, 13, 1.5).fill({ color: 0x000000, alpha: 0.1 });
   }
   return g;
+}
+
+/**
+ * Hair, by cut and by facing. The back view is mostly hair; the front and
+ * profile show a cap of it with whatever falls past the face — long hair and a
+ * bob down the sides, a bun or a ponytail, a bald crown with the sides kept.
+ */
+function drawHair(g: Graphics, facing: BakeFacing, palette: PersonPalette): void {
+  const c = palette.hair;
+  const style = palette.hairStyle ?? "short";
+
+  if (facing === "N") {
+    if (style === "receding") {
+      g.ellipse(0, -28.5, 7.2, 3.6).fill(c);
+      return;
+    }
+    if (style === "curly") {
+      for (const [x, y] of [
+        [-4.5, -34],
+        [0, -36],
+        [4.5, -34],
+        [-5, -29],
+        [5, -29],
+        [0, -31],
+      ]) {
+        g.circle(x, y, 3.4).fill(c);
+      }
+      return;
+    }
+    g.ellipse(0, -31, 7.5, 6).fill({ color: c, alpha: style === "buzz" ? 0.8 : 1 });
+    if (style === "long") g.roundRect(-6.5, -32, 13, 12, 4).fill(c);
+    if (style === "bob") g.roundRect(-7.5, -32, 15, 7, 3).fill(c);
+    if (style === "ponytail") g.roundRect(-1.6, -31, 3.2, 10, 1.6).fill(c);
+    if (style === "bun") g.circle(0, -37.5, 3.4).fill(c);
+    return;
+  }
+
+  const front = facing === "S";
+  const capX = front ? 0 : -1.5;
+  switch (style) {
+    case "receding":
+      g.circle(front ? -6.2 : -5.5, -31.5, 2).fill(c);
+      if (front) g.circle(6.2, -31.5, 2).fill(c);
+      return;
+    case "curly":
+      for (const [x, y] of [
+        [-5, -34.5],
+        [0, -37],
+        [5, -34.5],
+      ]) {
+        g.circle(front ? x : x - 1.5, y, 3.3).fill(c);
+      }
+      return;
+    case "buzz":
+      g.ellipse(capX, -34.5, 7, 3).fill({ color: c, alpha: 0.85 });
+      return;
+    default:
+      g.ellipse(capX, -34, 7, 4).fill(c);
+  }
+  if (style === "long") {
+    if (front) {
+      g.roundRect(-8, -34, 3, 12, 1.5).fill(c);
+      g.roundRect(5, -34, 3, 12, 1.5).fill(c);
+    } else {
+      g.roundRect(-8.5, -34, 4.5, 13, 2).fill(c);
+    }
+  }
+  if (style === "bob") {
+    if (front) {
+      g.roundRect(-8, -34, 3, 8, 1.5).fill(c);
+      g.roundRect(5, -34, 3, 8, 1.5).fill(c);
+    } else {
+      g.roundRect(-8.5, -34, 4.5, 9, 2).fill(c);
+    }
+  }
+  if (style === "bun") g.circle(front ? 0 : -4, front ? -38.5 : -37, 3).fill(c);
+  if (style === "ponytail" && !front) g.roundRect(-9.5, -33, 3, 9, 1.5).fill(c);
 }
 
 /** A bib apron over the shirt: body and skirt to the knee, straps over the shoulders. */

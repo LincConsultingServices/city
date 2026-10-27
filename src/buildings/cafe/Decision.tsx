@@ -23,7 +23,7 @@
 import { useMemo, useState } from "react";
 import { presentationOrder } from "@/lib/decisionTree";
 import { Dictation } from "@/ui/Dictation";
-import { castById } from "./cast";
+import { speakerFor, type CastId } from "./cast";
 import { ChoiceButton, Sheet } from "./Sheet";
 import {
   advance,
@@ -35,11 +35,13 @@ import {
   chooseTreeBeat,
   currentItem,
   currentScene,
+  currentUnit,
   pickSuccessor,
   useJourneyStore,
 } from "./journeyStore";
 import { currentStage } from "./journeyStore";
 import { treeFor } from "./trees";
+import { walkInNow } from "./counterShift";
 
 export function Decision() {
   const consequence = useJourneyStore((s) => s.consequence);
@@ -61,8 +63,7 @@ export function Decision() {
   // the room, which is how this was first noticed.
   if (consequence !== null && consequence.trim() !== "") {
     return (
-      <Sheet label="A decision">
-        <p className="text-sm leading-relaxed text-text">{consequence}</p>
+      <Sheet label="A decision" line={consequence}>
         <button
           onClick={advance}
           className="mt-5 rounded-lg border border-line/70 px-4 py-1.5 text-xs text-muted transition hover:border-gold/60 hover:text-text"
@@ -81,19 +82,23 @@ export function Decision() {
   if (sceneBeat) return <SceneBeat />;
 
   if (!scene) return <NotAScene />;
-  const speaker = scene.speaker === "room" ? null : castById(scene.speaker as never);
+  // The person the scene is about stands behind the box; "room" is the box with
+  // nobody behind it. The prompt itself is the workbook's narration ("A regular
+  // customer asks if you carry oat milk"), so it is not put in their mouth.
+  // On a shift at the till, "a customer" is whoever has just walked up to it.
+  const walkIn = walkInNow(currentStage(), currentUnit());
+  const speaker =
+    walkIn?.speaker ?? (scene.speaker === "room" ? null : speakerFor(scene.speaker as CastId));
 
   return (
     <Sheet
       label="A decision"
+      speaker={speaker}
+      line={scene.prompt}
       head={
-        <>
-          {scene.stage && <p className="mb-4 text-sm leading-relaxed text-muted">{scene.stage}</p>}
-          <p className="text-sm leading-relaxed text-text">
-            {speaker && <span className="font-semibold text-gold">{speaker.name}: </span>}
-            {speaker ? `\u201c${scene.prompt}\u201d` : scene.prompt}
-          </p>
-        </>
+        scene.stage ? (
+          <p className="mb-1 text-sm italic leading-relaxed text-muted">{scene.stage}</p>
+        ) : undefined
       }
     >
       {scene.open ? (
@@ -324,6 +329,7 @@ function TreeBeat() {
     return (
       <Sheet
         label="A decision"
+        speaker={walkInNow(currentStage(), currentUnit())?.speaker ?? null}
         head={
           <p className="text-sm leading-relaxed text-text">
             {transferBeat.speakerName && (
@@ -356,8 +362,9 @@ function TreeBeat() {
     choices.map((c) => ({ id: c.id, text: c.text })),
   );
 
+  // Whoever brought this decision to your table stands behind it.
   return (
-    <Sheet label="A decision">
+    <Sheet label="A decision" speaker={walkInNow(currentStage(), currentUnit())?.speaker ?? null}>
       {onSeed && tree.stage && (
         <p className="mb-4 text-sm leading-relaxed text-muted">{tree.stage}</p>
       )}

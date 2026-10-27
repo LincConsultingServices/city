@@ -95,13 +95,78 @@ test.describe("the Café career (dev world bypass)", () => {
    * means to be interviewed goes through it, the same way a player does: the
    * guided list to cross the room, the prompt to speak, the button to say yes.
    */
-  async function startTheInterview(page: Page) {
+  async function startStage(page: Page, host: string, accept: string) {
     const goTo = page.getByRole("navigation", { name: /Places in the café/i });
-    await goTo.getByRole("button", { name: /^Owen/ }).click();
-    const speak = page.getByRole("button", { name: /^Owen\s*E$/ });
+    await goTo.getByRole("button", { name: new RegExp(`^${host}`) }).click();
+    const speak = page.getByRole("button", { name: new RegExp(`^${host}\\s*E$`) });
     await expect(speak).toBeVisible({ timeout: 30_000 });
     await speak.click();
-    await page.getByRole("button", { name: "Start the interview" }).click();
+    // The invitation types itself out before its buttons come in.
+    await page.getByRole("button", { name: accept }).click({ timeout: 15_000 });
+  }
+
+  /**
+   * Go to a place and talk to whoever is waiting there. A stage's host behind
+   * the counter is reached by going to the stage's place, not to the person:
+   * Priya walks the counter's length, and "go to the counter" has to be enough.
+   */
+  async function startAt(page: Page, place: RegExp, host: string, accept: string) {
+    const goTo = page.getByRole("navigation", { name: /Places in the café/i });
+    await goTo.getByRole("button", { name: place }).click();
+    const talk = page.getByRole("button", { name: new RegExp(`^talk to ${host}\\s*E$`) });
+    await expect(talk).toBeVisible({ timeout: 30_000 });
+    await talk.click();
+    // A shift is briefed, not started, in conversation: the host tells you what
+    // it is, and you start it yourself from the prompt at its station.
+    await page.getByRole("button", { name: "Got it" }).click({ timeout: 15_000 });
+    const start = page.getByRole("button", { name: new RegExp(`^${accept}\\s*E$`) });
+    await expect(start).toBeVisible({ timeout: 15_000 });
+    await start.click();
+  }
+
+  const startTheInterview = (page: Page) => startStage(page, "Owen", "Start the interview");
+  // Every stage somebody runs waits for you to go to them: your shift at the
+  // counter with Priya, the reviews back at Owen's table, the branch at the pass.
+  /**
+   * The employee's shift: Priya briefs you from across the counter and lifts the
+   * flap, you start it yourself behind the till, and then each scene waits for
+   * its customer to walk up to you.
+   */
+  async function startShift(page: Page) {
+    const goTo = page.getByRole("navigation", { name: /Places in the café/i });
+    await goTo.getByRole("button", { name: /^Priya/ }).click();
+    const speak = page.getByRole("button", { name: /^Priya\s*E$/ });
+    await expect(speak).toBeVisible({ timeout: 30_000 });
+    await speak.click();
+    await page.getByRole("button", { name: "Got it" }).click({ timeout: 15_000 });
+    await goTo.getByRole("button", { name: /^the billing counter$/ }).click();
+    const start = page.getByRole("button", { name: /^Start your shift\s*E$/ });
+    await expect(start).toBeVisible({ timeout: 30_000 });
+    await start.click();
+  }
+  const startReview = (page: Page) => startStage(page, "Owen", "Start the review");
+  /** The CEO stage: Tomas briefs you, then you take Owen's old table. */
+  async function startBusiness(page: Page) {
+    const goTo = page.getByRole("navigation", { name: /Places in the café/i });
+    await goTo.getByRole("button", { name: /^Tomas/ }).click();
+    const speak = page.getByRole("button", { name: /^Tomas\s*E$/ });
+    await expect(speak).toBeVisible({ timeout: 30_000 });
+    await speak.click();
+    await page.getByRole("button", { name: "Got it" }).click({ timeout: 15_000 });
+    await goTo.getByRole("button", { name: /^the table$/ }).click();
+    const start = page.getByRole("button", { name: /^Take the table\s*E$/ });
+    await expect(start).toBeVisible({ timeout: 30_000 });
+    await start.click();
+  }
+
+  async function startBranch(page: Page) {
+    // The pass is behind the counter. A branch manager lifts the flap to get
+    // there — done through the room's own store, as entering the café is.
+    await page.evaluate(async () => {
+      const mod = await import("/src/buildings/cafe/roomStore.ts");
+      if (!mod.useRoomStore.getState().flapOpen) mod.toggleFlap();
+    });
+    await startAt(page, /^the pass-through$/, "Tomas", "Take charge");
   }
 
   /**
@@ -262,8 +327,12 @@ test.describe("the Café career (dev world bypass)", () => {
     await page.screenshot({ path: "test-results/cafe-03-offer.png" });
     await takeIt.click();
 
-    // The counter, then the first review, then the branch.
+    // The counter, then the first review, then the branch — each started by
+    // going to the person who runs it. Nothing opens on its own.
+    await expect(page.getByRole("dialog", { name: "A decision" })).toHaveCount(0);
+    await startShift(page);
     await workTheLevel(page, seen, 0);
+    await startReview(page);
     await sitTheQuestions(
       page,
       seen,
@@ -285,13 +354,23 @@ test.describe("the Café career (dev world bypass)", () => {
     });
     await page.screenshot({ path: "test-results/cafe-04-branch.png" });
 
+    await startBranch(page);
     await workTheLevel(page, seen, 1);
+    await startReview(page);
     await sitTheQuestions(page, seen, "I fixed the rota rather than the person.");
     await expect(page.getByRole("button", { name: /Take it/i })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: /Take it/i }).click();
 
-    // Running it: four two-beat decisions. These stayed lettered on purpose —
-    // ADR-008 §7.1 — so this is the one level still answered by choosing.
+    // Running it: Tomas hands you the table, and each of the four two-beat
+    // decisions is brought to it by whoever owns it. These stayed lettered on
+    // purpose — ADR-008 §7.1 — so this is the one level still answered by choosing.
+    await startBusiness(page);
+    await workTheLevel(page, seen, 2);
+
+    // The succession waits for you at the table too, with nobody to brief you.
+    const meet = page.getByRole("button", { name: /^Meet the candidates\s*E$/ });
+    await expect(meet).toBeVisible({ timeout: 60_000 });
+    await meet.click();
     await workTheLevel(page, seen, 2);
 
     // The loop above carries straight on into the succession: it waits out the
@@ -392,7 +471,9 @@ test.describe("the Café career (dev world bypass)", () => {
     await startTheInterview(page);
     await sitTheQuestions(page, seen);
     await page.getByRole("button", { name: /Take it/i }).click();
+    await startShift(page);
     await workTheLevel(page, seen, 0);
+    await startReview(page);
     await sitTheQuestions(page, seen);
 
     // Second gate. Walk out instead of taking the branch.

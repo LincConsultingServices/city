@@ -55,13 +55,25 @@ export interface CastView<M extends Figure> {
    * the world says is in the room — Marcus goes when the regulars thin out, and
    * his chair being visibly empty is the point of week 18.
    */
-  update(dtS: number, player: Cell, present: ReadonlySet<string>): void;
+  update(
+    dtS: number,
+    player: Cell,
+    present: ReadonlySet<string>,
+    /** Anyone here goes back to their anchor and stays there instead of walking their loop. */
+    still?: ReadonlySet<string>,
+  ): void;
   /**
    * Where everyone is standing right now. The room asks this rather than reading
    * anchors, so the prompt to speak to somebody tracks the person and not the
    * spot they started from.
    */
   positions(): Array<{ member: M; cell: Cell }>;
+  /**
+   * Where someone is standing this frame, in world pixels, and whether they are
+   * sitting — for the marker that floats over whoever you are wanted by. Null
+   * for anyone not in the room.
+   */
+  pixelOf(id: string): { x: number; y: number; seated: boolean } | null;
   /**
    * A one-off movement from the ambient layer: Priya wiping down, Marcus turning
    * a page (PRD §6). Deliberately not a new animation — it is a short squash on
@@ -151,7 +163,13 @@ export function createCast<M extends Figure>(
     positions: () =>
       actors.filter((a) => a.view.visible).map((a) => ({ member: a.member, cell: a.cell })),
 
-    update(dtS, player, present) {
+    pixelOf(id) {
+      const a = actors.find((x) => x.member.id === id);
+      if (!a || !a.view.visible) return null;
+      return { x: a.pixel.x, y: a.pixel.y, seated: a.member.seated };
+    },
+
+    update(dtS, player, present, still) {
       elapsed += dtS;
 
       for (const a of actors) {
@@ -177,14 +195,16 @@ export function createCast<M extends Figure>(
           continue;
         }
 
-        const walking = !reduced && !member.seated && member.patrol.length > 1;
+        const stay = still?.has(member.id) ?? false;
+        const home = stay && a.cell.x === member.anchor.x && a.cell.y === member.anchor.y;
+        const walking = !reduced && !member.seated && member.patrol.length > 1 && !home;
         if (!walking) {
           a.body.texture = a.tex.idle[a.facing];
           idlePose(a, elapsed, reduced);
           continue;
         }
 
-        if (a.pause > 0) {
+        if (a.pause > 0 && !stay) {
           a.pause -= dtS;
           a.stepClock = 0;
           a.body.texture = a.tex.idle[a.facing];
@@ -192,7 +212,7 @@ export function createCast<M extends Figure>(
           continue;
         }
 
-        const goal = member.patrol[a.leg];
+        const goal = stay ? member.anchor : member.patrol[a.leg];
         const to = mapToWorld(goal.x, goal.y);
         const dx = to.x - a.pixel.x;
         const dy = to.y - a.pixel.y;
@@ -202,8 +222,12 @@ export function createCast<M extends Figure>(
         if (gap <= step) {
           a.pixel.x = to.x;
           a.pixel.y = to.y;
-          a.leg = (a.leg + 1) % member.patrol.length;
-          a.pause = CAST_PAUSE_S;
+          if (stay) {
+            a.cell = { ...member.anchor };
+          } else {
+            a.leg = (a.leg + 1) % member.patrol.length;
+            a.pause = CAST_PAUSE_S;
+          }
         } else {
           a.pixel.x += (dx / gap) * step;
           a.pixel.y += (dy / gap) * step;

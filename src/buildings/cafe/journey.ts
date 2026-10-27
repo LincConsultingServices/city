@@ -411,7 +411,7 @@ export const STAGES: readonly Stage[] = [
     id: "cafe.l1",
     kind: "scenarios",
     role: "employee",
-    station: "st_counter",
+    station: "st_till",
     hostNpc: "priya",
     title: "The Counter",
     next: "cafe.review1",
@@ -504,7 +504,7 @@ export const STAGES: readonly Stage[] = [
     kind: "scenarios",
     role: "ceo",
     station: "st_tables",
-    hostNpc: null,
+    hostNpc: "tomas",
     title: "Running It",
     next: "cafe.succession",
     // The four CEO scenes ARE the existing authored trees, played whole, with
@@ -663,9 +663,12 @@ export const ROLE_LABEL: Readonly<Record<Role, string>> = {
   ceo: "CEO",
 };
 
-/** Whether the counter flap is yours yet — the promotion beat, physically. */
+/**
+ * Whether you may go behind the counter. Staff work there — an employee's
+ * shift is at the till — so only a candidate stays out front.
+ */
 export function mayPassFlap(role: Role): boolean {
-  return role === "branch_manager" || role === "ceo";
+  return role !== "candidate";
 }
 
 export type { World };

@@ -187,6 +187,17 @@ export function currentScene(): Scene | undefined {
   return item?.kind === "scene" ? item.scene : undefined;
 }
 
+/**
+ * The scene or tree on screen, as somebody might walk up for it
+ * (counterShift.ts): its unit id, and the scene's own speaker if it has one.
+ */
+export function currentUnit(): { unitId: string; speaker?: string } | undefined {
+  const item = currentItem();
+  if (item?.kind === "scene") return { unitId: item.scene.unitId, speaker: item.scene.speaker };
+  if (item?.kind === "tree") return { unitId: item.tree.unitId };
+  return undefined;
+}
+
 /** The typed question on screen, if the current item is one. */
 export function currentQuestion() {
   const item = currentItem();

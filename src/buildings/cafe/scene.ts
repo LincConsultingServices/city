@@ -3,9 +3,9 @@
 // graph. Placement follows the city's own conventions exactly (world/CityCanvas
 // .tsx §makeProp): anchor (0.5, 1) at `mapToWorld(cell) + TILE_H/2`, depth via
 // `zIndex = cell.x + cell.y` plus a per-class epsilon.
-import { Container, Graphics, Sprite, Text } from "pixi.js";
+import { Container, Graphics, Polygon, Sprite, Text } from "pixi.js";
 import { TILE_H, TILE_W, mapToWorld } from "@/lib/iso";
-import { CAFE_PALETTE, type CafeTextures } from "./props";
+import { CAFE_PALETTE, shade, type CafeTextures } from "./props";
 import { PROP_SPRITE } from "./assets";
 import {
   FURNITURE,
@@ -117,8 +117,8 @@ export function buildFloor(): Graphics {
 export interface FurnitureLayer {
   /** Everything that y-sorts against the player. */
   root: Container;
-  /** The flap, wrapped so it can swing about its hinge. */
-  flap: Container;
+  /** The counter flap: a hinged leaf over a half-door, drawn at any openness. */
+  flap: FlapView;
   /**
    * The espresso machine, so the ambient layer can shake it when the grinder
    * runs. It is the hero prop and the one thing in the room loud enough to be
@@ -152,8 +152,8 @@ export function buildFurniture(tex: CafeTextures): FurnitureLayer {
     root.addChild(sprite);
   }
 
-  const flap = buildFlap(tex, GATES[0]);
-  root.addChild(flap);
+  const flap = buildFlap(GATES[0]);
+  root.addChild(flap.view);
 
   for (const s of SIGNS) root.addChild(buildSign(s));
 
@@ -207,25 +207,159 @@ function buildSign(sign: Sign): Container {
   return holder;
 }
 
+/** The counter flap, as the room animates it. */
+export interface FlapView {
+  view: Container;
+  /** What you click to lift or lower it. Its hit area is the closed counter's shape. */
+  hit: Graphics;
+  /** 0 is down and shut, 1 is up and open; anything between is mid-swing. */
+  setOpen(t: number): void;
+}
+
+/** Counter height, matching the counter run either side (props.ts §counter). */
+const FLAP_H = 40;
+/** How thick the lifting leaf is. */
+const LEAF_T = 5;
+/** Pixels of rise per map cell of leaf, so the leaf keeps its length as it lifts. */
+const LEAF_RISE = 58;
+
 /**
- * The counter flap. The sprite hangs off a container parked on the diamond's
- * left corner, so rotating the container swings the free end up — a hinge, not a
- * sprite spinning about its middle. Closed is rotation 0.
+ * The counter flap, the way a real one works: the countertop over the gap is a
+ * hinged leaf that folds back onto the counter beside it, and under it a
+ * half-door swings in toward the staff side. Shut, the two read as one more
+ * section of counter; open, there is a gap you can walk through.
+ *
+ * Drawn in map space and projected, rather than rotating a sprite, so the leaf
+ * turns about its hinge in depth instead of the whole counter tipping over.
+ * The hinge is the edge shared with the counter at x−1; the half-door hangs off
+ * the customer-side corner of that same edge.
  */
-function buildFlap(tex: CafeTextures, gate: Gate): Container {
-  const hinge = new Container();
+function buildFlap(gate: Gate): FlapView {
+  const view = new Container();
   const w = mapToWorld(gate.cell.x, gate.cell.y);
-  hinge.position.set(w.x - TILE_W / 2, w.y);
-  hinge.zIndex = gate.cell.x + gate.cell.y;
+  view.position.set(w.x, w.y);
+  view.zIndex = gate.cell.x + gate.cell.y;
 
-  const sprite = new Sprite(tex.prop.flap);
-  sprite.anchor.set(0.5, 1);
-  sprite.position.set(TILE_W / 2, TILE_H / 2);
-  sprite.eventMode = "static";
-  sprite.cursor = "pointer";
-  hinge.addChild(sprite);
+  const hw = TILE_W / 2;
+  const hh = TILE_H / 2;
+  /** Map offset from the cell centre (mx, my) and height z → local pixels. */
+  const at = (mx: number, my: number, z: number): [number, number] => [
+    (mx - my) * hw,
+    (mx + my) * hh - z,
+  ];
+  const flat = (pts: [number, number][]) => pts.flat();
+  /** Twice the signed area: positive when the polygon winds clockwise on screen. */
+  const winding = (pts: [number, number][]) => {
+    let a = 0;
+    for (let k = 0; k < pts.length; k++) {
+      const [x1, y1] = pts[k];
+      const [x2, y2] = pts[(k + 1) % pts.length];
+      a += x1 * y2 - x2 * y1;
+    }
+    return a;
+  };
 
-  return hinge;
+  const P = CAFE_PALETTE;
+  const g = new Graphics();
+  // Clicks land on the shape of the closed counter, whatever the drawing is doing.
+  g.hitArea = new Polygon(
+    flat([
+      at(-0.5, -0.5, FLAP_H),
+      at(0.5, -0.5, FLAP_H),
+      at(0.5, -0.5, 0),
+      at(0.5, 0.5, 0),
+      at(-0.5, 0.5, 0),
+      at(-0.5, 0.5, FLAP_H),
+    ]),
+  );
+  g.eventMode = "static";
+  g.cursor = "pointer";
+  view.addChild(g);
+
+  // The closed top, for telling which way up the leaf is facing as it turns.
+  const upright = winding([at(-0.5, -0.5, 0), at(0.5, -0.5, 0), at(0.5, 0.5, 0), at(-0.5, 0.5, 0)]);
+
+  function setOpen(t: number): void {
+    const open = Math.max(0, Math.min(1, t));
+    g.clear();
+
+    // The dark under the counter top, seen through the open side of the gap.
+    // It fades as the leaf lifts and the light gets in.
+    g.poly(
+      flat([at(0.5, -0.5, FLAP_H), at(0.5, 0.5, FLAP_H), at(0.5, 0.5, 0), at(0.5, -0.5, 0)]),
+    ).fill({ color: 0x000000, alpha: 0.32 * (1 - open) });
+
+    // The half-door: hinged at the customer-side corner by the counter at x−1,
+    // swinging in toward the staff side.
+    const phi = open * (Math.PI / 2) * 0.96;
+    const fx = -0.5 + Math.cos(phi);
+    const fy = 0.5 - Math.sin(phi);
+    const door = (u: number, v: number): [number, number] =>
+      at(-0.5 + (fx + 0.5) * u, 0.5 + (fy - 0.5) * u, 2 + (FLAP_H - 6) * v);
+    // Its customer-side face is lit; turned edge-on and past, it falls into shade.
+    const doorShade = 0.95 - 0.33 * open;
+    g.poly(flat([door(0, 0), door(1, 0), door(1, 1), door(0, 1)])).fill(
+      shade(P.oxblood, doorShade),
+    );
+    // A brass-edged panel inset, and a kick plate along the bottom.
+    g.poly(flat([door(0.14, 0.22), door(0.86, 0.22), door(0.86, 0.86), door(0.14, 0.86)])).stroke({
+      color: P.brass,
+      width: 1.5,
+      alpha: 0.75,
+    });
+    g.poly(flat([door(0, 0), door(1, 0), door(1, 0.1), door(0, 0.1)])).fill({
+      color: P.brass,
+      alpha: 0.35,
+    });
+
+    // The leaf: the countertop over the gap, turning about the hinge edge and
+    // folding right back to rest upside down on the counter beside it.
+    const theta = open * Math.PI * 0.985;
+    const c = Math.cos(theta);
+    const sn = Math.sin(theta);
+    /** A point on the leaf: `d` along it from the hinge, `my` across, `under` into it. */
+    const leaf = (d: number, my: number, under = 0): [number, number] =>
+      at(
+        -0.5 + d * c + under * sn * (LEAF_T / LEAF_RISE),
+        my,
+        FLAP_H + d * sn * LEAF_RISE + ((1 - c) / 2) * LEAF_T - under * c * LEAF_T,
+      );
+    const top: [number, number][] = [leaf(0, -0.5), leaf(1, -0.5), leaf(1, 0.5), leaf(0, 0.5)];
+    const under: [number, number][] = [
+      leaf(0, -0.5, 1),
+      leaf(1, -0.5, 1),
+      leaf(1, 0.5, 1),
+      leaf(0, 0.5, 1),
+    ];
+    // Edges first — the customer-side edge and the free end — then the face.
+    g.poly(flat([top[3], top[2], under[2], under[3]])).fill(shade(P.oxblood, 0.78));
+    g.poly(flat([top[1], top[2], under[2], under[1]])).fill(shade(P.oxblood, 0.6));
+    const faceUp = Math.sign(winding(top)) === Math.sign(upright) && open < 0.5;
+    if (faceUp) {
+      g.poly(flat(top)).fill(shade(P.counterTop, 1.06 - 0.25 * open));
+      // The brass strip along the free edge — the one detail that says "flap".
+      g.poly(flat([leaf(0.92, -0.5), leaf(1, -0.5), leaf(1, 0.5), leaf(0.92, 0.5)])).fill({
+        color: P.brass,
+        alpha: 0.8,
+      });
+    } else {
+      // The underside: bare wood and the hinge plates.
+      g.poly(flat(under)).fill(shade(P.counterTop, 0.7));
+      for (const y0 of [-0.36, 0.2]) {
+        g.poly(
+          flat([
+            leaf(0, y0, 1),
+            leaf(0.12, y0, 1),
+            leaf(0.12, y0 + 0.16, 1),
+            leaf(0, y0 + 0.16, 1),
+          ]),
+        ).fill({ color: P.steel, alpha: 0.9 });
+      }
+    }
+  }
+
+  setOpen(0);
+  return { view, hit: g, setOpen };
 }
 
 /**
@@ -237,6 +371,3 @@ function fitSprite(sprite: Sprite, kind: PropKind): void {
   if (!spec || !sprite.texture.width) return;
   sprite.scale.set(spec.width / sprite.texture.width);
 }
-
-/** How far the flap swings when it is up. Negative lifts the free end. */
-export const FLAP_OPEN_ROTATION = -0.95;

@@ -32,7 +32,13 @@ describe("guided navigation", () => {
     // read aloud. The career works at three places and leaves by a fourth, so
     // that is what the list carries — and still nothing prefixed ht_, because
     // those places are gone rather than merely dropped from the list.
-    expect(GUIDE.map((g) => g.id)).toEqual(["st_counter", "st_pass", "st_tables", "st_door"]);
+    expect(GUIDE.map((g) => g.id)).toEqual([
+      "st_counter",
+      "st_till",
+      "st_pass",
+      "st_tables",
+      "st_door",
+    ]);
     expect(GUIDE.filter((g) => g.id.startsWith("ht_"))).toHaveLength(0);
   });
 

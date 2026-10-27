@@ -12,6 +12,7 @@
 import type { Cell } from "@/lib/pathfinding";
 import { makeRoomGrid, stationById } from "./room";
 import type { PersonPalette } from "@/world/characterArt";
+import { MAISON_CAST, paletteOf } from "@/ui/characters";
 import { BEATS, type Track } from "./season";
 import { nextBeat } from "./beats";
 import type { Decision } from "./maisonStore";
@@ -42,49 +43,49 @@ const CAST: Record<CastId, CastMember> = {
     id: "elise",
     name: "Élise",
     anchor: { x: 7, y: 2 }, // her bench
-    palette: { shirt: 0x8e9199, legs: 0x3f4149, skin: 0xe8cfb2, hair: 0xc9c6bf },
+    palette: paletteOf(MAISON_CAST.elise.look),
     standsStill: true,
   },
   kobby: {
     id: "kobby",
     name: "Kobby",
     anchor: { x: 1, y: 2 }, // the cutting table
-    palette: { shirt: 0x2f8f86, legs: 0x2b2f3a, skin: 0x8a5a3c, hair: 0x241a14 },
+    palette: paletteOf(MAISON_CAST.kobby.look),
     standsStill: false,
   },
   vera: {
     id: "vera",
     name: "Véra",
     anchor: { x: 2, y: 10 }, // the desk. She sits when everyone else stands.
-    palette: { shirt: 0x22242a, legs: 0x1b1d22, skin: 0xecd6bc, hair: 0xd8d5cf },
+    palette: paletteOf(MAISON_CAST.vera.look),
     standsStill: true,
   },
   ines: {
     id: "ines",
     name: "Ines",
     anchor: { x: 5, y: 12 }, // the floor near the door. Never goes upstairs.
-    palette: { shirt: 0xbb9b6a, legs: 0x35323a, skin: 0xdfba95, hair: 0x2b2119 },
+    palette: paletteOf(MAISON_CAST.ines.look),
     standsStill: false,
   },
   helene: {
     id: "helene",
     name: "Hélène",
     anchor: { x: 5, y: 9 }, // the rail, touching the garments
-    palette: { shirt: 0x5a6a80, legs: 0x2c333f, skin: 0xefd9bd, hair: 0x453a30 },
+    palette: paletteOf(MAISON_CAST.helene.look),
     standsStill: true,
   },
   dov: {
     id: "dov",
     name: "Dov",
     anchor: { x: 3, y: 10 }, // the desk. Sits, uninvited, and it is not rude.
-    palette: { shirt: 0x7c7466, legs: 0x3a352f, skin: 0xe6c9a6, hair: 0x5b5148 },
+    palette: paletteOf(MAISON_CAST.dov.look),
     standsStill: true,
   },
   rio: {
     id: "rio",
     name: "Rio",
     anchor: { x: 6, y: 11 }, // roams the floor. Never sits.
-    palette: { shirt: 0xd9d3c6, legs: 0x24262b, skin: 0xc79a72, hair: 0x1d1712 },
+    palette: paletteOf(MAISON_CAST.rio.look),
     standsStill: false,
   },
 };
