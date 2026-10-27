@@ -43,7 +43,7 @@ export const CAFE_PALETTE = {
 const P = CAFE_PALETTE;
 
 /** Darken or lift a hex colour by `k` (1 = unchanged). */
-function shade(color: number, k: number): number {
+export function shade(color: number, k: number): number {
   const r = Math.min(255, Math.round(((color >> 16) & 0xff) * k));
   const g = Math.min(255, Math.round(((color >> 8) & 0xff) * k));
   const b = Math.min(255, Math.round((color & 0xff) * k));

@@ -10,14 +10,15 @@
 //
 // Pure data, like cast.ts, so the layout facts — both stand on staff-side floor,
 // both walk only where the counter lets them — are unit-testable (crew.test.ts).
-import { UNIFORM, type Figure } from "./cast";
+import { CAFE_CREW, paletteOf } from "@/ui/characters";
+import type { Figure } from "./cast";
 
 export const CREW: readonly Figure[] = [
   {
     // Behind the till, under the ORDER & PAY sign. Stays put: the till is the
     // one station that is never left unattended.
     id: "crew_till",
-    palette: { ...UNIFORM, outfit: "uniform", skin: 0xe8c9a0, hair: 0x5a3a24 },
+    palette: paletteOf(CAFE_CREW.crew_till.look),
     anchor: { x: 2, y: 1 },
     patrol: [],
     seated: false,
@@ -28,7 +29,7 @@ export const CREW: readonly Figure[] = [
     // Never into the corner at (10,1): from there he reads as standing beside
     // the counter rather than behind it.
     id: "crew_kitchen",
-    palette: { ...UNIFORM, outfit: "chef", skin: 0x8d5a3b, hair: 0x101010 },
+    palette: paletteOf(CAFE_CREW.crew_kitchen.look),
     anchor: { x: 9, y: 1 },
     patrol: [
       { x: 9, y: 1 },
@@ -41,3 +42,8 @@ export const CREW: readonly Figure[] = [
 
 /** Everyone on the crew, always — the shift does not change with the career. */
 export const CREW_IDS: ReadonlySet<string> = new Set(CREW.map((c) => c.id));
+
+/** The crew while you are on the till: Sam steps off it for you. */
+export const CREW_OFF_TILL: ReadonlySet<string> = new Set(
+  CREW.map((c) => c.id).filter((id) => id !== "crew_till"),
+);

@@ -3,6 +3,7 @@ import { devWorldBypass } from "@/framework/config/appConfig";
 import { AuthProvider, useAuth } from "@/framework/auth/AuthProvider";
 import { Login } from "@/ui/Login";
 import { CityScreen } from "@/ui/CityScreen";
+import { CharacterGallery } from "@/ui/CharacterGallery";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: true } },
@@ -20,6 +21,10 @@ export function App() {
 
 function Root() {
   const { status } = useAuth();
+  // dev-only; eliminated from prod builds
+  if (import.meta.env.DEV && new URLSearchParams(location.search).has("characters")) {
+    return <CharacterGallery />;
+  }
   if (devWorldBypass) return <CityScreen />; // dev-only; eliminated from prod builds
   if (status === "loading") return <Splash />;
   if (status === "signedIn") return <CityScreen />;

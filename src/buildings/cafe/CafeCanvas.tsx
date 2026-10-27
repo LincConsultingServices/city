@@ -20,16 +20,17 @@ import { prefersReducedMotion } from "@/lib/motion";
 import { audio } from "@/framework/audio/audioManager";
 import { whenInteriorHost, type InteriorHost } from "@/framework/building/interiorStage";
 import {
-  PLAYER_PALETTE,
   bakePersonTextures,
   bakeShadowTexture,
   destroyTextures,
+  type PersonTextures,
 } from "@/world/characterArt";
+import { PLAYER_OUTFITS, paletteOf, playerOutfitFor, type PlayerOutfit } from "@/ui/characters";
 import type { Cardinal } from "@/world/assets";
 import { loadCafeAssets } from "./assets";
 import { createSteam } from "./steam";
 import { CAFE_PALETTE, bakeCafeTextures } from "./props";
-import { FLAP_OPEN_ROTATION, Z_PLAYER, buildFloor, buildFurniture } from "./scene";
+import { Z_PLAYER, buildFloor, buildFurniture } from "./scene";
 import {
   GATES,
   ROOM_H,
@@ -37,19 +38,24 @@ import {
   ROOM_PX_W,
   ROOM_W,
   SPAWN,
+  STATIONS,
   exitNear,
   gateNear,
   makeRoomGrid,
   type GateId,
 } from "./room";
-import { toggleFlap, useRoomStore } from "./roomStore";
+import { awaitsHost, readyAtStation, toggleFlap, useRoomStore } from "./roomStore";
+import { createHostMarker } from "./hostMarker";
+import { stageById } from "./journey";
 import { createTeardown } from "./teardown";
-import { CAST, castFor, castNear } from "./cast";
-import { useJourneyStore } from "./journeyStore";
+import { CAST, castById, castFor, castNear, type CastId } from "./cast";
+import { currentUnit, useJourneyStore } from "./journeyStore";
 import { createCast } from "./castView";
-import { CREW, CREW_IDS } from "./crew";
+import { CREW, CREW_IDS, CREW_OFF_TILL } from "./crew";
 import { interviewLight, type Light } from "./light";
 import { createCustomers } from "./customersView";
+import { createWalkIn } from "./walkInView";
+import { planFor, servesAtTill, stillFor, walkInCast, walkInNow } from "./counterShift";
 import { createSchedule } from "./ambient";
 import { createPigeon } from "./pigeon";
 
@@ -179,10 +185,23 @@ export function CafeCanvas({
       actors.addChild(kitchenSteam.view);
 
       // ── The player ──────────────────────────────────────────────────────────
-      // Same procedural rig as the street, so it is recognisably you indoors.
-      const playerTex = bakePersonTextures(app.renderer, PLAYER_PALETTE);
+      // Same procedural rig as the street, so it is recognisably you indoors —
+      // dressed for the job: your own clothes as a candidate, the house uniform
+      // on the counter, a suit once the branch is yours (ui/characters.ts).
+      // Each outfit is baked the first time it is worn.
+      const outfitTex = new Map<PlayerOutfit, PersonTextures>();
+      const texFor = (outfit: PlayerOutfit): PersonTextures => {
+        let t = outfitTex.get(outfit);
+        if (!t) {
+          t = bakePersonTextures(app.renderer, paletteOf(PLAYER_OUTFITS[outfit].look));
+          baked.push(...t.all);
+          outfitTex.set(outfit, t);
+        }
+        return t;
+      };
+      let playerTex = texFor(playerOutfitFor(useJourneyStore.getState().role));
       const shadowTex = bakeShadowTexture(app.renderer);
-      baked.push(...playerTex.all, shadowTex);
+      baked.push(shadowTex);
 
       const char = new Container();
       const charShadow = new Sprite(shadowTex);
@@ -201,8 +220,21 @@ export function CafeCanvas({
       // one rig, which is cheap — and who is actually in the room is a per-frame
       // question the world state and the live mission answer between them.
       const cast = createCast(app.renderer, CAST, reduced, actors);
+
+      // Whoever the current stage is waiting on — Owen for the interview,
+      // Priya for a shift at the counter — gets a name tag floating over them.
+      const marker = createHostMarker(reduced);
+      actors.addChild(marker.view);
       baked.push(...cast.textures);
-      const presentNow = () => new Set<string>(castFor(useJourneyStore.getState().role));
+      // Regulars who come in through the door to you during a stage are kept
+      // out of their usual places for it, so nobody is in the room twice.
+      const NOBODY: ReadonlySet<string> = new Set();
+      const presentNow = () => {
+        const { role, stageId } = useJourneyStore.getState();
+        const stage = stageById(stageId);
+        const away = walkInCast(stage);
+        return new Set<string>(castFor(role).filter((id) => !away.has(id)));
+      };
 
       // The rest of the shift: somebody on the till and a cook on the live
       // counter, in the same uniform as Priya. Drawn like the cast, but never
@@ -215,6 +247,10 @@ export function CafeCanvas({
       // when nothing is being asked of you (PRD §5.7).
       const customers = createCustomers(app.renderer, reduced, actors);
       baked.push(...customers.textures);
+      // Whoever is coming up to the till on your shift. Bakes as people arrive,
+      // so its textures are freed on their own.
+      const walkIn = createWalkIn(app.renderer, reduced, actors);
+      borrowed.onUndo(() => destroyTextures(walkIn.textures));
       // The bell, and the street coming in with it for a moment. `ui_open` is a
       // stand-in: the Café's own sound names are a closed union in the framework
       // and are filed to the maintainer (PRD §20.7), so the beat ships on a
@@ -245,7 +281,7 @@ export function CafeCanvas({
       // ── Input ───────────────────────────────────────────────────────────────
       // The flap stops its own click from reaching the stage, or lifting it would
       // also order the player to walk into the counter.
-      flap.children[0].on("pointerdown", (e: FederatedPointerEvent) => {
+      flap.hit.on("pointerdown", (e: FederatedPointerEvent) => {
         e.stopPropagation();
         if (useRoomStore.getState().inputLocked) return;
         toggleFlap();
@@ -268,6 +304,7 @@ export function CafeCanvas({
 
       // ── The flap, reacting to the store ─────────────────────────────────────
       let flapTarget = 0;
+      let flapOpenness = 0;
       unsubscribe = useRoomStore.subscribe((s, prev) => {
         if (destroyed || s.flapOpen === prev.flapOpen) return;
         if (s.flapOpen) openGates.add(GATES[0].id);
@@ -277,8 +314,11 @@ export function CafeCanvas({
         // than let the player walk through a flap that just came down.
         pathTargets = [];
         pathLine.clear();
-        flapTarget = s.flapOpen ? FLAP_OPEN_ROTATION : 0;
-        if (reduced) flap.rotation = flapTarget;
+        flapTarget = s.flapOpen ? 1 : 0;
+        if (reduced) {
+          flapOpenness = flapTarget;
+          flap.setOpen(flapOpenness);
+        }
       });
 
       // ── Ticker ──────────────────────────────────────────────────────────────
@@ -396,6 +436,7 @@ export function CafeCanvas({
           if (!reduced) charBody.scale.y = 1 + 0.012 * Math.sin(elapsed * 2); // breathing
         }
         charBody.scale.x = facing === "W" ? -1 : 1;
+        playerTex = texFor(playerOutfitFor(useJourneyStore.getState().role));
 
         char.position.set(charPixel.x, charPixel.y);
         const cell = roundCell(worldToMap(charPixel.x, charPixel.y));
@@ -472,9 +513,59 @@ export function CafeCanvas({
         // Fed the player's cell rather than their pixels: everything the cast
         // does with it is a cell-distance question, and a cell changes ~30× less
         // often than a position does.
-        cast.update(dt, curCell, presentNow());
-        crew.update(dt, curCell, CREW_IDS);
+        // A stage worked from one spot — the till, the pass, the table: people
+        // come to you there, and anyone walking over is not also at their place.
+        const shift = (() => {
+          const journey = useJourneyStore.getState();
+          const room = useRoomStore.getState();
+          const stage = stageById(journey.stageId);
+          const tillShift = servesAtTill(stage);
+          const on = !!planFor(stage) && room.acceptedStageId === journey.stageId;
+          return {
+            // On the till you take over from Sam, from the briefing on.
+            tillYours:
+              tillShift &&
+              (room.briefedStageId === journey.stageId || room.acceptedStageId === journey.stageId),
+            // Nobody new comes in off the street while customers come to you.
+            doorShut: tillShift && on,
+            due: on ? walkInNow(stage, currentUnit()) : null,
+            still: on ? stillFor(stage) : NOBODY,
+          };
+        })();
+        const busy = walkIn.busy();
+        const without = (ids: ReadonlySet<string>) =>
+          busy.size === 0 ? ids : new Set([...ids].filter((id) => !busy.has(id)));
+        cast.update(dt, curCell, without(presentNow()), shift.still);
+
+        // The marker: only while a stage is waiting for you to go to its host,
+        // and only when nothing else is on screen.
+        {
+          const journey = useJourneyStore.getState();
+          const room = useRoomStore.getState();
+          const waiting = awaitsHost(journey.stageId, room.acceptedStageId);
+          const stage = stageById(journey.stageId);
+          // A briefed shift is started at its station, so the marker goes there.
+          const station =
+            readyAtStation(journey.stageId, room.acceptedStageId, room.briefedStageId) &&
+            !room.inputLocked
+              ? STATIONS.find((st) => st.id === stage?.station)
+              : undefined;
+          const hostId = waiting && !station ? stage?.hostNpc : null;
+          const host = hostId && !room.inputLocked ? castById(hostId as CastId) : null;
+          if (station) {
+            const p = mapToWorld(station.cell.x, station.cell.y);
+            marker.update(elapsed, { x: p.x, y: p.y, seated: false }, "Start here");
+          } else {
+            marker.update(elapsed, host ? cast.pixelOf(host.id) : null, host?.name ?? "");
+          }
+        }
+        crew.update(dt, curCell, without(shift.tillYours ? CREW_OFF_TILL : CREW_IDS), shift.still);
+        walkIn.update(dt, shift.due, {
+          arrive: (key) => useRoomStore.getState().setCustomerAtTill(key),
+          bell: ringBell,
+        });
         customers.update(dt, useRoomStore.getState().world, {
+          closed: shift.doorShut,
           bell: ringBell,
           // The till takes the order and Priya hands it over at the pickup —
           // a small movement from each, so the counter is seen to serve.
@@ -484,11 +575,13 @@ export function CafeCanvas({
 
         // The flap swing. Linear over FLAP_SWING_S so it reads as a hinge rather
         // than a spring; reduced motion snapped it already, above.
-        if (!reduced && flap.rotation !== flapTarget) {
-          const swing = (Math.abs(FLAP_OPEN_ROTATION) / FLAP_SWING_S) * dt;
-          const delta = flapTarget - flap.rotation;
-          flap.rotation =
-            Math.abs(delta) <= swing ? flapTarget : flap.rotation + Math.sign(delta) * swing;
+        if (!reduced && flapOpenness !== flapTarget) {
+          const swing = dt / FLAP_SWING_S;
+          const delta = flapTarget - flapOpenness;
+          flapOpenness =
+            Math.abs(delta) <= swing ? flapTarget : flapOpenness + Math.sign(delta) * swing;
+          // Eased, so the leaf starts and settles gently, like a real hinge.
+          flap.setOpen(flapOpenness * flapOpenness * (3 - 2 * flapOpenness));
         }
 
         // Camera: no follow. Fit the whole room, never upscaling, and re-frame

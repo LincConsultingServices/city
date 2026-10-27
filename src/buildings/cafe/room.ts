@@ -374,6 +374,9 @@ export interface Station {
  */
 export const STATIONS: readonly Station[] = [
   { id: "st_counter", label: "the counter", cell: { x: 3, y: 3 } },
+  // Behind the till at (2,2), under ORDER & PAY: where an employee works a shift.
+  // Staff side, so reached through the flap — customers come to you here.
+  { id: "st_till", label: "the billing counter", cell: { x: 2, y: 1 } },
   // (8,1), not (8,2): the counter run is furniture and the staff zone is the
   // row behind it — here, the kitchen end, where food goes out. Inside the
   // sealed zone, so it is reachable only once the flap is yours — which is the
@@ -395,9 +398,9 @@ export const STATIONS: readonly Station[] = [
  */
 const STATIONS_BY_ROLE: Readonly<Record<string, readonly string[]>> = {
   candidate: ["st_tables", "st_door"],
-  employee: ["st_counter", "st_tables", "st_door"],
-  branch_manager: ["st_counter", "st_pass", "st_tables", "st_door"],
-  ceo: ["st_counter", "st_pass", "st_tables", "st_door"],
+  employee: ["st_counter", "st_till", "st_tables", "st_door"],
+  branch_manager: ["st_counter", "st_till", "st_pass", "st_tables", "st_door"],
+  ceo: ["st_counter", "st_till", "st_pass", "st_tables", "st_door"],
 };
 
 /** The stations open to a posting, in room order. */

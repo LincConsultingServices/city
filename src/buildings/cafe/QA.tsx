@@ -12,7 +12,7 @@
 // end-of-journey report owns.
 import { useState } from "react";
 import { Dictation } from "@/ui/Dictation";
-import { castById } from "./cast";
+import { speakerFor, type CastId } from "./cast";
 import { Sheet } from "./Sheet";
 import { currentQuestion, currentStage, useJourneyStore, answer, advance } from "./journeyStore";
 
@@ -29,7 +29,7 @@ export function QA() {
 
   if (!question) return null;
 
-  const host = stage.hostNpc ? castById(stage.hostNpc as never) : null;
+  const host = stage.hostNpc ? speakerFor(stage.hostNpc as CastId) : null;
   const total = stage.questions?.length ?? 0;
   const ready = draft.trim().length > 0;
 
@@ -43,22 +43,15 @@ export function QA() {
   return (
     <Sheet
       label={stage.title}
+      speaker={host}
+      line={question.prompt}
       head={
-        <>
-          {/*
-            The ordinal is the pacing information a player legitimately needs —
-            how much of this sitting is left — and it says nothing about how
-            they are doing.
-          */}
-          <p className="text-xs uppercase tracking-widest text-muted">
-            {stage.title} · {Math.min(index + 1, total)} of {total}
-          </p>
-
-          <p className="mt-3 text-sm leading-relaxed text-text">
-            {host && <span className="font-semibold text-gold">{host.name}: </span>}
-            {host ? `“${question.prompt}”` : question.prompt}
-          </p>
-        </>
+        // The ordinal is the pacing information a player legitimately needs —
+        // how much of this sitting is left — and it says nothing about how they
+        // are doing.
+        <p className="text-xs uppercase tracking-widest text-muted">
+          {stage.title} · {Math.min(index + 1, total)} of {total}
+        </p>
       }
     >
       <label className="sr-only" htmlFor={`answer-${question.unitId}`}>

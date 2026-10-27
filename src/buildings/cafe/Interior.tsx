@@ -15,7 +15,11 @@ import { trackOrDefault } from "@/framework/city/track";
 import {
   acceptStage,
   awaitsHost,
+  briefStage,
+  invitationFor,
   invite,
+  needsBriefing,
+  readyAtStation,
   resetRoomState,
   speakTo,
   stopSpeaking,
@@ -23,8 +27,10 @@ import {
   useRoomStore,
   writeWorld,
 } from "./roomStore";
-import { GATES, guideFor, zoneAt } from "./room";
-import { atAnchors, castById, castFor, guideWithCast } from "./cast";
+import { GATES, STATIONS, guideFor, zoneAt } from "./room";
+import { atAnchors, castById, castFor, guideWithCast, speakerFor, type CastId } from "./cast";
+import { Sheet } from "./Sheet";
+import { START_STAGE } from "./journey";
 import { Decision } from "./Decision";
 import { PhaseHistory } from "./PhaseHistory";
 import { StageChip } from "./StageChip";
@@ -32,8 +38,10 @@ import { QA } from "./QA";
 import { Gate } from "./Gate";
 import { Report } from "./Report";
 import { Waiting } from "@/ui/Waiting";
+import { walkInCast, walkInNow } from "./counterShift";
 import {
   closeStage,
+  currentUnit,
   currentStage,
   goToNextStage,
   leave as flushJourneyNow,
@@ -42,6 +50,48 @@ import {
   useJourneyStore,
 } from "./journeyStore";
 import { BUILDING_ID, freshJourney, loadJourney } from "./journeySession";
+
+/** Within a step of a station's cell. */
+function atStationOf(cell: { x: number; y: number }, stationId: string): boolean {
+  const st = STATIONS.find((s) => s.id === stationId);
+  return !!st && Math.abs(cell.x - st.cell.x) + Math.abs(cell.y - st.cell.y) <= 1;
+}
+
+/** True when the current stage is waiting for its host and `cell` is at its place. */
+function waitingHostAt(cell: { x: number; y: number }, acceptedStageId: string | null): boolean {
+  const { stageId } = useJourneyStore.getState();
+  const stage = currentStage();
+  return (
+    awaitsHost(stageId, acceptedStageId) &&
+    stage.hostNpc !== null &&
+    atStationOf(cell, stage.station)
+  );
+}
+
+/** True when a briefed shift is waiting and `cell` is at its station: E starts it. */
+function startableAt(
+  cell: { x: number; y: number },
+  acceptedStageId: string | null,
+  briefedStageId: string | null,
+): boolean {
+  const { stageId } = useJourneyStore.getState();
+  return (
+    readyAtStation(stageId, acceptedStageId, briefedStageId) &&
+    atStationOf(cell, currentStage().station)
+  );
+}
+
+/** True when the host should open with their invitation or briefing, not small talk. */
+function hostInvites(
+  stageId: string,
+  acceptedStageId: string | null,
+  briefedStageId: string | null,
+) {
+  return (
+    awaitsHost(stageId, acceptedStageId) &&
+    !readyAtStation(stageId, acceptedStageId, briefedStageId)
+  );
+}
 
 export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const [ready, setReady] = useState(false);
@@ -54,6 +104,8 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const flapOpen = useRoomStore((s) => s.flapOpen);
   const announcement = useRoomStore((s) => s.announcement);
   const acceptedStageId = useRoomStore((s) => s.acceptedStageId);
+  const briefedStageId = useRoomStore((s) => s.briefedStageId);
+  const customerAtTill = useRoomStore((s) => s.customerAtTill);
 
   const role = useJourneyStore((s) => s.role);
   const stageId = useJourneyStore((s) => s.stageId);
@@ -125,11 +177,22 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const stageKind = currentStage().kind;
   const stageHost = currentStage().hostNpc;
   /**
-   * The interview waits for you. Walking in is for looking round; the questions
-   * start when you go to Owen and tell him you are ready. Until then nothing is
-   * on screen and the room is yours to walk.
+   * A stage somebody runs waits for you to go to them. Walking in is for
+   * looking round; the interview starts when you tell Owen you are ready, a
+   * shift when you go to Priya at the counter, a review when you sit back down
+   * at Owen's table. Until then nothing is on screen and the room is yours to
+   * walk, with a marker over the person you are wanted by (CafeCanvas).
    */
   const waitingForHost = awaitsHost(stageId, acceptedStageId);
+  /**
+   * On a shift at the till, each scene is a customer, and it opens when they
+   * have walked up to you — not before (counterShift.ts, walkInView.ts).
+   */
+  const dueAtTill =
+    !waitingForHost && consequence === null && sceneBeat === null
+      ? walkInNow(currentStage(), currentUnit())
+      : null;
+  const customerComing = dueAtTill !== null && customerAtTill !== dueAtTill.key;
   const readyToClose = seasonIn && stageIsDone() && consequence === null;
   useEffect(() => {
     if (!readyToClose || stageKind === "gate") return;
@@ -180,8 +243,28 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   const person = nearCastId ? castById(nearCastId) : null;
   const speaking = speakingToId ? castById(speakingToId) : null;
   const hostMember = stageHost ? castById(stageHost as never) : null;
+  /** Where the waiting stage happens, in the room's words: "the counter". */
+  const hostPlace = STATIONS.find((s) => s.id === currentStage().station)?.label ?? null;
+  /**
+   * Standing at the waiting stage's place counts as going to its host. Priya
+   * works behind the counter and walks its length, so "go to the counter" has
+   * to be enough on its own — waiting for her to drift within earshot is not a
+   * way to start a shift.
+   */
+  const atStagePlace = waitingForHost && atStationOf(charCell, currentStage().station);
+  /**
+   * A shift you have been briefed on starts at its station, on your say-so —
+   * "Start your shift" at the counter rather than another word with Priya.
+   */
+  const shiftReady = readyAtStation(stageId, acceptedStageId, briefedStageId);
+  const atShiftStart = shiftReady && atStagePlace;
   /** This conversation is the host asking whether you are ready to start. */
-  const inviting = speaking !== null && waitingForHost && speaking.id === stageHost;
+  const inviting =
+    speaking !== null &&
+    speaking.id === stageHost &&
+    hostInvites(stageId, acceptedStageId, briefedStageId);
+  /** …or, for a shift, telling you what it is before you go and start it. */
+  const briefing = inviting && needsBriefing(stageId, briefedStageId);
 
   // The list is rebuilt from where people are standing, so walking to Priya
   // means walking to Priya rather than to the spot she left. Anchors are the
@@ -189,7 +272,12 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
   // One destination and two people. It used to carry six stations and four
   // noticeboards, which read as a to-do list rather than as a way of crossing
   // the room without a mouse.
-  const nav = guideWithCast(atAnchors(castFor(role)), guideFor(role));
+  // Regulars who walk up to the till on a shift are not at their usual places.
+  const walkingIn = walkInCast(currentStage());
+  const nav = guideWithCast(
+    atAnchors(castFor(role).filter((id) => !walkingIn.has(id))),
+    guideFor(role),
+  );
 
   /**
    * Leaving flushes the season first. "Leaving the building" and "closing the
@@ -220,12 +308,26 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
       leaveNow();
     } else if (s.nearGateId) {
       toggleFlap();
+    } else if (startableAt(s.charCell, s.acceptedStageId, s.briefedStageId)) {
+      // Briefed, and at the shift's station: clock on.
+      const { stageId: id } = useJourneyStore.getState();
+      acceptStage(id);
+    } else if (
+      waitingHostAt(s.charCell, s.acceptedStageId) &&
+      hostInvites(useJourneyStore.getState().stageId, s.acceptedStageId, s.briefedStageId)
+    ) {
+      // At the waiting stage's place: its host asks whether you are ready.
+      const { stageId: id } = useJourneyStore.getState();
+      invite(currentStage().hostNpc as CastId, id);
     } else if (s.nearCastId) {
       // The host of a stage that is waiting on you asks whether you are ready,
       // rather than making small talk.
       const { stageId: id } = useJourneyStore.getState();
-      if (awaitsHost(id, s.acceptedStageId) && currentStage().hostNpc === s.nearCastId) {
-        invite(s.nearCastId);
+      if (
+        hostInvites(id, s.acceptedStageId, s.briefedStageId) &&
+        currentStage().hostNpc === s.nearCastId
+      ) {
+        invite(s.nearCastId, id);
       } else {
         speakTo(s.nearCastId);
       }
@@ -296,9 +398,13 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
       ? flapOpen
         ? gate.closePrompt
         : gate.openPrompt
-      : person
-        ? person.name
-        : null;
+      : atShiftStart
+        ? invitationFor(stageId).accept
+        : atStagePlace && hostMember && !shiftReady
+          ? `talk to ${hostMember.name}`
+          : person
+            ? person.name
+            : null;
 
   return (
     // Transparent, and click-through by default. The room is drawn into the
@@ -311,18 +417,35 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
           has already given the city back by the time this fires. */}
       <CafeCanvas onReady={() => setReady(true)} onError={onExit} />
 
-      {/* While the interview waits, one quiet line under its title says who it
-          is waiting with — enough to find him, not enough to feel like a queue. */}
+      {/* While a stage waits, one quiet line under its title says who it is
+          waiting with and where — enough to find them, not enough to feel like
+          a queue. */}
       {ready && seasonIn && (
         <StageChip
           note={
-            waitingForHost && hostMember
-              ? `${hostMember.name} is ready for you whenever you are — take a look around first.`
-              : null
+            waitingForHost && shiftReady && !hostMember
+              ? `Go to ${hostPlace ?? "your station"} when you're ready.`
+              : waitingForHost && hostMember
+                ? stageId === START_STAGE
+                  ? `${hostMember.name} is ready for you whenever you are — take a look around first.`
+                  : shiftReady
+                    ? `Go to ${hostPlace ?? "your station"} and start when you're ready.`
+                    : needsBriefing(stageId, briefedStageId)
+                      ? `${hostMember.name} wants a word before you start.`
+                      : `Go to ${hostMember.name}${hostPlace ? ` at ${hostPlace}` : ""} when you're ready to start.`
+                : null
           }
         />
       )}
-      {ready && seasonIn && <Decision />}
+      {ready && seasonIn && !waitingForHost && !customerComing && <Decision />}
+      {ready && seasonIn && customerComing && (
+        <div className="pointer-events-none absolute bottom-24 left-1/2 z-10 -translate-x-1/2 animate-slide-up rounded-full border border-gold/50 bg-surface/90 px-5 py-2 text-sm text-text shadow-lg backdrop-blur">
+          <span className="text-gold">●</span>{" "}
+          {dueAtTill?.who
+            ? `${dueAtTill?.speaker.name} is coming over…`
+            : "A customer is coming up to the till…"}
+        </div>
+      )}
       {ready && seasonIn && stageKind === "qa" && consequence === null && !waitingForHost && <QA />}
       {ready && seasonIn && stageKind === "gate" && <Gate />}
       {reportOpen && <Report onClose={leaveNow} />}
@@ -376,8 +499,8 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         </button>
       )}
 
-      {prompt && !speaking && (
-        <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 animate-slide-up">
+      {prompt && !speaking && !customerComing && (
+        <div className="pointer-events-none absolute bottom-24 left-1/2 z-10 -translate-x-1/2 animate-slide-up">
           <button
             onClick={act}
             className="pointer-events-auto rounded-full border border-gold/60 bg-surface/90 px-5 py-2.5 text-sm text-text shadow-lg backdrop-blur"
@@ -410,45 +533,45 @@ export default function CafeInterior({ manifest, onExit }: InteriorProps) {
         WASD or click to move · E to interact
       </p>
 
-      {/* Somebody talking to you. Deliberately not a panel: a line of speech is a
-          person, not an exhibit, so it sits low and narrow near where they are
-          standing rather than taking over the screen. */}
+      {/* Somebody talking to you, in the same box as everything else people
+          say here: their portrait behind it, their name on it, the line typed
+          out. A host with a stage waiting asks whether you are ready instead. */}
       {speaking && (
-        <div className="pointer-events-auto absolute bottom-16 left-1/2 z-20 w-[min(30rem,90vw)] -translate-x-1/2 animate-slide-up">
-          <div className="rounded-2xl border border-line/70 bg-surface/95 p-5 shadow-xl backdrop-blur">
-            <p className="text-xs uppercase tracking-widest text-gold">
-              {speaking.name}
-              <span className="ml-2 normal-case tracking-normal text-muted">{speaking.role}</span>
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-text">{spokenLine}</p>
-            {inviting ? (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <button
-                  autoFocus
-                  onClick={() => acceptStage(stageId)}
-                  className="rounded-lg bg-gold px-4 py-1.5 text-xs font-medium text-ink transition hover:brightness-110"
-                >
-                  Start the interview
-                </button>
-                <button
-                  onClick={stopSpeaking}
-                  className="rounded-lg border border-line/70 px-4 py-1.5 text-xs text-muted hover:border-gold/60 hover:text-text"
-                >
-                  Not yet
-                  <span className="ml-2 rounded bg-line/50 px-1.5 py-0.5 text-[10px]">Esc</span>
-                </button>
-              </div>
-            ) : (
+        <Sheet
+          label={`${speaking.name} is speaking`}
+          speaker={speakerFor(speaking.id)}
+          line={spokenLine}
+        >
+          {inviting ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                autoFocus
+                onClick={() => (briefing ? briefStage(stageId) : acceptStage(stageId))}
+                className="rounded-lg bg-gold px-5 py-2 text-sm font-medium text-ink transition hover:brightness-110"
+              >
+                {briefing
+                  ? (invitationFor(stageId).brief?.ok ?? "Got it")
+                  : invitationFor(stageId).accept}
+              </button>
               <button
                 onClick={stopSpeaking}
-                className="mt-4 rounded-lg border border-line/70 px-4 py-1.5 text-xs text-muted hover:border-gold/60 hover:text-text"
+                className="rounded-lg border border-line/70 px-5 py-2 text-sm text-muted hover:border-gold/60 hover:text-text"
               >
-                Leave it there
+                Not yet
                 <span className="ml-2 rounded bg-line/50 px-1.5 py-0.5 text-[10px]">Esc</span>
               </button>
-            )}
-          </div>
-        </div>
+            </div>
+          ) : (
+            <button
+              autoFocus
+              onClick={stopSpeaking}
+              className="rounded-lg bg-gold px-6 py-2 text-sm font-medium text-ink transition hover:brightness-110"
+            >
+              Okay
+              <span className="ml-2 rounded bg-ink/15 px-1.5 py-0.5 text-[10px]">Esc</span>
+            </button>
+          )}
+        </Sheet>
       )}
 
       {/* A change a sighted player sees must reach everyone else too. The city has

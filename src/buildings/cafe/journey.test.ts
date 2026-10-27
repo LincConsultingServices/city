@@ -104,10 +104,10 @@ describe("the stage graph", () => {
     expect(outranks("candidate", "candidate")).toBe(false);
   });
 
-  it("opens the flap on promotion and not before", () => {
-    // The gate that was shut for the whole first act is the promotion beat.
+  it("opens the flap once you are staff, and not before", () => {
+    // Hired is the beat: an employee's shift is behind the counter, at the till.
     expect(mayPassFlap("candidate")).toBe(false);
-    expect(mayPassFlap("employee")).toBe(false);
+    expect(mayPassFlap("employee")).toBe(true);
     expect(mayPassFlap("branch_manager")).toBe(true);
     expect(mayPassFlap("ceo")).toBe(true);
   });
@@ -344,10 +344,15 @@ describe("the room, by posting", () => {
     expect(ids("employee")).toContain("st_counter");
     expect(ids("employee")).not.toContain("st_pass");
 
-    // The gate that was shut for the whole first act.
+    // Staff work behind the counter: an employee's shift is at the till.
+    expect(mayPassFlap("candidate")).toBe(false);
+    expect(mayPassFlap("employee")).toBe(true);
+    expect(ids("employee")).toContain("st_till");
+    expect(ids("candidate").includes("st_till")).toBe(mayPassFlap("candidate"));
+
+    // The pass stays the branch manager's.
     expect(ids("branch_manager")).toContain("st_pass");
     expect(mayPassFlap("branch_manager")).toBe(true);
-    expect(ids("employee").includes("st_pass")).toBe(mayPassFlap("employee"));
 
     // The door is always yours. Leaving is a road at every gate.
     for (const role of ["candidate", "employee", "branch_manager", "ceo"]) {

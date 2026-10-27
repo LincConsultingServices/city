@@ -195,7 +195,13 @@ describe("the guided-navigation list", () => {
     // Four places the career actually works at, and no more. The jukebox and the
     // window are not back: nothing sends anybody to either, and a chip that
     // leads nowhere is worse than no chip at all.
-    expect(GUIDE.map((p) => p.id)).toEqual(["st_counter", "st_pass", "st_tables", "st_door"]);
+    expect(GUIDE.map((p) => p.id)).toEqual([
+      "st_counter",
+      "st_till",
+      "st_pass",
+      "st_tables",
+      "st_door",
+    ]);
     expect(GUIDE.find((p) => p.id === "st_tables")!.cell).toEqual({ x: 8, y: 5 });
   });
 

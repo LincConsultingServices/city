@@ -58,7 +58,7 @@ const TABLE_TOP = 30;
  * Their own clothes — the city's pedestrian palettes, which are all casual. The
  * white-shirted one is left out: in here a white shirt is the staff uniform.
  */
-const SKINS = NPC_PALETTES.filter((p) => p.shirt !== 0xececec);
+const SKINS = NPC_PALETTES.filter((p) => p.shirt < 0xe0e0e0);
 
 /**
  * Sorted a hair behind the cast, so a customer sharing a cell with Priya reads
@@ -110,6 +110,11 @@ export interface CustomerEvents {
   order(): void;
   /** Somebody's order was handed over at the pickup. */
   collect(): void;
+  /**
+   * Nobody new comes in while true — during a shift at the till, the customers
+   * are the ones walking up to you (walkInView.ts).
+   */
+  closed?: boolean;
 }
 
 export interface CustomersView {
@@ -319,7 +324,7 @@ export function createCustomers(
       bell -= dtS;
       if (bell <= 0) {
         bell = nextBell(world, reduced, Math.random());
-        admit(events);
+        if (!events.closed) admit(events);
       }
 
       for (const b of bodies) {

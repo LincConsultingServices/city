@@ -241,12 +241,22 @@ describe("the guided-navigation list with people in it", () => {
   });
 
   it("sends you to where somebody actually is, not where they started", () => {
-    // Priya walks her loop, so the list has to be built from live positions or
-    // it walks you to an empty patch of floor by the machine.
+    // Tomas walks to the pass and back, so the list has to be built from live
+    // positions or it walks you to an empty patch of floor by the grinder.
+    const tomas = castById("tomas")!;
+    const moved = { x: 8, y: 1 };
+    const entry = guideWithCast([{ member: tomas, cell: moved }]).find((p) => p.id === "tomas");
+    // Across the counter from where he is now: the floor in front of the pass.
+    expect(entry?.cell).toEqual({ x: 8, y: 3 });
+  });
+
+  it("sends you across the counter to Priya, not behind it", () => {
+    // She works the staff side; you speak to her from the pickup.
     const priya = castById("priya")!;
-    const moved = { x: 6, y: 1 };
-    const entry = guideWithCast([{ member: priya, cell: moved }]).find((p) => p.id === "priya");
-    expect(entry?.cell).toEqual(moved);
+    const entry = guideWithCast([{ member: priya, cell: { x: 6, y: 1 } }]).find(
+      (p) => p.id === "priya",
+    );
+    expect(entry?.cell).toEqual({ x: 5, y: 3 });
   });
 
   it("is empty of people when the room is empty of people", () => {

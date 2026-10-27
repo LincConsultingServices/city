@@ -13,7 +13,7 @@
 //   - present *exit* as a failure. Leaving is one of three roads, and a player
 //     who takes the job and walks after the counter has played a complete
 //     journey that scores exactly what they played.
-import { castById } from "./cast";
+import { castById, speakerFor, type CastId } from "./cast";
 import { ChoiceButton, Sheet } from "./Sheet";
 import { currentStage, takeRoad, useJourneyStore, type Road } from "./journeyStore";
 import { gateRoads, ROLE_LABEL, stageById } from "./journey";
@@ -25,6 +25,7 @@ export function Gate() {
   if (!roads) return null;
 
   const host = stage.hostNpc ? castById(stage.hostNpc as never) : null;
+  const speaker = stage.hostNpc ? speakerFor(stage.hostNpc as CastId) : null;
   const nextStage = stageById(roads.accept);
   const nextRole = nextStage ? ROLE_LABEL[nextStage.role] : "";
 
@@ -35,15 +36,26 @@ export function Gate() {
   // space under it, the same gap the decision sheet's own consequence once
   // had (an empty paragraph, standing in for what a player came here to read).
   const hasFeedback = Boolean(outcome && (outcome.band || outcome.feedback));
+  // What he thought, in his own voice — typed out like anything else he says.
+  const said = hasFeedback && outcome!.feedback ? outcome!.feedback : undefined;
 
   return (
     <Sheet
       label={stage.title}
-      head={<h2 className="font-display text-lg font-semibold text-gold">{stage.title}</h2>}
+      speaker={speaker}
+      line={said}
+      head={
+        <>
+          <h2 className="font-display text-lg font-semibold text-gold">{stage.title}</h2>
+          {/* The band is a word, never a number and never a tier name; the
+              per-question marks are never shown as a total out of a total. */}
+          {hasFeedback && outcome!.band && (
+            <p className="mt-0.5 text-xs uppercase tracking-widest text-gold/80">{outcome!.band}</p>
+          )}
+        </>
+      }
     >
-      {hasFeedback ? (
-        <Feedback host={host?.name ?? "Owen"} band={outcome!.band} feedback={outcome!.feedback} />
-      ) : (
+      {hasFeedback ? null : (
         <p className="text-sm leading-relaxed text-muted">
           {/*
             An honest line for the case where nothing graded the sitting — a
@@ -57,7 +69,7 @@ export function Gate() {
         </p>
       )}
 
-      <ul className="mt-6 space-y-2">
+      <ul className={`${hasFeedback ? "mt-1" : "mt-5"} space-y-2`}>
         <li>
           <ChoiceButton onClick={go("accept")} primary>
             <span className="block text-sm font-medium text-text">
@@ -87,27 +99,5 @@ export function Gate() {
         </li>
       </ul>
     </Sheet>
-  );
-}
-
-/**
- * What he thought.
- *
- * The band is a word, never a number and never a tier name. The per-question
- * marks are deliberately not rendered here as a running total: five numbers
- * beside five questions is a grade sheet, and the point of asking in a room is
- * that it is not one.
- */
-function Feedback({ host, band, feedback }: { host: string; band: string; feedback: string }) {
-  return (
-    <>
-      {band && <p className="text-xs uppercase tracking-widest text-gold">{band}</p>}
-      {feedback && (
-        <p className="mt-3 text-sm leading-relaxed text-text">
-          <span className="font-semibold text-gold">{host}: </span>
-          {feedback}
-        </p>
-      )}
-    </>
   );
 }
