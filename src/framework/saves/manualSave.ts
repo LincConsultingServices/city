@@ -20,6 +20,12 @@
 import { loadJson, saveJson } from "@/lib/persist";
 import { heldBuildings, readSession, replaceSession, sessionOwner } from "@/framework/session/sync";
 import { STORAGE_KEY as MAISON_KEY } from "@/buildings/fashion_brand/maisonStore";
+import {
+  defaultIdentity,
+  normalizeIdentity,
+  storeIdentity,
+  useIdentity,
+} from "@/framework/player/identity";
 
 export interface ManualSave {
   version: 1;
@@ -29,6 +35,11 @@ export interface ManualSave {
   sessions: Record<string, unknown>;
   /** MAISON's season as stored, or null when there was none. */
   maison: unknown | null;
+  /**
+   * The character this career was played as. Absent on saves made before
+   * characters existed; loading one of those keeps the current character.
+   */
+  character?: unknown;
 }
 
 const isSave = (v: unknown): v is ManualSave =>
@@ -62,6 +73,7 @@ export function writeManualSave(now: Date = new Date()): ManualSave {
     savedAt: now.toISOString(),
     sessions,
     maison: readRaw(MAISON_KEY),
+    character: useIdentity.getState().identity,
   };
   saveJson(key(), save);
   return save;
@@ -88,7 +100,12 @@ export function deleteManualSave(): void {
  * they start, and a reload is the one way to be sure nothing old is held.
  */
 export async function loadManualSave(save: ManualSave): Promise<boolean> {
-  return applySnapshot(save.sessions, save.maison);
+  const ok = await applySnapshot(save.sessions, save.maison);
+  // Back to the career, as the person who played it — and straight in, with
+  // no creator in the way.
+  const character = normalizeIdentity(save.character);
+  if (character) await storeIdentity({ ...character, confirmed: true });
+  return ok;
 }
 
 /**
@@ -97,7 +114,12 @@ export async function loadManualSave(save: ManualSave): Promise<boolean> {
  * `loadManualSave`.
  */
 export async function restartGame(): Promise<boolean> {
-  return applySnapshot({}, null);
+  const ok = await applySnapshot({}, null);
+  // A new game starts with a new character: the creator opens on the default
+  // look, keeping only the name and gender they chose before.
+  const current = useIdentity.getState().identity;
+  if (current) await storeIdentity(defaultIdentity(current.name, current.gender));
+  return ok;
 }
 
 async function applySnapshot(

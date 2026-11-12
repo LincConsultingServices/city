@@ -9,6 +9,7 @@
 // Tone: a lookbook is a document a house makes about itself. No grades, no
 // percentiles, no praise — a record of a season and what it revealed, written by
 // someone who was in the building.
+import { useIdentity } from "@/framework/player/identity";
 import { useMemo } from "react";
 import type { LevelActivity } from "@/framework/api/schemas";
 import { useAuth } from "@/framework/auth/AuthProvider";
@@ -42,7 +43,9 @@ export function Lookbook({
   // character they built presented as a person rather than a sprite. The full
   // cosmetic composition is master PRD §14.3 and does not exist yet, so this is
   // the same chip the HUD carries, framed as a designer's headshot.
-  const designer = user?.displayName || user?.email?.split("@")[0] || "the designer";
+  const characterName = useIdentity((s) => s.identity?.name);
+  const designer =
+    characterName || user?.displayName || user?.email?.split("@")[0] || "the designer";
   const initial = designer.charAt(0).toUpperCase();
 
   return (

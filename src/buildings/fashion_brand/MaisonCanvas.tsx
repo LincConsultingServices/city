@@ -10,6 +10,7 @@
 // so it is framed once and stays framed. Unlike the Café, the room has two
 // levels — the atelier is lifted, and the player is lifted with it when they
 // walk up (§3.1).
+import { currentIdentity, paletteFor } from "@/framework/player/identity";
 import { useEffect } from "react";
 import { Container, Graphics, Sprite, Texture, type FederatedPointerEvent } from "pixi.js";
 import { TILE_H, TILE_W, mapToWorld, roundCell, worldToMap } from "@/lib/iso";
@@ -18,7 +19,6 @@ import { prefersReducedMotion } from "@/lib/motion";
 import { audio } from "@/framework/audio/audioManager";
 import { whenInteriorHost, type InteriorHost } from "@/framework/building/interiorStage";
 import {
-  PLAYER_PALETTE,
   bakePersonTextures,
   bakeShadowTexture,
   destroyTextures,
@@ -139,7 +139,8 @@ export function MaisonCanvas({ onReady }: { onReady?: () => void }) {
       redress();
 
       // ── The player ──────────────────────────────────────────────────────────
-      const playerTex = bakePersonTextures(app.renderer, PLAYER_PALETTE);
+      // The player's own character, in their street clothes.
+      const playerTex = bakePersonTextures(app.renderer, paletteFor(currentIdentity(), "casual"));
       const shadowTex = bakeShadowTexture(app.renderer);
       baked.push(...playerTex.all, shadowTex);
 

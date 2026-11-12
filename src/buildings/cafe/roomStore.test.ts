@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { START_STAGE, STAGES, stageById } from "./journey";
 import { OPENING_WORLD } from "./world";
+import { defaultIdentity, useIdentity } from "@/framework/player/identity";
 import {
   INVITATION,
   acceptStage,
@@ -153,5 +154,20 @@ describe("choosing a successor waits for you at the table", () => {
     resetRoomState({ ...OPENING_WORLD });
     briefStage("cafe.l3");
     expect(useRoomStore.getState().flapOpen).toBe(false);
+  });
+});
+
+describe("greeting the player by name", () => {
+  it("uses the character's first name where a manager would", () => {
+    useIdentity.setState({ identity: { ...defaultIdentity("Asha Rao"), confirmed: true } });
+    expect(invitationFor(START_STAGE).line).toMatch(/^Good, you found me, Asha\./);
+    expect(invitationFor("cafe.l1").brief!.line).toMatch(/^Welcome aboard, Asha\./);
+    useIdentity.setState({ identity: null });
+  });
+
+  it("reads naturally before there is a name", () => {
+    useIdentity.setState({ identity: null });
+    expect(invitationFor(START_STAGE).line).toMatch(/^Good, you found me\./);
+    expect(invitationFor(START_STAGE).line).not.toContain("{name}");
   });
 });

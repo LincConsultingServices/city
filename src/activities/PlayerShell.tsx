@@ -216,7 +216,7 @@ function ResultView({ response, onClose }: { response: SubmitResponse; onClose: 
       </p>
       {response.feedback && <p className="mt-3 text-sm text-text">{response.feedback}</p>}
       {typeof response.coinsEarned === "number" && (
-        <p className="mt-3 font-medium text-coin">+{response.coinsEarned} coins</p>
+        <p className="mt-3 font-medium text-coin">+${response.coinsEarned}</p>
       )}
       {response.badgesAwarded && response.badgesAwarded.length > 0 && (
         <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-gold">

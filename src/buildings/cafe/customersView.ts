@@ -58,7 +58,7 @@ const TABLE_TOP = 30;
  * Their own clothes — the city's pedestrian palettes, which are all casual. The
  * white-shirted one is left out: in here a white shirt is the staff uniform.
  */
-const SKINS = NPC_PALETTES.filter((p) => p.shirt < 0xe0e0e0);
+const SKINS = NPC_PALETTES.filter((p) => p.shirt < 0xe0e0e0 && !p.wheelchair);
 
 /**
  * Sorted a hair behind the cast, so a customer sharing a cell with Priya reads

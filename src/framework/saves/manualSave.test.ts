@@ -11,6 +11,7 @@ vi.mock("@/framework/api", () => ({
 
 import { readSession, resetSessionSync, writeSessionNow } from "@/framework/session/sync";
 import { STORAGE_KEY as MAISON_KEY } from "@/buildings/fashion_brand/maisonStore";
+import { defaultIdentity, useIdentity } from "@/framework/player/identity";
 import {
   deleteManualSave,
   loadManualSave,
@@ -128,5 +129,43 @@ describe("restarting", () => {
     await restartGame();
     expect(localStorage.getItem("city.track")).toBe(JSON.stringify("SCA"));
     expect(localStorage.getItem("city.audio.v1")).toBe(JSON.stringify({ enabled: true }));
+  });
+});
+
+describe("the character a save was played as", () => {
+  const asha = {
+    ...defaultIdentity("Asha", "female"),
+    skin: 0x6b4329,
+    hairStyle: "bun" as const,
+    confirmed: true,
+  };
+
+  it("is kept in the save, and comes back when it is loaded — no creator", async () => {
+    useIdentity.setState({ identity: asha });
+    const save = writeManualSave();
+    useIdentity.setState({ identity: { ...asha, name: "Somebody else", hairStyle: "bob" } });
+    await loadManualSave(save);
+    expect(useIdentity.getState().identity).toMatchObject({
+      name: "Asha",
+      hairStyle: "bun",
+      confirmed: true,
+    });
+  });
+
+  it("is left alone by a save made before characters existed", async () => {
+    useIdentity.setState({ identity: asha });
+    const save = { ...writeManualSave(), character: undefined };
+    await loadManualSave(save);
+    expect(useIdentity.getState().identity?.name).toBe("Asha");
+  });
+
+  it("resets the character on a restart: the creator opens on a fresh look", async () => {
+    useIdentity.setState({ identity: asha });
+    await restartGame();
+    const after = useIdentity.getState().identity;
+    // The name and gender carry over; the look they built does not.
+    expect(after).toMatchObject({ name: "Asha", gender: "female", confirmed: false });
+    expect(after).toMatchObject(defaultIdentity("Asha", "female"));
+    expect(after?.skin).not.toBe(asha.skin);
   });
 });

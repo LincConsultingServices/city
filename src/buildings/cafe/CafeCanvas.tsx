@@ -25,7 +25,8 @@ import {
   destroyTextures,
   type PersonTextures,
 } from "@/world/characterArt";
-import { PLAYER_OUTFITS, paletteOf, playerOutfitFor, type PlayerOutfit } from "@/ui/characters";
+import { playerOutfitFor, type PlayerOutfit } from "@/ui/characters";
+import { currentIdentity, paletteFor } from "@/framework/player/identity";
 import type { Cardinal } from "@/world/assets";
 import { loadCafeAssets } from "./assets";
 import { createSteam } from "./steam";
@@ -193,7 +194,7 @@ export function CafeCanvas({
       const texFor = (outfit: PlayerOutfit): PersonTextures => {
         let t = outfitTex.get(outfit);
         if (!t) {
-          t = bakePersonTextures(app.renderer, paletteOf(PLAYER_OUTFITS[outfit].look));
+          t = bakePersonTextures(app.renderer, paletteFor(currentIdentity(), outfit));
           baked.push(...t.all);
           outfitTex.set(outfit, t);
         }

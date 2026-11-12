@@ -19,6 +19,8 @@ import { Celebration } from "./Celebration";
 import { TrophyHall } from "./TrophyHall";
 import { ActivityListPanel } from "@/activities/ActivityListPanel";
 import { EnterCity } from "./EnterCity";
+import { CharacterCreator } from "./CharacterCreator";
+import { hydrateIdentity } from "@/framework/player/identity";
 import { hydrateCityState } from "@/framework/city/cityState";
 import { api } from "@/framework/api";
 import { useEconomyStore } from "@/framework/economy/economyStore";
@@ -55,6 +57,12 @@ export function CityScreen() {
   // The level question. `null` until the city document has been read, so a
   // player who answered on another device is never asked twice.
   const [askTrack, setAskTrack] = useState<boolean | null>(null);
+  /**
+   * Whether the player still has to make their character — null until the
+   * city document has been read. The creator comes before the gate question:
+   * you decide who you are, then you walk in.
+   */
+  const [makeCharacter, setMakeCharacter] = useState<boolean | null>(null);
 
   const nearVenue = nearVenueId ? (VENUES.find((v) => v.id === nearVenueId) ?? null) : null;
   const panelOpen =
@@ -77,7 +85,10 @@ export function CityScreen() {
   useEffect(() => {
     let live = true;
     void hydrateCityState().then(() => {
-      if (live) setAskTrack(trackIsDue());
+      if (!live) return;
+      const identity = hydrateIdentity();
+      setMakeCharacter(!identity || !identity.confirmed);
+      setAskTrack(trackIsDue());
     });
     // The first authed call. It performs the starter grant server-side, which is
     // why the HUD can show a real number from the first second rather than an em
@@ -98,8 +109,8 @@ export function CityScreen() {
   // The gate holds the street the same way a panel does: nothing walks, nothing
   // is clickable behind it, and the question cannot be dismissed unanswered.
   useEffect(() => {
-    setInputLocked(panelOpen || askTrack !== false);
-  }, [panelOpen, askTrack, setInputLocked]);
+    setInputLocked(panelOpen || askTrack !== false || makeCharacter !== false);
+  }, [panelOpen, askTrack, makeCharacter, setInputLocked]);
 
   useEffect(() => {
     setInteriorOpen(inInterior);
@@ -136,7 +147,13 @@ export function CityScreen() {
         return;
       }
       // M toggles the map, from the street only — never over a panel or a room.
-      if ((e.key === "m" || e.key === "M") && !e.repeat && !inInterior && askTrack === false) {
+      if (
+        (e.key === "m" || e.key === "M") &&
+        !e.repeat &&
+        !inInterior &&
+        askTrack === false &&
+        makeCharacter === false
+      ) {
         if (mapOpen) setMapOpen(false);
         else if (!panelOpen) {
           audio.play("ui_open");
@@ -161,6 +178,7 @@ export function CityScreen() {
     mapOpen,
     optionsOpen,
     askTrack,
+    makeCharacter,
   ]);
 
   return (
@@ -170,7 +188,12 @@ export function CityScreen() {
 
       {/* Asked once, at the gate, over a city that has finished loading behind
           it — the first thing a player sees is the place, not a form. */}
-      {worldReady && askTrack === true && <EnterCity onAnswered={() => setAskTrack(false)} />}
+      {worldReady && makeCharacter === true && (
+        <CharacterCreator onDone={() => setMakeCharacter(false)} />
+      )}
+      {worldReady && makeCharacter === false && askTrack === true && (
+        <EnterCity onAnswered={() => setAskTrack(false)} />
+      )}
       {/* An interior owns the whole screen and brings its own chrome, so the
           street's HUD and control hint step aside rather than sit on top of it.
           Toasts and celebrations stay — they are about the player, not the view. */}
@@ -189,14 +212,18 @@ export function CityScreen() {
       {!inInterior && <ControlsHint />}
       {/* The map: small in the corner while you walk, large when clicked. Out
           of the way of any other panel, and gone indoors. */}
-      {!inInterior && worldReady && askTrack === false && (!panelOpen || mapOpen) && (
-        <Minimap
-          open={mapOpen}
-          showMini={showMinimap}
-          onOpen={() => setMapOpen(true)}
-          onClose={() => setMapOpen(false)}
-        />
-      )}
+      {!inInterior &&
+        worldReady &&
+        askTrack === false &&
+        makeCharacter === false &&
+        (!panelOpen || mapOpen) && (
+          <Minimap
+            open={mapOpen}
+            showMini={showMinimap}
+            onOpen={() => setMapOpen(true)}
+            onClose={() => setMapOpen(false)}
+          />
+        )}
 
       {nearVenue && !panelOpen && (
         <div className="pointer-events-none absolute bottom-10 left-1/2 z-10 -translate-x-1/2 animate-slide-up">
@@ -287,7 +314,7 @@ function CityLoader({ pct }: { pct: number }) {
 
 // City billboard headlines — half flavor, half genuinely useful training tips.
 const CITY_TIPS = [
-  "DOWNTOWN GAZETTE: Coin balances are server-verified. No funny business, ever.",
+  "DOWNTOWN GAZETTE: Dollar balances are server-verified. No funny business, ever.",
   "TRANSIT NOTICE: Crosswalks lead to venue doors. Follow the gold markers.",
   "MARKET WATCH: Needs before wants — the Bank's first lesson is free.",
   "CITY WIRE: Trophy Hall shelves polished daily. Bring badges.",
@@ -329,8 +356,8 @@ function FoundersPanel({ onClose }: { onClose: () => void }) {
       <p className="text-xs uppercase tracking-widest text-muted">Founders' Plaque</p>
       <h2 className="mt-2 font-display text-2xl font-semibold text-gold">CEO CITY — EST. 2026</h2>
       <p className="mt-4 text-sm text-muted">
-        Raised brick by brick for the WarRoom Academy, so learning a competency feels like walking
-        into a building, not opening a form.
+        Raised brick by brick for CEO City, so learning a competency feels like walking into a
+        building, not opening a form.
       </p>
       <p className="mt-3 text-xs text-muted">
         Sprite art from the wonderful CC0 isometric packs by Kenney (kenney.nl) — thank you.
