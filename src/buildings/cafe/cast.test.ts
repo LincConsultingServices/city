@@ -129,16 +129,17 @@ describe("the Café cast", () => {
     }
   });
 
-  it("puts two people in the room: the barista and the interviewer", () => {
+  it("opens with the barista, the interviewer, and a regular you can talk to", () => {
     // Priya is the anchor — anything without a host falls back to her, so a room
     // without her is a room where a line has no speaker. Owen is the reason the
-    // player walked in. Nobody else is in the room to be walked past.
+    // player walked in. Leela works at the table by the door — somebody to talk
+    // to, not somebody to walk past.
     expect(OPENING_CAST).toContain("priya");
     expect(OPENING_CAST).toContain("owen");
     for (const id of OPENING_CAST) {
       expect(castById(id), `${id} is in the opening cast but not in CAST`).toBeTruthy();
     }
-    expect(castPresent(OPENING_CAST).map((m) => m.id)).toEqual(["priya", "owen"]);
+    expect(castPresent(OPENING_CAST).map((m) => m.id)).toEqual(["priya", "owen", "leela"]);
   });
 
   it("keeps the same two people in every world state", () => {
@@ -146,7 +147,7 @@ describe("the Café cast", () => {
     // on Level B — and the room filled and emptied around a set of weeks that no
     // longer exist. It takes no arguments now, and this is the test that fails
     // if a world state ever starts putting strangers back in the room.
-    expect(castFor()).toEqual(["priya", "owen"]);
+    expect(castFor()).toEqual(["priya", "owen", "leela"]);
     expect(castFor()).not.toBe(OPENING_CAST); // a copy, not the frozen list
   });
 

@@ -1,129 +1,362 @@
-import { useState, type FormEvent } from "react";
-import { signIn } from "@/framework/auth/firebase";
-import { appConfig, isConfigured } from "@/framework/config/appConfig";
-import { Icon } from "./Icon";
+import { useId, useState, type FormEvent, type ReactNode } from "react";
+import {
+  resetPassword,
+  signIn,
+  signInWithGoogle,
+  signUp,
+  type AuthOutcome,
+} from "@/framework/auth/firebase";
+import { isConfigured } from "@/framework/config/appConfig";
 
-// Login (PRD §10). No in-game sign-up: an unrecognised account routes to the
-// WarRoom register page. Ported look/flow from the Godot F0 login.
+// The way into CEO City: sign in, create an account, or get back into one.
+// Accounts are CEO City's own (its own Firebase project). Three modes on one
+// card over the city skyline, so moving between them never feels like leaving.
+
+type Mode = "signin" | "signup" | "reset";
+
+const MIN_PASSWORD = 6;
+
 export function Login() {
+  const [mode, setMode] = useState<Mode>("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<null | "form" | "google">(null);
   const [error, setError] = useState(
-    isConfigured() ? "" : "Set FIREBASE_API_KEY in .env to enable sign-in.",
+    isConfigured() ? "" : "Sign-in isn't set up yet — add CEO City's Firebase settings to .env.",
   );
-  const [showRegister, setShowRegister] = useState(false);
+  const [notice, setNotice] = useState("");
+  const ids = { name: useId(), email: useId(), password: useId(), confirm: useId() };
+
+  const go = (next: Mode) => {
+    setMode(next);
+    setError("");
+    setNotice("");
+    setPassword("");
+    setConfirm("");
+  };
+
+  const finish = (res: AuthOutcome) => {
+    setBusy(null);
+    // On success AuthProvider moves the app into the city by itself.
+    if (!res.ok && res.status !== "cancelled") setError(res.message);
+  };
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
     setError("");
-    setBusy(true);
-    const res = await signIn(email.trim(), password, remember);
-    setBusy(false);
-    if (res.ok) return; // AuthProvider flips the app to the city
-    if (res.status === "unregistered") setShowRegister(true);
-    else setError(res.message);
+    setNotice("");
+    const mail = email.trim();
+    if (mode === "reset") {
+      setBusy("form");
+      const res = await resetPassword(mail);
+      setBusy(null);
+      if (res.ok) setNotice(`If there's an account for ${mail}, a reset link is on its way.`);
+      else setError(res.message);
+      return;
+    }
+    if (mode === "signup") {
+      if (!name.trim()) return setError("Tell us your name.");
+      if (password.length < MIN_PASSWORD)
+        return setError(`Choose a password of at least ${MIN_PASSWORD} characters.`);
+      if (password !== confirm) return setError("The two passwords don't match.");
+      setBusy("form");
+      return finish(await signUp(name, mail, password, remember));
+    }
+    setBusy("form");
+    finish(await signIn(mail, password, remember));
   }
 
+  async function google() {
+    if (busy) return;
+    setError("");
+    setBusy("google");
+    finish(await signInWithGoogle(remember));
+  }
+
+  const title =
+    mode === "signin"
+      ? "Welcome back"
+      : mode === "signup"
+        ? "Start your career"
+        : "Reset your password";
+  const subtitle =
+    mode === "signin"
+      ? "Sign in to pick up where you left off."
+      : mode === "signup"
+        ? "Create your CEO City account — it takes a minute."
+        : "We'll email you a link to choose a new one.";
+
   return (
-    <div className="relative grid min-h-screen place-items-center overflow-hidden bg-ink">
+    <div className="relative grid min-h-screen place-items-center overflow-hidden bg-ink px-4 py-8">
       <Skyline />
-      <form
-        onSubmit={onSubmit}
-        className="relative z-10 w-[360px] rounded-2xl border border-line/70 bg-surface/80 p-7 shadow-2xl backdrop-blur"
-      >
-        <h1 className="text-center font-display text-4xl font-semibold tracking-wide text-gold">
+      <div className="relative z-10 w-full max-w-[400px]">
+        <p className="text-center font-display text-4xl font-semibold tracking-wide text-gold">
           CEO CITY
-        </h1>
-        <p className="mt-1 text-center text-sm text-muted">Sign in with your WarRoom account</p>
+        </p>
+        <p className="mt-1 text-center text-xs uppercase tracking-[0.3em] text-muted">
+          From first shift to the corner office
+        </p>
 
-        <label className="mt-6 block text-xs font-medium text-muted" htmlFor="email">
-          Email
-        </label>
-        <input
-          id="email"
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-text outline-none focus:border-gold"
-          required
-        />
-
-        <label className="mt-4 block text-xs font-medium text-muted" htmlFor="password">
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-text outline-none focus:border-gold"
-          required
-        />
-
-        <label className="mt-4 flex items-center gap-2 text-sm text-muted">
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-          />
-          Remember me on this device
-        </label>
-
-        {error && <p className="mt-3 text-sm text-danger">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={busy}
-          className="mt-5 w-full rounded-lg bg-gold py-2.5 font-medium text-ink transition hover:brightness-110 disabled:opacity-60"
+        <form
+          onSubmit={onSubmit}
+          noValidate
+          aria-labelledby="auth-title"
+          className="mt-6 rounded-2xl border border-line/70 bg-surface/85 p-7 shadow-2xl backdrop-blur"
         >
-          {busy ? "Entering…" : "Enter the city"}
-        </button>
+          {mode !== "reset" && (
+            <div
+              role="tablist"
+              aria-label="Account"
+              className="mb-5 grid grid-cols-2 rounded-xl bg-surface-2 p-1"
+            >
+              {(["signin", "signup"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === m}
+                  onClick={() => go(m)}
+                  className={`rounded-lg py-1.5 text-sm transition ${
+                    mode === m ? "bg-gold text-ink font-medium" : "text-muted hover:text-text"
+                  }`}
+                >
+                  {m === "signin" ? "Sign in" : "Create account"}
+                </button>
+              ))}
+            </div>
+          )}
 
-        <button
-          type="button"
-          onClick={() => setShowRegister(true)}
-          className="mt-3 block w-full text-center text-xs text-muted underline-offset-2 hover:text-gold hover:underline"
-        >
-          New to WarRoom? Register
-        </button>
-      </form>
+          <h1 id="auth-title" className="font-display text-2xl font-semibold text-text">
+            {title}
+          </h1>
+          <p className="mt-1 text-sm text-muted">{subtitle}</p>
 
-      {showRegister && <RegisterInterstitial onClose={() => setShowRegister(false)} />}
+          {mode === "signup" && (
+            <Field id={ids.name} label="Your name">
+              <input
+                id={ids.name}
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={INPUT}
+                required
+              />
+            </Field>
+          )}
+
+          <Field id={ids.email} label="Email">
+            <input
+              id={ids.email}
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={INPUT}
+              required
+            />
+          </Field>
+
+          {mode !== "reset" && (
+            <Field
+              id={ids.password}
+              label="Password"
+              aside={
+                mode === "signin" ? (
+                  <button
+                    type="button"
+                    onClick={() => go("reset")}
+                    className="text-xs text-muted underline-offset-2 hover:text-gold hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                ) : undefined
+              }
+            >
+              <div className="relative">
+                <input
+                  id={ids.password}
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`${INPUT} pr-16`}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-pressed={showPassword}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs text-muted hover:text-text"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+              {mode === "signup" && (
+                <p className="mt-1 text-[11px] text-muted">At least {MIN_PASSWORD} characters.</p>
+              )}
+            </Field>
+          )}
+
+          {mode === "signup" && (
+            <Field id={ids.confirm} label="Confirm password">
+              <input
+                id={ids.confirm}
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                className={INPUT}
+                required
+              />
+            </Field>
+          )}
+
+          {mode !== "reset" && (
+            <label className="mt-4 flex items-center gap-2 text-sm text-muted">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              Keep me signed in on this device
+            </label>
+          )}
+
+          {error && (
+            <p role="alert" className="mt-3 text-sm text-danger">
+              {error}
+            </p>
+          )}
+          {notice && (
+            <p role="status" className="mt-3 text-sm text-text">
+              {notice}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={busy !== null || !isConfigured()}
+            className="mt-5 w-full rounded-lg bg-gold py-2.5 font-medium text-ink transition hover:brightness-110 disabled:opacity-60"
+          >
+            {busy === "form"
+              ? mode === "reset"
+                ? "Sending…"
+                : mode === "signup"
+                  ? "Creating your account…"
+                  : "Entering…"
+              : mode === "reset"
+                ? "Send reset link"
+                : mode === "signup"
+                  ? "Create account"
+                  : "Enter the city"}
+          </button>
+
+          {mode !== "reset" && (
+            <>
+              <div className="my-4 flex items-center gap-3 text-[11px] uppercase tracking-widest text-muted">
+                <span className="h-px flex-1 bg-line/70" />
+                or
+                <span className="h-px flex-1 bg-line/70" />
+              </div>
+              <button
+                type="button"
+                onClick={() => void google()}
+                disabled={busy !== null || !isConfigured()}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-line/80 bg-surface-2 py-2.5 text-sm text-text transition hover:border-gold/60 disabled:opacity-60"
+              >
+                <GoogleMark />
+                {busy === "google" ? "Opening Google…" : "Continue with Google"}
+              </button>
+            </>
+          )}
+
+          <p className="mt-5 text-center text-xs text-muted">
+            {mode === "signin" && (
+              <>
+                New here? <LinkButton onClick={() => go("signup")}>Create an account</LinkButton>
+              </>
+            )}
+            {mode === "signup" && (
+              <>
+                Already have an account?{" "}
+                <LinkButton onClick={() => go("signin")}>Sign in</LinkButton>
+              </>
+            )}
+            {mode === "reset" && (
+              <LinkButton onClick={() => go("signin")}>Back to sign in</LinkButton>
+            )}
+          </p>
+        </form>
+      </div>
     </div>
   );
 }
 
-function RegisterInterstitial({ onClose }: { onClose: () => void }) {
+const INPUT =
+  "mt-1 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-text outline-none focus:border-gold";
+
+function Field({
+  id,
+  label,
+  aside,
+  children,
+}: {
+  id: string;
+  label: string;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <div className="absolute inset-0 z-20 grid place-items-center bg-ink/80 backdrop-blur-sm">
-      <div className="w-[400px] rounded-2xl border border-line bg-surface p-7 text-center">
-        <h2 className="font-display text-2xl font-semibold text-gold">
-          Your WarRoom account is your ticket into the city
-        </h2>
-        <p className="mt-3 text-sm text-muted">
-          Sign-up happens on the main WarRoom site. Register there, then come back and sign in.
-        </p>
-        <a
-          href={appConfig.registerUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-5 inline-block rounded-lg bg-gold px-5 py-2.5 font-medium text-ink hover:brightness-110"
-        >
-          <span className="inline-flex items-center gap-1.5">
-            Register at WarRoom
-            <Icon name="arrow-right" className="h-3.5 w-3.5" />
-          </span>
-        </a>
-        <button onClick={onClose} className="mt-3 block w-full text-xs text-muted hover:text-text">
-          I've registered — try again
-        </button>
+    <div className="mt-4">
+      <div className="flex items-baseline justify-between">
+        <label className="block text-xs font-medium text-muted" htmlFor={id}>
+          {label}
+        </label>
+        {aside}
       </div>
+      {children}
     </div>
+  );
+}
+
+function LinkButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="font-medium text-gold underline-offset-2 hover:underline"
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Google's "G", for the sign-in button. */
+function GoogleMark() {
+  return (
+    <svg aria-hidden viewBox="0 0 48 48" className="h-4 w-4">
+      <path
+        fill="#EA4335"
+        d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.7z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.1 1.4-4.9 2.3-8.2 2.3-6.2 0-11.5-4.1-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"
+      />
+    </svg>
   );
 }
 

@@ -6,7 +6,7 @@ import { Gate } from "./Gate";
 import { Report } from "./Report";
 import { Decision } from "./Decision";
 import { stageById } from "./journey";
-import { useJourneyStore, resetJourney } from "./journeyStore";
+import { useJourneyStore, resetJourney, type StageOutcome } from "./journeyStore";
 
 vi.mock("@/framework/api", () => ({
   api: {
@@ -251,5 +251,83 @@ describe("the decision", () => {
       unmount();
     }
     expect(anyShuffled, "every lettered scene shipped in authored order").toBe(true);
+  });
+});
+
+describe("the salary at the door", () => {
+  const exitWith = (salary: NonNullable<StageOutcome["salary"]>) =>
+    useJourneyStore.setState({
+      stageId: "cafe.exit",
+      role: "ceo",
+      outcome: {
+        stageId: "cafe.exit",
+        attemptNo: 0,
+        bestAttemptNo: 0,
+        rawScore: 0,
+        questionScores: [],
+        band: "",
+        feedback: "",
+        revenue: 0,
+        revenueDelta: 0,
+        coinsBanked: salary.credited ? salary.total : 0,
+        salary,
+      },
+    });
+
+  const lines: NonNullable<StageOutcome["salary"]>["lines"] = [
+    {
+      unitId: "cafe.l1.s1",
+      stageId: "cafe.l1",
+      base: 100,
+      category: "best",
+      percent: 120,
+      amount: 120,
+    },
+    {
+      unitId: "cafe.l1.s2",
+      stageId: "cafe.l1",
+      base: 100,
+      category: "worst",
+      percent: 80,
+      amount: 80,
+    },
+    {
+      unitId: "cafe.succession.pick",
+      stageId: "cafe.succession",
+      base: 500,
+      category: "normal",
+      percent: 100,
+      amount: 500,
+    },
+  ];
+
+  it("shows the total, that it was paid, and what each decision added", () => {
+    exitWith({ total: 700, lines, handedOver: true, credited: true, balance: 800 });
+    render(<Report onClose={() => {}} />);
+    expect(screen.getByText("$700")).toBeInTheDocument();
+    expect(screen.getByText("Added to your wallet.")).toBeInTheDocument();
+    expect(screen.getByText("Customer Scene 1 — Customer Needs")).toBeInTheDocument();
+    expect(screen.getByText("Choosing your successor")).toBeInTheDocument();
+    expect(screen.getByText(/Best choice · 120% of \$100/)).toBeInTheDocument();
+    expect(screen.getByText(/Worst choice · 80% of \$100/)).toBeInTheDocument();
+    expect(screen.getByText(/Normal choice · 100% of \$500/)).toBeInTheDocument();
+  });
+
+  it("says plainly when nothing was paid because the café was not handed on", () => {
+    exitWith({
+      total: 200,
+      lines: lines.slice(0, 2),
+      handedOver: false,
+      credited: false,
+      balance: 100,
+    });
+    render(<Report onClose={() => {}} />);
+    expect(screen.getByText(/no salary is paid/)).toBeInTheDocument();
+  });
+
+  it("says when an earlier career was already paid", () => {
+    exitWith({ total: 700, lines, handedOver: true, credited: false, balance: 800 });
+    render(<Report onClose={() => {}} />);
+    expect(screen.getByText(/already paid/)).toBeInTheDocument();
   });
 });

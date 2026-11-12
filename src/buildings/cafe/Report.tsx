@@ -18,8 +18,8 @@
 import { useState } from "react";
 import { Modal } from "@/ui/Modal";
 import { Evaluation } from "@/ui/Evaluation";
-import { ROLE_LABEL, STAGES } from "./journey";
-import { useJourneyStore } from "./journeyStore";
+import { ROLE_LABEL, STAGES, stageById } from "./journey";
+import { useJourneyStore, type StageOutcome } from "./journeyStore";
 
 export function Report({ onClose }: { onClose: () => void }) {
   const [showAssessment, setShowAssessment] = useState(false);
@@ -30,7 +30,7 @@ export function Report({ onClose }: { onClose: () => void }) {
   const unsent = useJourneyStore((s) => s.unsent);
   const outcome = useJourneyStore((s) => s.outcome);
 
-  const banked = outcome?.stageId === "cafe.exit" ? outcome.coinsBanked : 0;
+  const salary = outcome?.stageId === "cafe.exit" ? (outcome.salary ?? null) : null;
 
   if (showAssessment) {
     return (
@@ -79,11 +79,7 @@ export function Report({ onClose }: { onClose: () => void }) {
           <Fact label="Questions answered" value={String(qaDone.length)} />
         </dl>
 
-        {banked > 0 && (
-          <p className="mt-4 text-sm leading-relaxed text-text">
-            {banked.toLocaleString()} coins banked on the way out.
-          </p>
-        )}
+        {salary && <SalarySummary salary={salary} />}
 
         <h3 className="mt-6 text-xs uppercase tracking-widest text-muted">Where you worked</h3>
         <ol className="mt-3 space-y-2.5">
@@ -165,4 +161,92 @@ function postings(decided: readonly { unitId: string }[]) {
 
 function article(role: string): string {
   return /^[AEIOU]/i.test(role) ? `an ${role}` : `a ${role}`;
+}
+
+type Salary = NonNullable<StageOutcome["salary"]>;
+
+/** Which way each category reads. */
+const CATEGORY: Record<Salary["lines"][number]["category"], { label: string; tone: string }> = {
+  best: { label: "Best choice", tone: "text-[#7cc48a]" },
+  normal: { label: "Normal choice", tone: "text-muted" },
+  worst: { label: "Worst choice", tone: "text-[#e08a82]" },
+};
+
+/**
+ * The career's pay: the total, whether it is in the wallet, and what each
+ * decision added. Shown once, here, at the door — the first moment a tier can
+ * be read without changing a decision still to come.
+ */
+function SalarySummary({ salary }: { salary: Salary }) {
+  const byStage = new Map<string, Salary["lines"]>();
+  for (const line of salary.lines) {
+    byStage.set(line.stageId, [...(byStage.get(line.stageId) ?? []), line]);
+  }
+  const money = (n: number) => `$${n.toLocaleString()}`;
+
+  return (
+    <section
+      aria-labelledby="salary-h"
+      className="mt-6 rounded-xl border border-gold/40 bg-gold/5 p-4"
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 id="salary-h" className="text-xs uppercase tracking-widest text-gold">
+          Your salary
+        </h3>
+        <span className="font-display text-2xl tabular-nums text-text">{money(salary.total)}</span>
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-muted">
+        {!salary.handedOver
+          ? "You left before handing the café on, so no salary is paid. This is what your decisions were worth."
+          : salary.credited
+            ? "Added to your wallet."
+            : "Your first career here was already paid, so this one is not paid again."}
+      </p>
+
+      {[...byStage.entries()].map(([stageId, lines]) => {
+        const stage = stageById(stageId);
+        const subtotal = lines.reduce((n, l) => n + l.amount, 0);
+        return (
+          <div key={stageId} className="mt-4">
+            <div className="flex items-baseline justify-between text-xs">
+              <span className="font-medium text-text">
+                {stage ? `${ROLE_LABEL[stage.role]} · ${stage.title}` : stageId}
+              </span>
+              <span className="tabular-nums text-muted">{money(subtotal)}</span>
+            </div>
+            <ul className="mt-1.5 space-y-1">
+              {lines.map((l) => (
+                <li key={l.unitId} className="flex items-baseline gap-3 text-xs">
+                  <span
+                    className="min-w-0 flex-1 truncate text-text"
+                    title={decisionTitle(l.unitId)}
+                  >
+                    {decisionTitle(l.unitId)}
+                  </span>
+                  <span className={`shrink-0 ${CATEGORY[l.category].tone}`}>
+                    {CATEGORY[l.category].label} · {l.percent}% of {money(l.base)}
+                  </span>
+                  <span className="w-14 shrink-0 text-right tabular-nums text-text">
+                    {money(l.amount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+/** A decision's name, from the scene or business scene it belongs to. */
+function decisionTitle(unitId: string): string {
+  for (const stage of STAGES) {
+    if (stage.pickUnitId === unitId) return "Choosing your successor";
+    const scene = stage.scenes?.find((x) => x.unitId === unitId);
+    if (scene) return scene.title;
+    const tree = stage.trees?.find((x) => x.unitId === unitId);
+    if (tree) return tree.title;
+  }
+  return unitId;
 }

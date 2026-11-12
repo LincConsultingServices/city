@@ -9,12 +9,7 @@ import { mapToWorld, worldToMap, roundCell, TILE_W, TILE_H } from "@/lib/iso";
 import { findPath, type Cell } from "@/lib/pathfinding";
 import { prefersReducedMotion } from "@/lib/motion";
 import { clockMinutes, dayPhase, lerpColor, BOOT_PHASE_OFFSET_S } from "@/lib/daycycle";
-import {
-  bakePersonTextures,
-  bakeShadowTexture,
-  destroyTextures,
-  PLAYER_PALETTE,
-} from "./characterArt";
+import { bakePersonTextures, bakeShadowTexture, destroyTextures } from "./characterArt";
 import { createAmbient, type Ambient } from "./ambient";
 import { events } from "@/framework/events";
 import { useEggStore } from "@/framework/eggStore";
@@ -58,6 +53,7 @@ import { useWorldStore } from "./worldStore";
 import { createGuide } from "./guideView";
 import { hasArrived } from "./navigation";
 import { useSettings } from "@/framework/settings";
+import { currentIdentity, paletteFor, useIdentity } from "@/framework/player/identity";
 
 const WALK_SPEED = 175; // px/sec (≈1.3 tiles/sec on the 132px grid)
 const STEP_S = 0.18; // seconds per walk-cycle frame
@@ -235,7 +231,12 @@ export function CityCanvas({
       }
 
       // Player rig: shared shadow + a body sprite swapping baked walk frames.
-      const playerTex = bakePersonTextures(application.renderer, PLAYER_PALETTE);
+      // Drawn as the player's own character (framework/player/identity.ts), in
+      // their street clothes.
+      let playerTex = bakePersonTextures(
+        application.renderer,
+        paletteFor(currentIdentity(), "casual"),
+      );
       const shadowTex = bakeShadowTexture(application.renderer);
       bakedTextures.push(...playerTex.all, shadowTex);
       const char = new Container();
@@ -247,6 +248,19 @@ export function CityCanvas({
       char.addChild(charShadow, charBody);
       actors.addChild(char);
       let facing: Cardinal = "S";
+      // The street is already drawn when the character is first made (the
+      // creator opens over the loaded city), so a new look is baked on the spot.
+      offBus.push(
+        useIdentity.subscribe((s, prev) => {
+          if (destroyed || !s.identity || s.identity === prev.identity) return;
+          const old = playerTex;
+          playerTex = bakePersonTextures(application.renderer, paletteFor(s.identity, "casual"));
+          bakedTextures = bakedTextures.filter((t) => !old.all.includes(t));
+          bakedTextures.push(...playerTex.all);
+          charBody.texture = playerTex.idle[facing];
+          destroyTextures(old.all);
+        }),
+      );
       let stepClock = 0;
       let lastStepFrame = 0;
       let elapsed = 0;

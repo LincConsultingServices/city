@@ -9,6 +9,7 @@
 // The layers go back to front: hair that falls behind the head, the body and
 // its clothes, the neck, the head, the face, the hair over the forehead, and
 // last whatever sits on top — a hat, glasses, sunglasses pushed into the hair.
+import { useId } from "react";
 import type { CharacterLook } from "./characters";
 import { artFor } from "./paintedArt";
 
@@ -40,6 +41,7 @@ export function Portrait({
   /** Spoken by assistive tech; omit when the name is already on screen. */
   title?: string;
 }) {
+  const clipId = useId();
   const art = artFor(artId);
   if (art) {
     // Full-body art, cropped from the top: the conversation box shows head to
@@ -62,15 +64,61 @@ export function Portrait({
       aria-hidden={title ? undefined : true}
     >
       <g strokeLinejoin="round" strokeLinecap="round">
+        {look.wheelchair && <ChairBack />}
         <BackHair look={look} />
         <Body look={look} />
+        {look.wheelchair && <ChairWheels />}
         <Neck look={look} />
-        <Head look={look} />
+        <Head look={look} clipId={clipId} />
         <Face look={look} />
         <FrontHair look={look} />
         <Topping look={look} />
       </g>
     </svg>
+  );
+}
+
+// ── A wheelchair ─────────────────────────────────────────────────────────────
+
+const CHAIR = "#2b2f36";
+const RIM = "#9aa3ad";
+
+/** The backrest's push handles, rising behind the shoulders. */
+function ChairBack() {
+  return (
+    <g>
+      {[
+        [44, -1],
+        [256, 1],
+      ].map(([x, dir]) => (
+        <g key={x}>
+          <path d={`M${x} 400 L${x} 262`} stroke={CHAIR} strokeWidth="11" />
+          <path
+            d={`M${x} 262 C ${x} 250, ${x + dir * 6} 244, ${x + dir * 20} 244`}
+            stroke={CHAIR}
+            strokeWidth="11"
+            fill="none"
+          />
+          <path d={`M${x + dir * 12} 244 L${x + dir * 26} 244`} stroke="#15171b" strokeWidth="14" />
+        </g>
+      ))}
+    </g>
+  );
+}
+
+/** The tops of the two big wheels and their push-rims, either side of the lap. */
+function ChairWheels() {
+  return (
+    <g fill="none">
+      {[6, 294].map((cx) => (
+        <g key={cx}>
+          <circle cx={cx} cy={470} r={118} stroke={CHAIR} strokeWidth="14" />
+          <circle cx={cx} cy={470} r={118} stroke={RIM} strokeWidth="3" opacity="0.7" />
+          <circle cx={cx} cy={470} r={100} stroke={RIM} strokeWidth="5" />
+          <circle cx={cx} cy={470} r={100} stroke={INK} strokeWidth="1.5" opacity="0.5" />
+        </g>
+      ))}
+    </g>
   );
 }
 
@@ -128,13 +176,29 @@ function BackHair({ look }: { look: CharacterLook }) {
 const TORSO = "M28 400 C 32 318, 72 282, 150 276 C 228 282, 268 318, 272 400 Z";
 const TORSO_SHADE = "M150 276 C 228 282, 268 318, 272 400 L 200 400 C 200 344, 184 300, 150 276 Z";
 
+/**
+ * How wide the shoulders are, as a horizontal scale about the centre line.
+ * Unset (every NPC) is 1 — the rig as it has always been drawn.
+ */
+function bodyWidth(look: CharacterLook): number {
+  if (look.gender === "female") {
+    return look.build === "slim" ? 0.8 : look.build === "curvy" ? 0.92 : 0.86;
+  }
+  if (look.build === "slim") return 0.9;
+  if (look.build === "broad") return 1.1;
+  return 1;
+}
+
+const scaleAboutCentre = (k: number) =>
+  k === 1 ? undefined : `translate(150 0) scale(${k} 1) translate(-150 0)`;
+
 function Body({ look }: { look: CharacterLook }) {
   const top = hex(look.top);
   const accent = hex(look.accent ?? look.top);
   const dark = shade(look.top, 0.72);
 
   return (
-    <g>
+    <g transform={scaleAboutCentre(bodyWidth(look))}>
       <path d={TORSO} fill={top} stroke={INK} strokeWidth={LINE} />
       <Clothes look={look} top={top} accent={accent} dark={dark} />
       {/* The cel shadow on the side away from the light, over all of it. */}
@@ -409,10 +473,22 @@ function Clothes({
 const FACE =
   "M96 142 C 96 84, 204 84, 204 142 L 201 184 C 196 224, 174 248, 150 250 C 126 248, 104 224, 99 184 Z";
 
+/** The outline of the face, by shape. Oval is the rig's own. */
+const FACES: Record<NonNullable<CharacterLook["face"]>, string> = {
+  oval: FACE,
+  square:
+    "M96 142 C 96 84, 204 84, 204 142 L 204 194 C 203 226, 186 246, 150 248 C 114 246, 97 226, 96 194 Z",
+  angular:
+    "M96 142 C 96 84, 204 84, 204 142 L 202 176 C 194 210, 170 246, 150 254 C 130 246, 106 210, 98 176 Z",
+  round: "M96 142 C 96 84, 204 84, 204 142 C 206 194, 188 242, 150 244 C 112 242, 94 194, 96 142 Z",
+  heart:
+    "M95 140 C 95 82, 205 82, 205 140 C 205 172, 196 202, 178 226 C 168 240, 158 248, 150 250 C 142 248, 132 240, 122 226 C 104 202, 95 172, 95 140 Z",
+};
+
 function Neck({ look }: { look: CharacterLook }) {
   const skin = hex(look.skin);
   return (
-    <g>
+    <g transform={scaleAboutCentre(look.gender === "female" ? 0.84 : 1)}>
       <path
         d="M128 226 L 128 282 Q 150 294 172 282 L 172 226 Z"
         fill={skin}
@@ -428,18 +504,25 @@ function Neck({ look }: { look: CharacterLook }) {
   );
 }
 
-function Head({ look }: { look: CharacterLook }) {
+function Head({ look, clipId }: { look: CharacterLook; clipId: string }) {
   const skin = hex(look.skin);
   const skinShade = shade(look.skin, 0.82);
+  const face = FACES[look.face ?? "oval"];
   return (
     <g>
+      <defs>
+        <clipPath id={clipId}>
+          <path d={face} />
+        </clipPath>
+      </defs>
       <ellipse cx="97" cy="170" rx="11" ry="17" fill={skin} stroke={INK} strokeWidth={LINE} />
       <ellipse cx="203" cy="170" rx="11" ry="17" fill={skin} stroke={INK} strokeWidth={LINE} />
       <path d="M97 162 Q 92 170 97 178" stroke={skinShade} strokeWidth="3" fill="none" />
       <path d="M203 162 Q 208 170 203 178" stroke={skinShade} strokeWidth="3" fill="none" />
-      <path d={FACE} fill={skin} stroke={INK} strokeWidth={LINE} />
-      {/* One hard shadow down the far side of the face. */}
+      <path d={face} fill={skin} stroke={INK} strokeWidth={LINE} />
+      {/* One hard shadow down the far side of the face, kept inside its outline. */}
       <path
+        clipPath={`url(#${clipId})`}
         d="M176 104 C 200 118, 206 152, 200 186 C 194 222, 176 242, 158 248 C 178 228, 186 198, 186 170 C 186 142, 182 122, 176 104 Z"
         fill={skinShade}
         opacity="0.7"
@@ -467,24 +550,28 @@ function Face({ look }: { look: CharacterLook }) {
   const brow = shade(look.hair, look.hair > 0xb00000 ? 0.6 : 0.8);
   const skinShade = shade(look.skin, 0.72);
   const expression = look.expression ?? "smile";
+  const female = look.gender === "female";
+  // A woman's brows are finer and more arched; a man's as the rig has them.
+  const browWidth = female ? 4 : 6;
+  const browL = female
+    ? "M110 146 Q 124 130 141 141"
+    : expression === "grin"
+      ? "M110 144 Q 126 132 140 142"
+      : "M110 146 Q 126 138 140 146";
+  const browR = female
+    ? "M159 141 Q 176 130 190 146"
+    : expression === "grin"
+      ? "M160 142 Q 174 132 190 144"
+      : "M160 146 Q 174 138 190 146";
+  const lip = "#b4475a";
 
   return (
     <g>
-      {look.beard && <Beard look={look} />}
+      {look.beard && !female && <Beard look={look} />}
 
       {/* Brows: level when calm, lifted when grinning. */}
-      <path
-        d={expression === "grin" ? "M110 144 Q 126 132 140 142" : "M110 146 Q 126 138 140 146"}
-        stroke={brow}
-        strokeWidth="6"
-        fill="none"
-      />
-      <path
-        d={expression === "grin" ? "M160 142 Q 174 132 190 144" : "M160 146 Q 174 138 190 146"}
-        stroke={brow}
-        strokeWidth="6"
-        fill="none"
-      />
+      <path d={browL} stroke={brow} strokeWidth={browWidth} fill="none" />
+      <path d={browR} stroke={brow} strokeWidth={browWidth} fill="none" />
 
       {/* Eyes: white, iris, pupil, a catch-light, and a heavy upper lash line. */}
       {[126, 174].map((cx) => (
@@ -509,11 +596,29 @@ function Face({ look }: { look: CharacterLook }) {
             fill="none"
             opacity="0.6"
           />
+          {female && (
+            // Lashes: two flicks off the outer corner of each eye.
+            <path
+              d={
+                cx < 150
+                  ? `M${cx - 13} 168 l -6 -4 M${cx - 9} 162 l -4 -6`
+                  : `M${cx + 13} 167 l 6 -4 M${cx + 9} 161 l 4 -6`
+              }
+              stroke={INK}
+              strokeWidth="2.5"
+              fill="none"
+            />
+          )}
         </g>
       ))}
 
-      {/* The nose: a shadow line and a highlight. */}
-      <path d="M152 178 Q 146 196 154 200" stroke={skinShade} strokeWidth="3.5" fill="none" />
+      {/* The nose: a shadow line and a highlight — a little finer on a woman. */}
+      <path
+        d={female ? "M152 182 Q 147 194 153 198" : "M152 178 Q 146 196 154 200"}
+        stroke={skinShade}
+        strokeWidth={female ? 3 : 3.5}
+        fill="none"
+      />
       <circle cx="147" cy="188" r="2.2" fill="#fff" opacity="0.35" />
 
       {/* The mouth, by expression. */}
@@ -528,9 +633,23 @@ function Face({ look }: { look: CharacterLook }) {
           <path d="M136 216 Q 150 221 164 216 L 162 220 Q 150 224 138 220 Z" fill="#fff" />
         </g>
       ) : expression === "calm" ? (
-        <path d="M138 218 Q 150 222 162 218" stroke={INK} strokeWidth="3.5" fill="none" />
+        <path
+          d="M138 218 Q 150 222 162 218"
+          stroke={female ? lip : INK}
+          strokeWidth="3.5"
+          fill="none"
+        />
       ) : (
-        <path d="M134 214 Q 150 228 166 214" stroke={INK} strokeWidth="3.5" fill="none" />
+        <path
+          d="M134 214 Q 150 228 166 214"
+          stroke={female ? lip : INK}
+          strokeWidth="3.5"
+          fill="none"
+        />
+      )}
+      {female && (
+        // Colour on the lips: a soft upper lip above the smile line.
+        <path d="M138 212 Q 144 207 150 210 Q 156 207 162 212 Q 150 215 138 212 Z" fill={lip} />
       )}
 
       {/* Age, from fifty: lines at the corners of the eyes, across the brow,

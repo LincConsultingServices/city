@@ -12,8 +12,7 @@
 # live on the Cloud Run service, and changing one is a new revision, not a
 # rebuild.
 #
-# Each setting accepts the names it is likely to be found under: this app's own
-# VITE_* names, the main WarRoom frontend's NEXT_PUBLIC_* names, and plain ones.
+# Each setting accepts this app's own VITE_* name, or a plain one.
 # A setting with no value is left out, so the build-time value or the app's
 # default still applies.
 set -eu
@@ -47,11 +46,10 @@ add() {
   fi
 }
 
-add firebaseApiKey "$(first VITE_FIREBASE_API_KEY NEXT_PUBLIC_FIREBASE_API_KEY FIREBASE_API_KEY)"
-add firebaseProjectId "$(first VITE_FIREBASE_PROJECT_ID NEXT_PUBLIC_FIREBASE_PROJECT_ID FIREBASE_PROJECT_ID)"
-add firebaseAuthDomain "$(first VITE_FIREBASE_AUTH_DOMAIN NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN FIREBASE_AUTH_DOMAIN)"
-add apiBaseUrl "$(first VITE_API_BASE_URL NEXT_PUBLIC_API_URL API_BASE_URL)"
-add registerUrl "$(first VITE_REGISTER_URL NEXT_PUBLIC_REGISTER_URL REGISTER_URL)"
+add firebaseApiKey "$(first VITE_FIREBASE_API_KEY FIREBASE_API_KEY)"
+add firebaseProjectId "$(first VITE_FIREBASE_PROJECT_ID FIREBASE_PROJECT_ID)"
+add firebaseAuthDomain "$(first VITE_FIREBASE_AUTH_DOMAIN FIREBASE_AUTH_DOMAIN)"
+add apiBaseUrl "$(first VITE_API_BASE_URL API_BASE_URL)"
 
 printf 'window.__CITY_CONFIG__ = {\n%s};\n' "$body" > "$OUT"
 
