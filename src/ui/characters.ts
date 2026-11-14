@@ -65,6 +65,15 @@ export interface CharacterLook {
   /** A tape measure around the neck. */
   tapeMeasure?: boolean;
   expression?: "smile" | "grin" | "calm";
+  /** Uses a wheelchair — drawn seated in it, in the world and in portraits. */
+  wheelchair?: boolean;
+  /**
+   * The player's own build, face shape and gender (framework/player/identity.ts).
+   * Unset — as for every NPC — draws the rig exactly as it always has been.
+   */
+  gender?: "male" | "female";
+  build?: "slim" | "average" | "broad" | "curvy";
+  face?: "oval" | "square" | "angular" | "round" | "heart";
 }
 
 export interface CharacterDesign {
@@ -105,32 +114,55 @@ const UNIFORM_APRON = 0x1d1d22;
  */
 export type PlayerOutfit = "casual" | "uniform" | "professional";
 
+/**
+ * The player dressed for an outfit. The face, hair and accessories are theirs
+ * in every one (framework/player/identity.ts); only the clothes change. At
+ * work the cap comes off — the counter has a dress code, and so does a board.
+ *
+ * `suit` is the colour of their suit once promoted; `tie` the tie on it.
+ */
+export function dressPlayer(
+  look: CharacterLook,
+  outfit: PlayerOutfit,
+  suit = 0x2f3a4f,
+  tie = 0x3d78d8,
+): CharacterLook {
+  switch (outfit) {
+    case "uniform":
+      return {
+        ...look,
+        clothes: "uniform",
+        top: UNIFORM_TOP,
+        accent: UNIFORM_APRON,
+        legs: UNIFORM_APRON,
+        hat: undefined,
+        hatColor: undefined,
+        expression: "smile",
+      };
+    case "professional":
+      return {
+        ...look,
+        clothes: "suit",
+        top: suit,
+        accent: tie,
+        legs: suit,
+        hat: undefined,
+        hatColor: undefined,
+        expression: "smile",
+      };
+    default:
+      return look;
+  }
+}
+
+/** The default player in each outfit, for the character gallery. */
 export const PLAYER_OUTFITS: Readonly<Record<PlayerOutfit, CharacterDesign>> = {
   casual: PLAYER,
-  uniform: {
-    name: "You",
-    role: "on the counter",
-    look: {
-      ...PLAYER.look,
-      clothes: "uniform",
-      top: UNIFORM_TOP,
-      accent: UNIFORM_APRON,
-      legs: UNIFORM_APRON,
-      expression: "smile",
-    },
-  },
+  uniform: { name: "You", role: "on the counter", look: dressPlayer(PLAYER.look, "uniform") },
   professional: {
     name: "You",
     role: "running the business",
-    look: {
-      ...PLAYER.look,
-      hairStyle: "swept",
-      clothes: "suit",
-      top: 0x2f3a4f,
-      accent: 0x3d78d8,
-      legs: 0x2f3a4f,
-      expression: "smile",
-    },
+    look: dressPlayer(PLAYER.look, "professional"),
   },
 };
 
@@ -270,6 +302,27 @@ export const CAFE_CAST = {
       earrings: "studs",
       freckles: true,
       expression: "calm",
+    },
+  },
+  leela: {
+    name: "Leela",
+    role: "the architect",
+    // A regular who works from the table by the door, laptop open. She uses a
+    // wheelchair; that is how she gets about, not who she is.
+    look: {
+      age: 41,
+      skin: 0xa9714b,
+      hair: 0x1d1712,
+      hairStyle: "long",
+      eyes: 0x3a2618,
+      clothes: "blazer",
+      top: 0x5b4a7a,
+      accent: 0xe8dfd0,
+      legs: 0x2c2f38,
+      glasses: 0x22262e,
+      earrings: "studs",
+      expression: "smile",
+      wheelchair: true,
     },
   },
 } as const satisfies Record<string, CharacterDesign>;
@@ -523,6 +576,19 @@ export const CROWD: readonly CharacterLook[] = [
     glasses: 0x6b5a3a,
     beard: "full",
   },
+  // Out and about in a wheelchair. Kept out of the café's customers, whose
+  // routine ends in sitting down on a café chair (customersView.ts).
+  {
+    skin: 0xd9a066,
+    hair: 0x2e2622,
+    hairStyle: "short",
+    clothes: "hoodie",
+    top: 0x4aa3c7,
+    accent: 0x2a5f78,
+    legs: 0x2f3a52,
+    beard: "stubble",
+    wheelchair: true,
+  },
 ];
 
 // ── Into the walking figure ──────────────────────────────────────────────────
@@ -547,5 +613,6 @@ export function paletteOf(look: CharacterLook): PersonPalette {
     hairStyle: look.hairStyle,
     beard: look.beard !== undefined && look.beard !== "stubble",
     glasses: look.glasses !== undefined && !look.glassesUp,
+    wheelchair: look.wheelchair || undefined,
   };
 }

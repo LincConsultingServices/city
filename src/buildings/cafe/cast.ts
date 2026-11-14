@@ -20,7 +20,7 @@ import { CAFE_CAST, paletteOf } from "@/ui/characters";
 import { GUIDE, type GuidePlace } from "./room";
 import type { Speaker } from "./Sheet";
 
-export type CastId = "priya" | "owen" | "tomas" | "marcus" | "nadia" | "ray" | "ellery";
+export type CastId = "priya" | "owen" | "tomas" | "marcus" | "nadia" | "ray" | "ellery" | "leela";
 
 /**
  * Anyone the room draws: somewhere to stand, a loop to walk, a palette, and how
@@ -229,6 +229,29 @@ export const CAST: readonly CastMember[] = [
       "I should say we're also talking to the place by the station.",
     ],
   },
+  {
+    id: "leela",
+    name: "Leela",
+    role: "the architect",
+    // Works from the table by the door in her own wheelchair, so she takes the
+    // open side of it rather than a café chair, facing the table.
+    palette: paletteOf(CAFE_CAST.leela.look),
+    anchor: { x: 6, y: 7 }, // the floor at the near four-top's open side
+    // Where you stand to talk to her: a step away, not on top of her chair.
+    approach: { x: 6, y: 6 },
+    patrol: [],
+    seated: false,
+    noticesAt: 2,
+    talkRadius: 1,
+    // About her work and the room, never about her chair — and, like everyone
+    // here, nothing about how the player is doing.
+    ambientLines: [
+      "Drawings are due at four. This table's the only place I get anything done.",
+      "I'm on my third coffee. Don't tell my doctor, don't tell my client.",
+      "Whoever moved the tables out last month — the room breathes now. Tell them I said so.",
+      "I design libraries, mostly. Cafés are where I go to find out how people actually use a room.",
+    ],
+  },
 ];
 
 /**
@@ -240,7 +263,7 @@ export const CAST: readonly CastMember[] = [
  *
  * **Owen is unremovable too, and for a blunter reason** — he is why you came in.
  */
-export const OPENING_CAST: readonly CastId[] = ["priya", "owen"];
+export const OPENING_CAST: readonly CastId[] = ["priya", "owen", "leela"];
 
 /**
  * Who is in the room, for a posting.
@@ -254,7 +277,9 @@ export const OPENING_CAST: readonly CastId[] = ["priya", "owen"];
  *
  * So they arrive by posting, not all at once:
  *
- *   - **candidate** — Priya and Owen. You are here for one conversation.
+ *   - **candidate** — Priya and Owen, and Leela working at the table by the
+ *     door. You are here for one conversation; she is somebody you can talk
+ *     to, which is the rule — not clutter.
  *   - **employee** — the regulars arrive, because working the counter means
  *     serving them: Marcus in his chair, Nadia on her way through.
  *   - **branch_manager** — Tomas, because the pass is his and the team is now
@@ -266,11 +291,11 @@ export const OPENING_CAST: readonly CastId[] = ["priya", "owen"];
 export function castFor(role: string = "candidate"): CastId[] {
   switch (role) {
     case "employee":
-      return ["priya", "owen", "marcus", "nadia"];
+      return ["priya", "owen", "marcus", "nadia", "leela"];
     case "branch_manager":
-      return ["priya", "owen", "tomas", "marcus"];
+      return ["priya", "owen", "tomas", "marcus", "leela"];
     case "ceo":
-      return ["priya", "tomas", "marcus", "ray", "ellery"];
+      return ["priya", "tomas", "marcus", "ray", "ellery", "leela"];
     default:
       return [...OPENING_CAST];
   }

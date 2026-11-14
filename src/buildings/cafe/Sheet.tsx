@@ -12,7 +12,8 @@
 // no height limit, one with no focus ring); a fix made here reaches all of them.
 import { useEffect, useState, type ReactNode } from "react";
 import { Portrait, type PortraitLook } from "@/ui/Portrait";
-import { PLAYER_OUTFITS, playerOutfitFor, type CharacterLook } from "@/ui/characters";
+import { playerOutfitFor, type CharacterLook } from "@/ui/characters";
+import { currentIdentity, lookOf, useIdentity } from "@/framework/player/identity";
 import { useJourneyStore } from "./journeyStore";
 import { prefersReducedMotion } from "@/lib/motion";
 
@@ -85,7 +86,6 @@ export function Sheet({
             />
             <Portrait
               look={you.look}
-              artId={you.artId}
               className={`animate-slide-up hidden h-[min(42vh,20rem)] w-auto -scale-x-100 drop-shadow-[0_18px_30px_rgb(0_0_0/0.55)] transition-[filter] duration-300 sm:block ${
                 typing ? "brightness-[0.6] saturate-[0.8]" : ""
               }`}
@@ -107,7 +107,7 @@ export function Sheet({
           )}
           {speaker && !typing && (
             <div className="absolute -top-4 right-6 z-10 hidden rounded-lg border-2 border-[#d9c9a3]/70 bg-surface-2 px-4 py-1 shadow-lg sm:block">
-              <span className="font-display text-base font-semibold text-gold">You</span>
+              <span className="font-display text-base font-semibold text-gold">{you.name}</span>
             </div>
           )}
 
@@ -150,14 +150,14 @@ export function Sheet({
 }
 
 /**
- * The player as they look in this room right now: dressed for their role, and
- * their painted art when there is some (`player.png`, `player_uniform.png`,
- * `player_professional.png`).
+ * The player as they look in this room right now: the character they made,
+ * dressed for their role. Always drawn from their own look — painted art of a
+ * generic player would be somebody else.
  */
-function usePlayerLook(): { look: CharacterLook; artId: string } {
+function usePlayerLook(): { look: CharacterLook; name: string } {
   const outfit = playerOutfitFor(useJourneyStore((s) => s.role));
-  const artId = outfit === "casual" ? "player" : `player_${outfit}`;
-  return { look: PLAYER_OUTFITS[outfit].look, artId };
+  const identity = useIdentity((s) => s.identity) ?? currentIdentity();
+  return { look: lookOf(identity, outfit), name: identity.name || "You" };
 }
 
 /**

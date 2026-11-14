@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/framework/auth/AuthProvider";
 import { signOutUser } from "@/framework/auth/firebase";
 import { useEconomyStore } from "@/framework/economy/economyStore";
+import { useIdentity } from "@/framework/player/identity";
 import { events } from "@/framework/events";
 import { useWorldStore } from "@/world/worldStore";
 import { currentObjective } from "@/framework/city/firstMission";
@@ -30,7 +31,10 @@ export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
   // open, and coming back out to the street mounts it again — which is the only
   // place the line is ever on screen anyway.
   const [objective] = useState(() => currentObjective());
-  const initial = (user?.displayName || user?.email || "?").charAt(0).toUpperCase();
+  // The name they gave their character; the account's name only before there is one.
+  const characterName = useIdentity((s) => s.identity?.name);
+  const shownName = characterName || user?.displayName || user?.email || "Player";
+  const initial = shownName.charAt(0).toUpperCase();
 
   // "+N" floater on real earnings (server's coinsEarned, not a client guess).
   useEffect(
@@ -67,9 +71,7 @@ export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
         <div className="grid h-8 w-8 place-items-center rounded-full bg-gold font-semibold text-ink">
           {initial}
         </div>
-        <span className="max-w-[140px] truncate text-sm text-text">
-          {user?.displayName || user?.email || "Player"}
-        </span>
+        <span className="max-w-[140px] truncate text-sm text-text">{shownName}</span>
       </div>
 
       {/* The one thing the city asks of you, under the chip that says who you
@@ -99,9 +101,11 @@ export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
           <div
             key={coins ?? "empty"}
             className="flex animate-pop-in items-center gap-1.5 rounded-full border border-line/70 bg-surface/80 px-3 py-1.5 backdrop-blur"
-            title={coins === null ? "Your wallet isn't connected yet" : "Coins"}
+            title={coins === null ? "Your wallet isn't connected yet" : "Dollars"}
           >
-            <Icon name="coin" className="h-4 w-4 text-coin" />
+            <span aria-hidden className="text-sm font-semibold text-coin">
+              $
+            </span>
             <span className="tabular-nums text-sm text-text">
               {displayCoins === null ? "—" : displayCoins}
             </span>
@@ -111,7 +115,7 @@ export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
               key={floater.id}
               className="absolute -bottom-1 right-2 animate-float-up text-sm font-semibold text-coin"
             >
-              +{floater.amount}
+              +${floater.amount}
             </span>
           )}
         </div>

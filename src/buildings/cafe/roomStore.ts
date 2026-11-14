@@ -16,6 +16,7 @@
 
 import { create } from "zustand";
 import { audio } from "@/framework/audio/audioManager";
+import { firstName } from "@/framework/player/identity";
 import type { Cell } from "@/lib/pathfinding";
 import { GATES, SPAWN, zoneAt, type GateId, type ZoneId } from "./room";
 import { castById, type CastId } from "./cast";
@@ -250,14 +251,14 @@ export interface Invitation {
 
 const INVITATIONS: Readonly<Record<string, Invitation>> = {
   [START_STAGE]: {
-    line: "Good, you found me. It's a short one — a few questions about you and how you work, and I just want to hear it in your own words. A few sentences each is plenty. Ready when you are.",
+    line: "Good, you found me, {name}. It's a short one — a few questions about you and how you work, and I just want to hear it in your own words. A few sentences each is plenty. Ready when you are.",
     accept: "Start the interview",
   },
   "cafe.l1": {
     line: "There you are. Apron's on the hook. The counter's yours once you're ready — customers come to you, and you deal with them as they come. I'm right here.",
     accept: "Start your shift",
     brief: {
-      line: "Welcome aboard. Apron's on the hook — you're in the uniform now. Today you're on the billing counter: I've lifted the flap, so get behind the till when you're ready and start your shift. Customers come up to you, and you deal with them as they come. I'm right here if you need me.",
+      line: "Welcome aboard, {name}. Apron's on the hook — you're in the uniform now. Today you're on the billing counter: I've lifted the flap, so get behind the till when you're ready and start your shift. Customers come up to you, and you deal with them as they come. I'm right here if you need me.",
       ok: "Got it",
     },
   },
@@ -269,7 +270,7 @@ const INVITATIONS: Readonly<Record<string, Invitation>> = {
     line: "You're behind the flap now. The team's on, and the rota's yours. Say when and we'll get going.",
     accept: "Take charge",
     brief: {
-      line: "You're behind the flap now. The team's on, and the rota's yours. Go to the pass when you're ready and take charge — we'll follow your lead.",
+      line: "You're behind the flap now, {name}. The team's on, and the rota's yours. Go to the pass when you're ready and take charge — we'll follow your lead.",
       ok: "Got it",
     },
   },
@@ -277,7 +278,7 @@ const INVITATIONS: Readonly<Record<string, Invitation>> = {
     line: "Owen's not coming in any more. The table's yours — sit down when you're ready, and we'll bring you what needs deciding.",
     accept: "Take the table",
     brief: {
-      line: "Owen's not coming in any more — this is all yours now. That table's where you run it from. Sit down when you're ready, and we'll bring you what needs deciding, one thing at a time.",
+      line: "Owen's not coming in any more, {name} — this is all yours now. That table's where you run it from. Sit down when you're ready, and we'll bring you what needs deciding, one thing at a time.",
       ok: "Got it",
     },
   },
@@ -293,12 +294,22 @@ const INVITATIONS: Readonly<Record<string, Invitation>> = {
 
 /** The invitation for a stage. Every waiting stage has one; this is the fallback. */
 export function invitationFor(stageId: string): Invitation {
-  return (
-    INVITATIONS[stageId] ?? {
-      line: "Ready when you are.",
-      accept: "Let's start",
-    }
-  );
+  const inv = INVITATIONS[stageId] ?? { line: "Ready when you are.", accept: "Let's start" };
+  return {
+    ...inv,
+    line: withName(inv.line),
+    brief: inv.brief ? { ...inv.brief, line: withName(inv.brief.line) } : undefined,
+  };
+}
+
+/**
+ * Put the player's first name where a line asks for it — the way a manager
+ * greets somebody they hired. Before there is a name, the line reads without
+ * one rather than with a placeholder.
+ */
+function withName(line: string): string {
+  const name = firstName();
+  return name ? line.replaceAll("{name}", name) : line.replaceAll(", {name}", "");
 }
 
 /** The interview's invitation — kept by name for the tests that hold its wording. */

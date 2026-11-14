@@ -11,11 +11,10 @@
 # Cloud Run service, not a rebuild.
 #
 # Set on the Cloud Run service (Variables & Secrets):
-#   VITE_FIREBASE_API_KEY      required for sign-in (NEXT_PUBLIC_FIREBASE_API_KEY
-#                              or FIREBASE_API_KEY also work)
-#   VITE_API_BASE_URL          the academy backend (defaults to the GCP one)
-#   VITE_FIREBASE_PROJECT_ID   optional, defaults to warroom-498513
-#   VITE_REGISTER_URL          optional, defaults to the WarRoom register page
+#   VITE_FIREBASE_API_KEY      CEO City's Firebase web API key — required
+#   VITE_FIREBASE_PROJECT_ID   CEO City's Firebase project id — required
+#   VITE_FIREBASE_AUTH_DOMAIN  optional, defaults to <project id>.firebaseapp.com
+#   VITE_API_BASE_URL          the CEO City backend's URL — required
 #
 # Build args with the same names still work, as a fallback baked into the
 # bundle; a value set on the service always wins.
@@ -36,15 +35,15 @@ COPY . .
 # Optional build-time fallbacks. Everything here ships to the browser — none of
 # it is a secret (see .env.example).
 ARG VITE_FIREBASE_API_KEY=""
-ARG VITE_FIREBASE_PROJECT_ID="warroom-498513"
-ARG VITE_API_BASE_URL="https://warroom-academy-backend-262374983592.us-central1.run.app"
-ARG VITE_REGISTER_URL="https://warroom.humanfirstbykk.com/register"
+ARG VITE_FIREBASE_PROJECT_ID=""
+ARG VITE_FIREBASE_AUTH_DOMAIN=""
+ARG VITE_API_BASE_URL=""
 
 # Typecheck + bundle (package.json "build": tsc --noEmit && vite build).
 RUN VITE_FIREBASE_API_KEY="$VITE_FIREBASE_API_KEY" \
     VITE_FIREBASE_PROJECT_ID="$VITE_FIREBASE_PROJECT_ID" \
+    VITE_FIREBASE_AUTH_DOMAIN="$VITE_FIREBASE_AUTH_DOMAIN" \
     VITE_API_BASE_URL="$VITE_API_BASE_URL" \
-    VITE_REGISTER_URL="$VITE_REGISTER_URL" \
     npm run build
 
 # ── Serve ────────────────────────────────────────────────────────────────────

@@ -14,7 +14,6 @@ import { useEffect, useState } from "react";
 import { api } from "@/framework/api";
 import { useEconomyStore } from "@/framework/economy/economyStore";
 import { Modal } from "./Modal";
-import { Icon } from "./Icon";
 import type { CoinTransaction } from "@/framework/api";
 
 /** The ledger's machine codes, in the city's words. */
@@ -24,6 +23,8 @@ const REASONS: Record<string, string> = {
   SHOP_PURCHASE: "spent at the shop",
   STARTER_GRANT: "opening balance",
   ADMIN_GRANT: "a deposit",
+  SALARY: "your café salary",
+  journey_revenue: "earnings from the café",
 };
 
 export function BankPanel({ onClose }: { onClose: () => void }) {
@@ -55,13 +56,15 @@ export function BankPanel({ onClose }: { onClose: () => void }) {
       <p className="mt-1 text-sm text-muted">Everything you have earned in CEO City.</p>
 
       <div className="mt-5 flex items-baseline gap-3 rounded-xl border border-line/70 bg-surface-2/50 px-5 py-4">
-        <Icon name="coin" className="h-6 w-6 text-coin" />
+        <span aria-hidden className="font-display text-3xl text-coin">
+          $
+        </span>
         <span className="font-display text-3xl tabular-nums text-text">
           {coins === null ? "—" : coins}
         </span>
         {lifetime !== null && (
           <span className="ml-auto text-xs uppercase tracking-widest text-muted">
-            {lifetime} earned in all
+            ${lifetime} earned in all
           </span>
         )}
       </div>
@@ -89,7 +92,7 @@ export function BankPanel({ onClose }: { onClose: () => void }) {
               <span
                 className={`ml-auto tabular-nums ${row.amount < 0 ? "text-muted" : "text-coin"}`}
               >
-                {row.amount > 0 ? `+${row.amount}` : row.amount}
+                {row.amount > 0 ? `+$${row.amount}` : `-$${Math.abs(row.amount)}`}
               </span>
             </li>
           ))}

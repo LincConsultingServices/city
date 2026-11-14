@@ -281,7 +281,7 @@ function SaveSection() {
           </span>
         </div>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          Everything you do is saved to your WarRoom account as you play, so you can pick up on any
+          Everything you do is saved to your CEO City account as you play, so you can pick up on any
           device.{" "}
           {last ? (
             <>
@@ -371,7 +371,7 @@ function SaveSection() {
           />
         ) : confirm === "load" ? (
           <Ask
-            text="Go back to this save? Anything you've done since will be replaced. Coins and badges you've earned are kept."
+            text="Go back to this save? Anything you've done since will be replaced. Dollars and badges you've earned are kept."
             yes="Load it"
             onYes={() => void replaceThenReload("load")}
             onNo={() => setConfirm(null)}
@@ -396,7 +396,7 @@ function SaveSection() {
           Restart the game
         </p>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          Start your café career and MAISON season again from the beginning. Coins, badges, your
+          Start your café career and MAISON season again from the beginning. Dollars, badges, your
           level choice and your manual save are kept.
         </p>
         {confirm === "restart" ? (

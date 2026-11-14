@@ -16,6 +16,8 @@ export interface CityBlob {
   ftue?: Record<string, boolean>;
   lastDistrict?: string;
   lastTile?: [number, number];
+  /** The player's identity — name and look (framework/player/identity.ts). */
+  character?: unknown;
 }
 
 const MIRROR = "city.state";
@@ -30,7 +32,12 @@ const isMirror = (v: unknown): v is Mirror =>
 
 let rev = 0;
 let blob: CityBlob = {};
-let hydrated = false;
+/**
+ * What the SERVER held on hydrate, before this browser's mirror was merged in.
+ * The mirror is not scoped to an account, so anything that must belong to this
+ * player — their character — is read from here, never from the merged blob.
+ */
+let serverBlob: CityBlob | null = null;
 
 function readMirror(): void {
   const m = loadJson<Mirror>(MIRROR, isMirror);
@@ -56,16 +63,29 @@ const isTrack = (v: unknown): v is Track => v === "SCA" || v === "SCB";
  *
  * Never throws. A city you cannot reach is a city you can still walk around.
  */
-export async function hydrateCityState(): Promise<void> {
-  if (hydrated) return;
-  hydrated = true;
+export function hydrateCityState(): Promise<void> {
+  // One read, shared. A second caller — React's development double-mount, or
+  // two screens asking at once — must wait for the same answer rather than be
+  // told "done" before the document has arrived: that is how a player with a
+  // character saved on their account was sent back to the creator.
+  if (!hydration) hydration = doHydrate();
+  return hydration;
+}
+
+let hydration: Promise<void> | null = null;
+
+async function doHydrate(): Promise<void> {
   readMirror();
 
   try {
     const envelope = await api.getCityState();
     rev = envelope.rev;
     const server = (envelope.blob ?? {}) as CityBlob;
+    serverBlob = server;
     blob = { ...blob, ...server };
+    // A character in the mirror but not on the account is another account's
+    // (the mirror is per browser): never let it ride along on the next write.
+    if (server.character === undefined) delete blob.character;
     writeMirror();
 
     if (isTrack(server.track)) {
@@ -85,6 +105,16 @@ export async function hydrateCityState(): Promise<void> {
 export async function chooseTrack(track: Track): Promise<void> {
   setTrack(track);
   await push({ track });
+}
+
+/** The city document as the account holds it, or null before (or without) a hydrate. */
+export function serverCityBlob(): CityBlob | null {
+  return serverBlob;
+}
+
+/** Save the player's character to their account, alongside the track. */
+export async function saveCharacter(character: unknown): Promise<void> {
+  await push({ character });
 }
 
 /** Record an FTUE flag. Coalesced into the same document. */
@@ -116,7 +146,8 @@ async function push(patch: CityBlob): Promise<void> {
 
 /** Tests only. */
 export function resetCityState(): void {
+  serverBlob = null;
   rev = 0;
   blob = {};
-  hydrated = false;
+  hydration = null;
 }

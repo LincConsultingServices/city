@@ -18,7 +18,8 @@
  */
 
 import { create } from "zustand";
-import { api } from "@/framework/api";
+import { api, type JourneyStageResult } from "@/framework/api";
+import { useEconomyStore } from "@/framework/economy/economyStore";
 import { events } from "@/framework/events";
 import { CLIENT_VERSION } from "@/framework/config/appConfig";
 import { activityIdFor, trackOrDefault } from "@/framework/city/track";
@@ -76,6 +77,8 @@ export interface StageOutcome {
   revenue: number;
   revenueDelta: number;
   coinsBanked: number;
+  /** The career's salary, on the way out of the door. */
+  salary?: JourneyStageResult["salary"] | null;
 }
 
 /**
@@ -836,7 +839,11 @@ export async function closeStage(): Promise<StageOutcome | null> {
       revenue: res.revenue,
       revenueDelta: res.revenueDelta,
       coinsBanked: res.coinsBanked,
+      salary: res.salary ?? null,
     };
+    // The wallet moves the moment the salary lands, so the balance is right
+    // when the player steps back out onto the street.
+    if (res.salary) useEconomyStore.getState().applyCoinBalance(res.salary.balance);
     useJourneyStore.setState({
       runId: res.runId,
       revenue: res.revenue,

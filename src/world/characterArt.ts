@@ -35,6 +35,22 @@ export interface PersonPalette {
   beard?: boolean;
   /** Glasses worn on the face. */
   glasses?: boolean;
+  /**
+   * Shoe colour. Only the player sets it (framework/player/identity.ts);
+   * without it the legs end bare, exactly as every NPC has always been drawn.
+   */
+  shoes?: number;
+  /** A cap in this colour. Player only, for the same reason. */
+  cap?: number;
+  /**
+   * Gets about in a wheelchair: drawn seated, with the chair, and the two
+   * "walk" frames turn the wheels instead of the legs.
+   */
+  wheelchair?: boolean;
+  /** The player's build: how wide the shoulders and body are. Player only. */
+  build?: "slim" | "average" | "broad" | "curvy";
+  /** A woman's figure: a narrower waist, and lashes on the front view. Player only. */
+  female?: boolean;
 }
 
 export type Outfit = "casual" | "uniform" | "chef" | "suit";
@@ -64,6 +80,11 @@ function drawPerson(palette: PersonPalette, facing: BakeFacing, frame: 0 | 1 | 2
   // the sprite anchor stable across texture swaps).
   g.rect(-10, -40, 20, 40).fill({ color: 0x000000, alpha: 0 });
 
+  if (palette.wheelchair) {
+    drawWheelchairPerson(g, palette, facing, frame);
+    return g;
+  }
+
   const liftL = frame === 1 ? 3 : 0;
   const liftR = frame === 2 ? 3 : 0;
   // Legs (two stubs; a lifted leg reads as a stride at this size)
@@ -71,10 +92,15 @@ function drawPerson(palette: PersonPalette, facing: BakeFacing, frame: 0 | 1 | 2
   g.roundRect(0.5, -9 - liftR, 5, 9 + liftR - (liftR ? 2 : 0), 2).fill(palette.legs);
   if (frame === 1) g.roundRect(-5.5, -3, 5, 3, 1.5).fill({ color: 0x000000, alpha: 0.12 });
   if (frame === 2) g.roundRect(0.5, -3, 5, 3, 1.5).fill({ color: 0x000000, alpha: 0.12 });
+  if (palette.shoes !== undefined) {
+    // A shoe at the foot of each leg, riding up with it on the lifted step.
+    g.roundRect(-6, -2.5 - liftL, 6, 3, 1.2).fill(palette.shoes);
+    g.roundRect(0, -2.5 - liftR, 6, 3, 1.2).fill(palette.shoes);
+  }
 
   // Body
   const outfit = palette.outfit ?? "casual";
-  g.roundRect(-7, -25, 14, 18, 5).fill(palette.shirt);
+  drawTorso(g, palette, 18);
   if (facing === "N" && outfit === "casual") {
     // Backpack on the back view — the street's look, not a uniform's.
     g.roundRect(-5, -23, 10, 11, 3).fill({ color: 0x000000, alpha: 0.22 });
@@ -89,6 +115,7 @@ function drawPerson(palette: PersonPalette, facing: BakeFacing, frame: 0 | 1 | 2
   g.circle(0, -30, 7.5).fill(palette.skin);
   g.circle(0, -30, 7.5).stroke({ color: 0xffffff, alpha: 0.2, width: 1 });
   drawHair(g, facing, palette);
+  if (palette.cap !== undefined) drawCap(g, facing, palette.cap);
   if (facing !== "N") {
     if (facing === "S") {
       g.circle(-2.6, -29.5, 1.1).fill(0x22262e);
@@ -96,6 +123,7 @@ function drawPerson(palette: PersonPalette, facing: BakeFacing, frame: 0 | 1 | 2
     } else {
       g.circle(3.4, -29.5, 1.1).fill(0x22262e);
     }
+    if (palette.female) drawLashes(g, facing);
     if (palette.beard) {
       if (facing === "S") g.ellipse(0, -25.8, 4.8, 2.6).fill(palette.hair);
       else g.ellipse(2.6, -26.2, 3.6, 2.4).fill(palette.hair);
@@ -192,6 +220,192 @@ function drawHair(g: Graphics, facing: BakeFacing, palette: PersonPalette): void
   }
   if (style === "bun") g.circle(front ? 0 : -4, front ? -38.5 : -37, 3).fill(c);
   if (style === "ponytail" && !front) g.roundRect(-9.5, -33, 3, 9, 1.5).fill(c);
+}
+
+const CHAIR_FRAME = 0x2b2f36;
+const CHAIR_RIM = 0x9aa3ad;
+const CHAIR_SEAT = 0x1d1f24;
+
+/**
+ * Somebody who uses a wheelchair, seated in it. Same head, hair, face and top
+ * as anyone else, so they read as one of the city's people first — then the
+ * chair: two big wheels with push-rims, a backrest with push handles, the
+ * footrest. "Moving" turns the wheels: the spokes step round a quarter turn
+ * between the two frames, which at this size reads as rolling.
+ */
+function drawWheelchairPerson(
+  g: Graphics,
+  palette: PersonPalette,
+  facing: BakeFacing,
+  frame: 0 | 1 | 2,
+): void {
+  const spin = frame === 2 ? Math.PI / 4 : 0;
+  const shoes = palette.shoes ?? shade(palette.legs, 0.7);
+
+  if (facing === "E") {
+    // Profile: backrest and handle behind, then the seated legs, the body, and
+    // the near wheel over the hip, with a small caster at the front.
+    g.roundRect(-8.5, -22, 2.2, 14, 1).fill(CHAIR_FRAME);
+    g.roundRect(-10.5, -22.5, 4, 1.8, 0.9).fill(CHAIR_FRAME);
+    g.roundRect(-6, -10, 12, 3, 1).fill(CHAIR_SEAT);
+    g.roundRect(-2, -10.5, 8, 3.6, 1.6).fill(palette.legs); // thigh
+    g.roundRect(4, -8, 3.4, 6.5, 1.5).fill(palette.legs); // shin
+    g.roundRect(3.6, -2.6, 5, 2.4, 1).fill(shoes);
+    g.rect(2, -1.2, 7, 1.2).fill(CHAIR_FRAME); // footrest
+    g.circle(7.5, -1.4, 1.5).fill(CHAIR_FRAME); // caster
+    drawUpperBody(g, palette, facing);
+    // The near wheel.
+    g.circle(-1.5, -7, 7).fill(CHAIR_FRAME);
+    g.circle(-1.5, -7, 7).stroke({ color: CHAIR_RIM, width: 1.1 });
+    g.circle(-1.5, -7, 5.4).stroke({ color: CHAIR_RIM, width: 0.6, alpha: 0.8 });
+    for (let k = 0; k < 4; k++) {
+      const a = spin + (k * Math.PI) / 4;
+      g.moveTo(-1.5 - Math.cos(a) * 5.2, -7 - Math.sin(a) * 5.2)
+        .lineTo(-1.5 + Math.cos(a) * 5.2, -7 + Math.sin(a) * 5.2)
+        .stroke({ color: CHAIR_RIM, width: 0.5, alpha: 0.7 });
+    }
+    g.circle(-1.5, -7, 1).fill(CHAIR_RIM);
+    return;
+  }
+
+  // Front and back: seat and legs between the two big wheels, seen edge-on.
+  g.roundRect(-6, -10, 12, 3, 1).fill(CHAIR_SEAT);
+  if (facing === "S") {
+    g.roundRect(-5, -9, 4, 7.5, 1.6).fill(palette.legs);
+    g.roundRect(1, -9, 4, 7.5, 1.6).fill(palette.legs);
+    g.roundRect(-5.4, -2.6, 4.6, 2.4, 1).fill(shoes);
+    g.roundRect(0.8, -2.6, 4.6, 2.4, 1).fill(shoes);
+    g.rect(-6, -0.8, 12, 0.8).fill(CHAIR_FRAME);
+  }
+  drawUpperBody(g, palette, facing);
+  if (facing === "N") {
+    // From behind: the backrest over the lower back, and the push handles.
+    g.roundRect(-6, -21, 12, 12, 2).fill(CHAIR_SEAT);
+    g.roundRect(-7, -23, 2, 15, 1).fill(CHAIR_FRAME);
+    g.roundRect(5, -23, 2, 15, 1).fill(CHAIR_FRAME);
+    g.roundRect(-8.5, -24, 3.5, 1.8, 0.9).fill(CHAIR_FRAME);
+    g.roundRect(5, -24, 3.5, 1.8, 0.9).fill(CHAIR_FRAME);
+  }
+  for (const x of [-8.6, 8.6]) {
+    g.roundRect(x - 1.6, -14, 3.2, 14, 1.6).fill(CHAIR_FRAME);
+    g.roundRect(x - 1.6, -14, 3.2, 14, 1.6).stroke({ color: CHAIR_RIM, width: 0.8 });
+    // A highlight on the rim that moves as the wheel turns.
+    g.rect(x - 1, frame === 2 ? -10 : -6, 2, 1.4).fill({ color: CHAIR_RIM, alpha: 0.9 });
+  }
+}
+
+/** Torso, head, hair and face — shared by the standing and the seated figure. */
+function drawUpperBody(g: Graphics, palette: PersonPalette, facing: BakeFacing): void {
+  const outfit = palette.outfit ?? "casual";
+  drawTorso(g, palette, 16);
+  if (facing !== "N") g.roundRect(-7, -13, 14, 4, 2).fill({ color: 0x000000, alpha: 0.08 });
+  if (outfit === "uniform" || outfit === "chef") drawApron(g, facing, palette.accent ?? 0x1d1d22);
+  if (outfit === "suit") drawSuit(g, facing, palette.accent ?? 0x7a2a33);
+  g.circle(0, -30, 7.5).fill(palette.skin);
+  g.circle(0, -30, 7.5).stroke({ color: 0xffffff, alpha: 0.2, width: 1 });
+  drawHair(g, facing, palette);
+  if (palette.cap !== undefined) drawCap(g, facing, palette.cap);
+  if (facing === "N") return;
+  if (facing === "S") {
+    g.circle(-2.6, -29.5, 1.1).fill(0x22262e);
+    g.circle(2.6, -29.5, 1.1).fill(0x22262e);
+  } else {
+    g.circle(3.4, -29.5, 1.1).fill(0x22262e);
+  }
+  if (palette.female) drawLashes(g, facing);
+  if (palette.beard) {
+    if (facing === "S") g.ellipse(0, -25.8, 4.8, 2.6).fill(palette.hair);
+    else g.ellipse(2.6, -26.2, 3.6, 2.4).fill(palette.hair);
+  }
+  if (palette.glasses) {
+    if (facing === "S") {
+      g.rect(-4.6, -30.8, 3.8, 2.6).stroke({ color: 0x22262e, width: 0.8 });
+      g.rect(0.8, -30.8, 3.8, 2.6).stroke({ color: 0x22262e, width: 0.8 });
+    } else {
+      g.rect(2, -30.8, 3.6, 2.6).stroke({ color: 0x22262e, width: 0.8 });
+    }
+  }
+}
+
+/** Half the torso's width at the shoulders, by build. NPCs are 7, as ever. */
+function halfWidth(palette: PersonPalette): number {
+  switch (palette.build) {
+    case "slim":
+      return palette.female ? 5.6 : 6.2;
+    case "broad":
+      return 8;
+    case "curvy":
+      return 6.4;
+    case "average":
+      return palette.female ? 6.1 : 7;
+    default:
+      return 7;
+  }
+}
+
+/**
+ * The torso, from the shoulders down `height` pixels. A woman's is drawn
+ * narrower at the waist; a curvy figure flares again at the hip.
+ */
+function drawTorso(g: Graphics, palette: PersonPalette, height: number): void {
+  const w = halfWidth(palette);
+  if (!palette.female) {
+    g.roundRect(-w, -25, w * 2, height, 5).fill(palette.shirt);
+    return;
+  }
+  const hip = palette.build === "curvy" ? w + 1.2 : w + 0.2;
+  const waist = w - 1.3;
+  const bottom = -25 + height;
+  g.poly([
+    -w + 1.5,
+    -25,
+    w - 1.5,
+    -25,
+    w,
+    -22.5,
+    waist,
+    -16,
+    hip,
+    bottom - 1.5,
+    hip - 1,
+    bottom,
+    -hip + 1,
+    bottom,
+    -hip,
+    bottom - 1.5,
+    -waist,
+    -16,
+    -w,
+    -22.5,
+  ]).fill(palette.shirt);
+}
+
+/** Darken a 0xRRGGBB colour. */
+function shade(color: number, k: number): number {
+  const r = Math.round(((color >> 16) & 0xff) * k);
+  const gr = Math.round(((color >> 8) & 0xff) * k);
+  const b = Math.round((color & 0xff) * k);
+  return (r << 16) | (gr << 8) | b;
+}
+
+/** A flick of lash at the outer corner of each eye, and a touch of colour on the lips. */
+function drawLashes(g: Graphics, facing: BakeFacing): void {
+  if (facing === "S") {
+    g.rect(-4.3, -30.9, 1.4, 0.7).fill(0x22262e);
+    g.rect(2.9, -30.9, 1.4, 0.7).fill(0x22262e);
+    g.ellipse(0, -26.4, 1.4, 0.6).fill({ color: 0xc0505a, alpha: 0.7 });
+  } else {
+    g.rect(4, -30.9, 1.3, 0.7).fill(0x22262e);
+    g.ellipse(5.2, -26.4, 0.9, 0.6).fill({ color: 0xc0505a, alpha: 0.7 });
+  }
+}
+
+/** A cap over the crown, its peak toward whichever way they face. */
+function drawCap(g: Graphics, facing: BakeFacing, color: number): void {
+  g.ellipse(0, -35, 7.6, 3.6).fill(color);
+  g.rect(-7.6, -35, 15.2, 1.4).fill({ color: 0x000000, alpha: 0.15 });
+  if (facing === "S") g.ellipse(0, -32.8, 6.4, 1.8).fill(color);
+  else if (facing === "E") g.ellipse(6, -33.4, 4, 1.6).fill(color);
 }
 
 /** A bib apron over the shirt: body and skirt to the knee, straps over the shoulders. */

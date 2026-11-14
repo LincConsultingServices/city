@@ -373,7 +373,7 @@ describe("the room, by posting", () => {
     // They stayed in CAST "because the stages after the interview will want
     // them". These are those stages — and they still arrive by posting, because
     // somebody you cannot do anything with reads as clutter rather than as life.
-    expect(castFor("candidate")).toEqual(["priya", "owen"]);
+    expect(castFor("candidate")).toEqual(["priya", "owen", "leela"]);
     expect(castFor("employee")).toContain("marcus");
     expect(castFor("branch_manager")).toContain("tomas");
     expect(castFor("ceo")).toContain("ray");

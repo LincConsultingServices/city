@@ -244,6 +244,28 @@ export const JourneyStageResult = z.object({
   revenueDelta: z.number().int(),
   roleReached: z.string(),
   coinsBanked: z.number().int().optional().default(0),
+  /** The career's pay — on the exit only, once the run is settled. */
+  salary: z
+    .object({
+      total: z.number().int(),
+      lines: z
+        .array(
+          z.object({
+            unitId: z.string(),
+            stageId: z.string(),
+            base: z.number().int(),
+            category: z.enum(["best", "normal", "worst"]),
+            percent: z.number().int(),
+            amount: z.number().int(),
+          }),
+        )
+        .default([]),
+      handedOver: z.boolean(),
+      credited: z.boolean(),
+      balance: z.number().int(),
+    })
+    .nullable()
+    .optional(),
 });
 export type JourneyStageResult = z.infer<typeof JourneyStageResult>;
 
