@@ -117,7 +117,11 @@ export function Hud({
             key={coins ?? "empty"}
             onClick={() => onWallet?.()}
             className="flex animate-pop-in items-center gap-1.5 rounded-full border border-line/70 bg-surface/80 px-3 py-1.5 backdrop-blur transition hover:border-gold/60"
-            title={coins === null ? "Your wallet isn't connected yet" : "Cash in your pocket: click for your wallet"}
+            title={
+              coins === null
+                ? "Your wallet isn't connected yet"
+                : "Cash in your pocket: click for your wallet"
+            }
             aria-label={coins === null ? "Cash unknown" : `Cash $${coins}. Open your wallet`}
           >
             {typeof bank === "number" && (
@@ -178,8 +182,22 @@ export function Hud({
             title="Inventory (I)"
           >
             <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
-              <path d="M6 7V6a4 4 0 0 1 8 0v1" fill="none" stroke="currentColor" strokeWidth="1.6" />
-              <rect x="3.5" y="7" width="13" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+              <path
+                d="M6 7V6a4 4 0 0 1 8 0v1"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+              />
+              <rect
+                x="3.5"
+                y="7"
+                width="13"
+                height="10"
+                rx="2"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+              />
             </svg>
             <span className="hidden sm:inline">Inventory</span>
           </button>

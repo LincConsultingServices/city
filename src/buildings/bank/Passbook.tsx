@@ -6,7 +6,13 @@
 // Interest is gold, because it is the bank paying you.
 import { Modal } from "@/ui/Modal";
 import { audio } from "@/framework/audio/audioManager";
-import { activeLoan, closeAccount, inDeposits, unprinted, useBankStore } from "@/framework/bank/bankStore";
+import {
+  activeLoan,
+  closeAccount,
+  inDeposits,
+  unprinted,
+  useBankStore,
+} from "@/framework/bank/bankStore";
 import type { StatementLine } from "@/framework/api";
 import { BankCardArt } from "./AccountOpening";
 import { useState } from "react";
@@ -39,12 +45,16 @@ const CHANNEL: Record<string, string> = {
 function when(at: string): string {
   const d = new Date(at);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) +
-    " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return (
+    d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) +
+    " " +
+    d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+  );
 }
 
 function describe(l: StatementLine): string {
-  if (l.kind !== "deposit" && l.kind !== "withdrawal" && l.kind !== "open") return l.note || KIND[l.kind] || l.kind;
+  if (l.kind !== "deposit" && l.kind !== "withdrawal" && l.kind !== "open")
+    return l.note || KIND[l.kind] || l.kind;
   const what = KIND[l.kind] ?? l.note ?? l.kind;
   const where = CHANNEL[l.channel] ?? "";
   return where ? `${what} ${where}` : what;
@@ -72,7 +82,9 @@ export function Passbook({ onClose }: { onClose: () => void }) {
     <Modal onClose={onClose} width="lg">
       <div className="grid gap-5 md:grid-cols-[1fr_auto]">
         <div className="rounded-2xl border border-gold/40 bg-[#1f2d4d] p-5 text-white">
-          <p className="text-[11px] uppercase tracking-widest text-[#e5c77a]">Meridian Bank · Passbook</p>
+          <p className="text-[11px] uppercase tracking-widest text-[#e5c77a]">
+            Meridian Bank · Passbook
+          </p>
           <p className="mt-2 font-display text-xl">{account.holder}</p>
           <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
             <dt className="opacity-70">Account no.</dt>
@@ -83,7 +95,9 @@ export function Passbook({ onClose }: { onClose: () => void }) {
               {interestBp > 0 ? ` · ${interestBp / 100}% a month` : " · no interest"}
             </dd>
             <dt className="opacity-70">Balance</dt>
-            <dd className="text-lg font-semibold tabular-nums text-[#e5c77a]">${account.balance}</dd>
+            <dd className="text-lg font-semibold tabular-nums text-[#e5c77a]">
+              ${account.balance}
+            </dd>
             {credit && (
               <>
                 <dt className="opacity-70">Credit score</dt>
@@ -108,13 +122,19 @@ export function Passbook({ onClose }: { onClose: () => void }) {
           {interestBp > 0 && next && (
             <p className="mt-3 text-xs opacity-75">
               Next interest: {when(next.toISOString())}
-              {account.balance < 100 ? " · balances under $100 earn less than a dollar, which rounds to nothing" : ""}
+              {account.balance < 100
+                ? " · balances under $100 earn less than a dollar, which rounds to nothing"
+                : ""}
             </p>
           )}
         </div>
         {account.cardLast4 && (
           <div className="w-64">
-            <BankCardArt holder={account.holder} last4={account.cardLast4} expiry={account.cardExpiry ?? ""} />
+            <BankCardArt
+              holder={account.holder}
+              last4={account.cardLast4}
+              expiry={account.cardExpiry ?? ""}
+            />
           </div>
         )}
       </div>
@@ -142,9 +162,15 @@ export function Passbook({ onClose }: { onClose: () => void }) {
             {inBook.map((l) => (
               <tr key={l.id} className="border-t border-line/50">
                 <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">{when(l.at)}</td>
-                <td className={`px-3 py-2 ${l.kind === "interest" ? "text-gold" : "text-text"}`}>{describe(l)}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-text">{l.amount > 0 ? `$${l.amount}` : ""}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-text">{l.amount < 0 ? `$${-l.amount}` : ""}</td>
+                <td className={`px-3 py-2 ${l.kind === "interest" ? "text-gold" : "text-text"}`}>
+                  {describe(l)}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-text">
+                  {l.amount > 0 ? `$${l.amount}` : ""}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-text">
+                  {l.amount < 0 ? `$${-l.amount}` : ""}
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums text-muted">${l.balanceAfter}</td>
               </tr>
             ))}
@@ -153,12 +179,13 @@ export function Passbook({ onClose }: { onClose: () => void }) {
       </div>
       {waiting.length > 0 && (
         <p className="mt-2 rounded-lg border border-gold/40 bg-gold/10 px-3 py-2 text-xs text-text">
-          {waiting.length} new {waiting.length === 1 ? "entry isn't" : "entries aren't"} printed in your passbook yet.
-          Use the passbook printer by the wall, or take a B ticket for window 2.
+          {waiting.length} new {waiting.length === 1 ? "entry isn't" : "entries aren't"} printed in
+          your passbook yet. Use the passbook printer by the wall, or take a B ticket for window 2.
         </p>
       )}
       <p className="mt-2 text-xs text-muted">
-        Read it from the bottom up: each line's balance is the one before it, plus what came in, minus what went out.
+        Read it from the bottom up: each line's balance is the one before it, plus what came in,
+        minus what went out.
       </p>
 
       <div className="mt-4 flex justify-end">
@@ -189,11 +216,15 @@ export function CloseAccount({ onClose }: { onClose: () => void }) {
       <Modal onClose={onClose} width="sm">
         <h2 className="font-display text-xl font-semibold text-gold">Account closed</h2>
         <p className="mt-3 text-sm leading-relaxed text-text">
-          "Done. ${returned} has been paid out to you in cash. You're welcome back any time. Opening a new account
-          takes five minutes."
+          "Done. ${returned} has been paid out to you in cash. You're welcome back any time. Opening
+          a new account takes five minutes."
         </p>
         <div className="mt-5 flex justify-end">
-          <button autoFocus onClick={onClose} className="rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink">
+          <button
+            autoFocus
+            onClick={onClose}
+            className="rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink"
+          >
             Thank you
           </button>
         </div>
@@ -207,11 +238,15 @@ export function CloseAccount({ onClose }: { onClose: () => void }) {
       <Modal onClose={onClose} width="sm">
         <h2 className="font-display text-xl font-semibold text-gold">Close your account?</h2>
         <p className="mt-3 text-sm leading-relaxed text-text">
-          "Not while you have a loan with us, I'm afraid. Repay it first at Sofia's desk, then I can close the account
-          and pay the rest out to you."
+          "Not while you have a loan with us, I'm afraid. Repay it first at Sofia's desk, then I can
+          close the account and pay the rest out to you."
         </p>
         <div className="mt-5 flex justify-end">
-          <button autoFocus onClick={onClose} className="rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink">
+          <button
+            autoFocus
+            onClick={onClose}
+            className="rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink"
+          >
             I understand
           </button>
         </div>
@@ -223,8 +258,9 @@ export function CloseAccount({ onClose }: { onClose: () => void }) {
     <Modal onClose={onClose} width="sm">
       <h2 className="font-display text-xl font-semibold text-gold">Close your account?</h2>
       <p className="mt-3 text-sm leading-relaxed text-text">
-        "If you close it, I'll pay the whole balance, ${account.balance}, out to you in cash. Your card stops working
-        and your statement is cleared. Cash in your pocket doesn't earn interest."
+        "If you close it, I'll pay the whole balance, ${account.balance}, out to you in cash. Your
+        card stops working and your statement is cleared. Cash in your pocket doesn't earn
+        interest."
       </p>
       {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
       <div className="mt-5 flex justify-end gap-2">

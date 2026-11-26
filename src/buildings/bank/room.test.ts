@@ -78,7 +78,11 @@ describe("Meridian Bank — the room", () => {
 describe("Meridian Bank — the staff explain, they never advise", () => {
   // The rule in docs/PRD_Building_Bank.md §1: nothing in the building tells the
   // player what they personally should do with their money.
-  const ADVICE = [/you should (invest|save|put|open|borrow|take)/i, /we recommend you/i, /best (option|choice) for you/i];
+  const ADVICE = [
+    /you should (invest|save|put|open|borrow|take)/i,
+    /we recommend you/i,
+    /best (option|choice) for you/i,
+  ];
 
   it("has no line that reads as financial advice", () => {
     for (const m of STAFF) {

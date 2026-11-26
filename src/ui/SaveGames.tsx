@@ -39,8 +39,10 @@ type Pending =
   | { kind: "restart" }
   | { kind: "autosave_off" };
 
-const btn = "rounded-lg border border-line/70 px-3 py-1.5 text-xs text-text hover:border-gold/60 disabled:opacity-50";
-const gold = "rounded-lg bg-gold px-3 py-1.5 text-xs font-medium text-ink hover:brightness-110 disabled:opacity-50";
+const btn =
+  "rounded-lg border border-line/70 px-3 py-1.5 text-xs text-text hover:border-gold/60 disabled:opacity-50";
+const gold =
+  "rounded-lg bg-gold px-3 py-1.5 text-xs font-medium text-ink hover:brightness-110 disabled:opacity-50";
 
 export function SaveGames() {
   const [slots, setSlots] = useState<SaveSlot[] | null>(null);
@@ -109,7 +111,9 @@ export function SaveGames() {
             }
             className={`relative h-6 w-11 shrink-0 rounded-full transition ${state.autosave ? "bg-gold" : "bg-line"}`}
           >
-            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${state.autosave ? "left-[22px]" : "left-0.5"}`} />
+            <span
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${state.autosave ? "left-[22px]" : "left-0.5"}`}
+            />
           </button>
         </div>
         {pending?.kind === "autosave_off" && (
@@ -120,7 +124,14 @@ export function SaveGames() {
             onNo={() => setPending(null)}
           />
         )}
-        {auto && <SlotCard slot={auto} label="Autosave" busy={busy} onLoad={() => setPending({ kind: "load", slot: auto })} />}
+        {auto && (
+          <SlotCard
+            slot={auto}
+            label="Autosave"
+            busy={busy}
+            onLoad={() => setPending({ kind: "load", slot: auto })}
+          />
+        )}
         {pending?.kind === "load" && pending.slot.slot === "auto" && (
           <Ask
             text="Load the autosave? The game goes back to that moment: money, bank, badges and story."
@@ -138,12 +149,15 @@ export function SaveGames() {
         <ul className="mt-3 space-y-2">
           {manual.map((s) => {
             const empty = !s.savedAt;
-            const here = pending && "slot" in pending && pending.slot.slot === s.slot ? pending : null;
+            const here =
+              pending && "slot" in pending && pending.slot.slot === s.slot ? pending : null;
             return (
               <li key={s.slot} className="rounded-xl border border-line/60 bg-surface-2/40 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-widest text-muted">Slot {s.slot}</p>
+                    <p className="text-[10px] uppercase tracking-widest text-muted">
+                      Slot {s.slot}
+                    </p>
                     {empty ? (
                       <p className="text-sm text-muted">Empty</p>
                     ) : (
@@ -152,7 +166,8 @@ export function SaveGames() {
                         <p className="truncate text-xs text-gold">{s.story}</p>
                         <p className="mt-0.5 text-[11px] text-muted">
                           {ago(s.savedAt)} · cash ${s.cash}
-                          {typeof s.bank === "number" ? ` · bank $${s.bank}` : ""} · {s.badges} badge{s.badges === 1 ? "" : "s"}
+                          {typeof s.bank === "number" ? ` · bank $${s.bank}` : ""} · {s.badges}{" "}
+                          badge{s.badges === 1 ? "" : "s"}
                         </p>
                       </>
                     )}
@@ -162,19 +177,33 @@ export function SaveGames() {
                       <button
                         className={gold}
                         disabled={busy}
-                        onClick={() => setPending({ kind: "save", slot: s, name: empty ? "" : s.name })}
+                        onClick={() =>
+                          setPending({ kind: "save", slot: s, name: empty ? "" : s.name })
+                        }
                       >
                         {empty ? "Save here" : "Overwrite"}
                       </button>
                       {!empty && (
                         <>
-                          <button className={btn} disabled={busy} onClick={() => setPending({ kind: "load", slot: s })}>
+                          <button
+                            className={btn}
+                            disabled={busy}
+                            onClick={() => setPending({ kind: "load", slot: s })}
+                          >
                             Load
                           </button>
-                          <button className={btn} disabled={busy} onClick={() => setPending({ kind: "rename", slot: s, name: s.name })}>
+                          <button
+                            className={btn}
+                            disabled={busy}
+                            onClick={() => setPending({ kind: "rename", slot: s, name: s.name })}
+                          >
                             Rename
                           </button>
-                          <button className={btn} disabled={busy} onClick={() => setPending({ kind: "delete", slot: s })}>
+                          <button
+                            className={btn}
+                            disabled={busy}
+                            onClick={() => setPending({ kind: "delete", slot: s })}
+                          >
                             Delete
                           </button>
                         </>
@@ -185,13 +214,17 @@ export function SaveGames() {
 
                 {here?.kind === "save" && (
                   <NameIt
-                    title={empty ? "Name this save" : `Overwrite “${s.name}” with the game as it is now?`}
+                    title={
+                      empty ? "Name this save" : `Overwrite “${s.name}” with the game as it is now?`
+                    }
                     name={here.name}
                     placeholder={storyLabel()}
                     yes={empty ? "Save" : "Overwrite"}
                     busy={busy}
                     onChange={(name) => setPending({ ...here, name })}
-                    onYes={() => void run(() => saveToSlot(s.slot, here.name || storyLabel()), "Game saved.")}
+                    onYes={() =>
+                      void run(() => saveToSlot(s.slot, here.name || storyLabel()), "Game saved.")
+                    }
                     onNo={() => setPending(null)}
                   />
                 )}
@@ -236,8 +269,9 @@ export function SaveGames() {
       <section className="border-t border-line/60 pt-4">
         <p className="text-sm font-medium text-text">Restart the game</p>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          A brand-new game: your cash goes back to the starting $100, and your badges, bank account, shop items and story
-          progress are cleared. Your saves, your level choice and your settings are kept, so you can load a save afterwards.
+          A brand-new game: your cash goes back to the starting $100, and your badges, bank account,
+          shop items and story progress are cleared. Your saves, your level choice and your settings
+          are kept, so you can load a save afterwards.
         </p>
         {pending?.kind === "restart" ? (
           <Ask
@@ -261,7 +295,17 @@ export function SaveGames() {
   );
 }
 
-function SlotCard({ slot, label, busy, onLoad }: { slot: SaveSlot; label: string; busy: boolean; onLoad: () => void }) {
+function SlotCard({
+  slot,
+  label,
+  busy,
+  onLoad,
+}: {
+  slot: SaveSlot;
+  label: string;
+  busy: boolean;
+  onLoad: () => void;
+}) {
   return (
     <div className="mt-3 flex items-start justify-between gap-3 rounded-lg border border-line/50 p-3">
       <div className="min-w-0">
@@ -271,7 +315,8 @@ function SlotCard({ slot, label, busy, onLoad }: { slot: SaveSlot; label: string
             <p className="truncate text-xs text-gold">{slot.story}</p>
             <p className="mt-0.5 text-[11px] text-muted">
               {ago(slot.savedAt)} · cash ${slot.cash}
-              {typeof slot.bank === "number" ? ` · bank $${slot.bank}` : ""} · {slot.badges} badge{slot.badges === 1 ? "" : "s"}
+              {typeof slot.bank === "number" ? ` · bank $${slot.bank}` : ""} · {slot.badges} badge
+              {slot.badges === 1 ? "" : "s"}
             </p>
           </>
         ) : (
@@ -330,7 +375,19 @@ function NameIt({
   );
 }
 
-function Ask({ text, yes, danger, onYes, onNo }: { text: string; yes: string; danger?: boolean; onYes: () => void; onNo: () => void }) {
+function Ask({
+  text,
+  yes,
+  danger,
+  onYes,
+  onNo,
+}: {
+  text: string;
+  yes: string;
+  danger?: boolean;
+  onYes: () => void;
+  onNo: () => void;
+}) {
   return (
     <div role="alertdialog" aria-label={text} className="mt-3 rounded-lg border border-line/70 p-3">
       <p className="text-sm leading-relaxed text-text">{text}</p>

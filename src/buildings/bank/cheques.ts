@@ -71,36 +71,59 @@ export function chequeAmount(v: ChequeValues): number {
 export function checkCheque(v: ChequeValues, ctx: WriteContext): ChequeIssue[] {
   const issues: ChequeIssue[] = [];
   const dp = dateProblem(v.date, ctx.today);
-  if (dp === "missing") issues.push({ field: "date", message: "Date the cheque. A cheque without a date can't be paid." });
+  if (dp === "missing")
+    issues.push({
+      field: "date",
+      message: "Date the cheque. A cheque without a date can't be paid.",
+    });
   if (dp === "post_dated") {
-    issues.push({ field: "date", message: "That date is in the future. A post-dated cheque can't be paid until that day comes." });
+    issues.push({
+      field: "date",
+      message:
+        "That date is in the future. A post-dated cheque can't be paid until that day comes.",
+    });
   }
   if (dp === "stale") {
-    issues.push({ field: "date", message: "That date is more than six months ago. Banks refuse cheques that old: they're stale." });
+    issues.push({
+      field: "date",
+      message:
+        "That date is more than six months ago. Banks refuse cheques that old: they're stale.",
+    });
   }
 
   const amount = chequeAmount(v);
   if (Number.isNaN(amount)) {
-    issues.push({ field: "amount", message: "Write the amount in figures, right up against the $ sign, so nobody can add a digit in front." });
+    issues.push({
+      field: "amount",
+      message:
+        "Write the amount in figures, right up against the $ sign, so nobody can add a digit in front.",
+    });
   } else if (!wordsMatch(v.words, amount)) {
     issues.push({
       field: "words",
       message: v.words.trim()
         ? "The words and the figures don't say the same amount. If they don't match, the bank won't pay the cheque."
-        : "Write the amount in words as well, and finish with \"only\" so nothing can be added on the end.",
+        : 'Write the amount in words as well, and finish with "only" so nothing can be added on the end.',
     });
   }
 
   if (!v.signature.trim()) {
-    issues.push({ field: "signature", message: "Sign the cheque. An unsigned cheque is just a piece of paper." });
+    issues.push({
+      field: "signature",
+      message: "Sign the cheque. An unsigned cheque is just a piece of paper.",
+    });
   } else if (!same(v.signature, ctx.signature)) {
-    issues.push({ field: "signature", message: `Sign it the way you signed for your account ("${ctx.signature}").` });
+    issues.push({
+      field: "signature",
+      message: `Sign it the way you signed for your account ("${ctx.signature}").`,
+    });
   }
 
   if (ctx.toSelf && v.crossed) {
     issues.push({
       field: "crossed",
-      message: "A crossed cheque can only be paid into an account, never cashed. To take cash out, leave it uncrossed.",
+      message:
+        "A crossed cheque can only be paid into an account, never cashed. To take cash out, leave it uncrossed.",
     });
   }
   return issues;
@@ -128,8 +151,8 @@ export const FAULTS: Record<ChequeFault, { label: string; why: string }> = {
     why: "It's post-dated: the bank can't pay it until the date written on it.",
   },
   bearer: {
-    label: "\"Or bearer\" left in, for a large amount",
-    why: "With \"or bearer\" left in, anyone holding the cheque can cash it. If it's lost, a stranger could. For a large amount, cross it out.",
+    label: '"Or bearer" left in, for a large amount',
+    why: 'With "or bearer" left in, anyone holding the cheque can cash it. If it\'s lost, a stranger could. For a large amount, cross it out.',
   },
 };
 
@@ -154,26 +177,60 @@ export function practiceCheques(today: Date, levelB: boolean): PracticeCheque[] 
   const t = isoDay(today);
   const list: PracticeCheque[] = [
     {
-      id: "p1", from: "Harbour Row Hardware", payee: "Meridian Bank", date: t, amount: 250,
-      words: "Two hundred dollars only", signature: "J. Okoro", bearerStruck: true, faults: ["mismatch"],
+      id: "p1",
+      from: "Harbour Row Hardware",
+      payee: "Meridian Bank",
+      date: t,
+      amount: 250,
+      words: "Two hundred dollars only",
+      signature: "J. Okoro",
+      bearerStruck: true,
+      faults: ["mismatch"],
     },
     {
-      id: "p2", from: "Nadia Haddad", payee: "Ellery Fitch", date: t, amount: 75,
-      words: "Seventy five dollars only", signature: "", bearerStruck: true, faults: ["unsigned"],
+      id: "p2",
+      from: "Nadia Haddad",
+      payee: "Ellery Fitch",
+      date: t,
+      amount: 75,
+      words: "Seventy five dollars only",
+      signature: "",
+      bearerStruck: true,
+      faults: ["unsigned"],
     },
     {
-      id: "p3", from: "Old Mill Bakery", payee: "Ray Delacroix", date: isoDay(addMonths(today, -8)), amount: 40,
-      words: "Forty dollars only", signature: "P. Mill", bearerStruck: true, faults: ["stale"],
+      id: "p3",
+      from: "Old Mill Bakery",
+      payee: "Ray Delacroix",
+      date: isoDay(addMonths(today, -8)),
+      amount: 40,
+      words: "Forty dollars only",
+      signature: "P. Mill",
+      bearerStruck: true,
+      faults: ["stale"],
     },
     {
-      id: "p4", from: "Founders Court Florist", payee: "Tomas Bergström", date: t, amount: 120,
-      words: "One hundred and twenty dollars only", signature: "L. Vance", bearerStruck: true, faults: [],
+      id: "p4",
+      from: "Founders Court Florist",
+      payee: "Tomas Bergström",
+      date: t,
+      amount: 120,
+      words: "One hundred and twenty dollars only",
+      signature: "L. Vance",
+      bearerStruck: true,
+      faults: [],
     },
   ];
   if (levelB) {
     list.push({
-      id: "p5", from: "Riverside Motors", payee: "Priya Raman", date: isoDay(addMonths(today, 1)), amount: 4800,
-      words: "Four thousand eight hundred dollars only", signature: "D. Shaw", bearerStruck: false,
+      id: "p5",
+      from: "Riverside Motors",
+      payee: "Priya Raman",
+      date: isoDay(addMonths(today, 1)),
+      amount: 4800,
+      words: "Four thousand eight hundred dollars only",
+      signature: "D. Shaw",
+      bearerStruck: false,
       faults: ["post_dated", "bearer"],
     });
   }

@@ -81,7 +81,10 @@ function isoBox(
   const w = HW * f;
   const d = HH * f;
   const b = -lift;
-  g.poly([-w, b - h, 0, b + d - h, 0, b + d, -w, b]).fill({ color: shade(color, LEFT_FACE), alpha });
+  g.poly([-w, b - h, 0, b + d - h, 0, b + d, -w, b]).fill({
+    color: shade(color, LEFT_FACE),
+    alpha,
+  });
   g.poly([0, b + d - h, w, b - h, w, b, 0, b + d]).fill({ color: shade(color, RIGHT_FACE), alpha });
   g.poly([0, b - d - h, w, b - h, 0, b + d - h, -w, b - h]).fill({ color: topColor, alpha });
   return g;
@@ -98,7 +101,16 @@ function isoFlat(g: Graphics, f: number, color: number, alpha = 1): Graphics {
  * A panel painted on the +y ("left") face of a full-width box: `u0..u1` across
  * the face (0 = left corner, 1 = bottom corner), `v0..v1` up it in pixels.
  */
-function leftPanel(g: Graphics, u0: number, u1: number, v0: number, v1: number, color: number, alpha = 1, f = 1) {
+function leftPanel(
+  g: Graphics,
+  u0: number,
+  u1: number,
+  v0: number,
+  v1: number,
+  color: number,
+  alpha = 1,
+  f = 1,
+) {
   const w = HW * f;
   const d = HH * f;
   const pt = (u: number, v: number) => [-w + u * w, u * d - v];
@@ -106,7 +118,16 @@ function leftPanel(g: Graphics, u0: number, u1: number, v0: number, v1: number, 
 }
 
 /** The same on the +x ("right") face: u = 0 is the bottom corner, 1 the right corner. */
-function rightPanel(g: Graphics, u0: number, u1: number, v0: number, v1: number, color: number, alpha = 1, f = 1) {
+function rightPanel(
+  g: Graphics,
+  u0: number,
+  u1: number,
+  v0: number,
+  v1: number,
+  color: number,
+  alpha = 1,
+  f = 1,
+) {
   const w = HW * f;
   const d = HH * f;
   const pt = (u: number, v: number) => [u * w, d - u * d - v];
@@ -148,8 +169,12 @@ function drawProp(kind: PropKind): Graphics {
       const cy = HH / 2 - 72;
       g.ellipse(cx, cy, 15, 17).fill(P.gold);
       g.ellipse(cx, cy, 12, 14).fill(P.paper);
-      g.moveTo(cx, cy).lineTo(cx, cy - 10).stroke({ color: P.ink, width: 2 });
-      g.moveTo(cx, cy).lineTo(cx + 6, cy + 3).stroke({ color: P.ink, width: 2 });
+      g.moveTo(cx, cy)
+        .lineTo(cx, cy - 10)
+        .stroke({ color: P.ink, width: 2 });
+      g.moveTo(cx, cy)
+        .lineTo(cx + 6, cy + 3)
+        .stroke({ color: P.ink, width: 2 });
       return g;
     }
 
@@ -212,9 +237,18 @@ function drawProp(kind: PropKind): Graphics {
       isoBox(g, 1, 10, P.walnut, P.walnutLight);
       const w = HW;
       const d = HH;
-      g.poly([-w, -10 - 64, 0, d - 10 - 64, 0, d - 10, -w, -10]).fill({ color: P.glass, alpha: 0.22 });
-      g.poly([0, d - 10 - 64, w, -10 - 64, w, -10, 0, d - 10]).fill({ color: shade(P.glass, 0.85), alpha: 0.22 });
-      g.moveTo(-w, -74).lineTo(0, d - 74).lineTo(w, -74).stroke({ color: P.gold, width: 2, alpha: 0.9 });
+      g.poly([-w, -10 - 64, 0, d - 10 - 64, 0, d - 10, -w, -10]).fill({
+        color: P.glass,
+        alpha: 0.22,
+      });
+      g.poly([0, d - 10 - 64, w, -10 - 64, w, -10, 0, d - 10]).fill({
+        color: shade(P.glass, 0.85),
+        alpha: 0.22,
+      });
+      g.moveTo(-w, -74)
+        .lineTo(0, d - 74)
+        .lineTo(w, -74)
+        .stroke({ color: P.gold, width: 2, alpha: 0.9 });
       return g;
     }
 
@@ -247,7 +281,8 @@ function drawProp(kind: PropKind): Graphics {
 
     case "filing_cabinet": {
       isoBox(g, 0.62, 62, P.steelLight, shade(P.steelLight, 1.08));
-      for (let i = 0; i < 3; i++) leftPanel(g, 0.15, 0.85, 8 + i * 18, 22 + i * 18, shade(P.steelLight, 0.92), 1, 0.62);
+      for (let i = 0; i < 3; i++)
+        leftPanel(g, 0.15, 0.85, 8 + i * 18, 22 + i * 18, shade(P.steelLight, 0.92), 1, 0.62);
       return g;
     }
 
@@ -271,7 +306,16 @@ function drawProp(kind: PropKind): Graphics {
       const books = [P.red, P.navyLight, P.gold, P.green, P.paper, P.navy];
       for (let s = 0; s < 3; s++) {
         for (let b = 0; b < 6; b++) {
-          rightPanel(g, 0.08 + b * 0.14, 0.18 + b * 0.14, 10 + s * 28, 30 + s * 28, books[(b + s) % books.length], 1, 0.86);
+          rightPanel(
+            g,
+            0.08 + b * 0.14,
+            0.18 + b * 0.14,
+            10 + s * 28,
+            30 + s * 28,
+            books[(b + s) % books.length],
+            1,
+            0.86,
+          );
         }
       }
       return g;
@@ -292,7 +336,8 @@ function drawProp(kind: PropKind): Graphics {
       isoBox(g, 0.2, 24, P.walnut, P.walnutLight);
       rightPanel(g, 0.05, 0.95, 30, 96, P.navy);
       rightPanel(g, 0.12, 0.88, 84, 90, P.gold);
-      for (let i = 0; i < 4; i++) rightPanel(g, 0.12, 0.7, 40 + i * 10, 44 + i * 10, P.goldLight, 0.8);
+      for (let i = 0; i < 4; i++)
+        rightPanel(g, 0.12, 0.7, 40 + i * 10, 44 + i * 10, P.goldLight, 0.8);
       for (let i = 0; i < 4; i++) rightPanel(g, 0.76, 0.88, 40 + i * 10, 44 + i * 10, P.paper, 0.9);
       return g;
     }

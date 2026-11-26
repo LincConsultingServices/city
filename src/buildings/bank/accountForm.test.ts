@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { checkAccountForm, emptyForm, pinProblem, toRequest, type AccountFormValues } from "./accountForm";
+import {
+  checkAccountForm,
+  emptyForm,
+  pinProblem,
+  toRequest,
+  type AccountFormValues,
+} from "./accountForm";
 import { CITY_ADDRESSES, pocketFor, VALID_ID } from "./pocket";
 
 const pocket = pocketFor("Asha Rao");
@@ -38,7 +44,14 @@ describe("Daniel checks the account form", () => {
   });
 
   it("returns an empty form with every required box marked", () => {
-    expect(fields(emptyForm(""))).toEqual(["holder", "address", "phone", "idDocument", "signature", "type"]);
+    expect(fields(emptyForm(""))).toEqual([
+      "holder",
+      "address",
+      "phone",
+      "idDocument",
+      "signature",
+      "type",
+    ]);
   });
 
   it("turns down the expired licence and the library card, saying why", () => {
@@ -53,7 +66,9 @@ describe("Daniel checks the account form", () => {
     expect(fields({ ...good(), holder: "Asha R." })).toEqual(["holder"]);
     const other = CITY_ADDRESSES.find((a) => a !== pocket.address)!;
     expect(fields({ ...good(), address: other })).toEqual(["address"]);
-    expect(fields({ ...good(), phone: "5551234567" === pocket.phone ? "5559999999" : "5551234567" })).toEqual(["phone"]);
+    expect(
+      fields({ ...good(), phone: "5551234567" === pocket.phone ? "5559999999" : "5551234567" }),
+    ).toEqual(["phone"]);
     expect(fields({ ...good(), phone: "555-12" })).toEqual(["phone"]);
   });
 
@@ -63,7 +78,12 @@ describe("Daniel checks the account form", () => {
   });
 
   it("sends the server a tidy request", () => {
-    const req = toRequest({ ...good(), phone: `(${pocket.phone.slice(0, 3)}) ${pocket.phone.slice(3)}`, nomineeName: "Ravi", nomineeRelation: "brother" });
+    const req = toRequest({
+      ...good(),
+      phone: `(${pocket.phone.slice(0, 3)}) ${pocket.phone.slice(3)}`,
+      nomineeName: "Ravi",
+      nomineeRelation: "brother",
+    });
     expect(req.phone).toBe(pocket.phone);
     expect(req.nominee).toBe("Ravi (brother)");
     expect(req.idDocument).toBe(VALID_ID);
@@ -72,7 +92,8 @@ describe("Daniel checks the account form", () => {
 
 describe("choosing a PIN", () => {
   it("refuses the guessable ones, as the server does", () => {
-    for (const weak of ["1234", "4321", "0000", "9999", "6789", "123", "12a4"]) expect(pinProblem(weak)).not.toBeNull();
+    for (const weak of ["1234", "4321", "0000", "9999", "6789", "123", "12a4"])
+      expect(pinProblem(weak)).not.toBeNull();
     for (const ok of ["4071", "8352", "1357", "2024"]) expect(pinProblem(ok)).toBeNull();
   });
 });

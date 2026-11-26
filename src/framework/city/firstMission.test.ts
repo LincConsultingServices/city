@@ -19,7 +19,15 @@ const account = {
   chequeLeaves: 0,
   salaryToAccount: false,
 };
-const line = (kind: string) => ({ id: kind, kind, channel: "counter", amount: 0, balanceAfter: 0, note: "", at: "" });
+const line = (kind: string) => ({
+  id: kind,
+  kind,
+  channel: "counter",
+  amount: 0,
+  balanceAfter: 0,
+  note: "",
+  at: "",
+});
 
 describe("the city's one objective", () => {
   beforeEach(() => {

@@ -12,7 +12,15 @@ import { useMemo, useState } from "react";
 import type { Cell } from "@/lib/pathfinding";
 import { Modal } from "@/ui/Modal";
 import { audio } from "@/framework/audio/audioManager";
-import { FURNITURE, ROOM_H, ROOM_W, STATIONS, isBackOffice, stationById, type PropKind } from "./room";
+import {
+  FURNITURE,
+  ROOM_H,
+  ROOM_W,
+  STATIONS,
+  isBackOffice,
+  stationById,
+  type PropKind,
+} from "./room";
 import { STAFF } from "./cast";
 import { travelTo, useRoomStore } from "./roomStore";
 
@@ -101,7 +109,8 @@ function Plan({
     const out: { key: string; points: string; fill: string }[] = [];
     for (let y = 0; y < ROOM_H; y++) {
       for (let x = 0; x < ROOM_W; x++) {
-        const fill = x <= 4 && y <= 4 ? FLOOR.office : isBackOffice({ x, y }) ? FLOOR.back : FLOOR.hall;
+        const fill =
+          x <= 4 && y <= 4 ? FLOOR.office : isBackOffice({ x, y }) ? FLOOR.back : FLOOR.hall;
         out.push({ key: `${x},${y}`, points: diamond({ x, y }), fill });
       }
     }
@@ -137,7 +146,17 @@ function Plan({
       {/* The staff, at their posts. */}
       {STAFF.map((m) => {
         const p = project(m.anchor);
-        return <circle key={m.id} cx={p.x} cy={p.y} r={2.6} fill="#1f2d4d" stroke="#e5c77a" strokeWidth={0.8} />;
+        return (
+          <circle
+            key={m.id}
+            cx={p.x}
+            cy={p.y}
+            r={2.6}
+            fill="#1f2d4d"
+            stroke="#e5c77a"
+            strokeWidth={0.8}
+          />
+        );
       })}
 
       {/* The places, as pins — named in the list beside the big map. */}
@@ -155,7 +174,14 @@ function Plan({
               role="button"
               aria-label={`Walk to ${s.label}`}
             >
-              <circle cx={p.x} cy={p.y} r={on ? 5 : 3.4} fill={on ? "#c9a24a" : "#ffffffcc"} stroke="#1f2d4d" strokeWidth={0.8} />
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={on ? 5 : 3.4}
+                fill={on ? "#c9a24a" : "#ffffffcc"}
+                stroke="#1f2d4d"
+                strokeWidth={0.8}
+              />
               {on && (
                 <text
                   x={p.x}
@@ -184,7 +210,12 @@ function Plan({
           return (
             <circle cx={p.x} cy={p.y} r={6} fill="none" stroke="#ffc65c" strokeWidth={1.6}>
               <animate attributeName="r" values="5;10;5" dur="1.6s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="1;0.3;1" dur="1.6s" repeatCount="indefinite" />
+              <animate
+                attributeName="opacity"
+                values="1;0.3;1"
+                dur="1.6s"
+                repeatCount="indefinite"
+              />
             </circle>
           );
         })()}
@@ -199,7 +230,13 @@ function Plan({
 }
 
 /** The small plan in the corner. Click it to open the full map. */
-export function BankMinimap({ onOpen, highlight }: { onOpen: () => void; highlight?: string | null }) {
+export function BankMinimap({
+  onOpen,
+  highlight,
+}: {
+  onOpen: () => void;
+  highlight?: string | null;
+}) {
   return (
     <button
       onClick={onOpen}
@@ -264,7 +301,8 @@ export function BankMapPanel({ onClose }: { onClose: () => void }) {
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ffc65c]" /> You
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-full border border-[#e5c77a] bg-[#1f2d4d]" /> Staff
+          <span className="inline-block h-2.5 w-2.5 rounded-full border border-[#e5c77a] bg-[#1f2d4d]" />{" "}
+          Staff
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-white/80" /> Places

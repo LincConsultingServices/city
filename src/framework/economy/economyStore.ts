@@ -31,7 +31,9 @@ export const useEconomyStore = create<EconomyState>((set) => ({
   bankBalance: null,
   applyBank: (view) => {
     if (!view) return;
-    const next: Partial<EconomyState> = { bankBalance: view.account ? view.account.balance : false };
+    const next: Partial<EconomyState> = {
+      bankBalance: view.account ? view.account.balance : false,
+    };
     if (typeof view.cash === "number") next.coinBalance = view.cash;
     set(next);
   },

@@ -12,8 +12,10 @@ import type { ShopItemView } from "@/framework/api";
 import { useEconomyStore } from "@/framework/economy/economyStore";
 import { loadBank, pinRefusal, useBankStore } from "@/framework/bank/bankStore";
 
-const primary = "rounded-full bg-gold px-4 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-50";
-const secondary = "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
+const primary =
+  "rounded-full bg-gold px-4 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-50";
+const secondary =
+  "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
 
 const CATEGORY: Record<string, string> = {
   SKIN: "Outfit",
@@ -60,11 +62,15 @@ export function ShopTill({ onClose }: { onClose: () => void }) {
       {items && (
         <ul className="mt-4 grid gap-2 sm:grid-cols-2">
           {items.map((it) => (
-            <li key={it.id} className="flex items-center justify-between gap-3 rounded-xl border border-line/60 bg-surface-2/50 p-3">
+            <li
+              key={it.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-line/60 bg-surface-2/50 p-3"
+            >
               <div className="min-w-0">
                 <p className="truncate font-semibold text-text">{it.name}</p>
                 <p className="text-xs text-muted">
-                  {CATEGORY[it.category] ?? it.category} · {it.priceCoins === 0 ? "free" : `$${it.priceCoins}`}
+                  {CATEGORY[it.category] ?? it.category} ·{" "}
+                  {it.priceCoins === 0 ? "free" : `$${it.priceCoins}`}
                 </p>
               </div>
               {it.owned ? (
@@ -94,7 +100,9 @@ export function ShopTill({ onClose }: { onClose: () => void }) {
 function Checkout({ item, onDone }: { item: ShopItemView; onDone: () => void }) {
   const cash = useEconomyStore((s) => s.coinBalance) ?? 0;
   const account = useBankStore((s) => s.account);
-  const [method, setMethod] = useState<"cash" | "card" | null>(item.priceCoins === 0 ? "cash" : null);
+  const [method, setMethod] = useState<"cash" | "card" | null>(
+    item.priceCoins === 0 ? "cash" : null,
+  );
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -110,7 +118,8 @@ function Checkout({ item, onDone }: { item: ShopItemView; onDone: () => void }) 
     try {
       const res = await api.shopPurchase(item.id, method, method === "card" ? pin : undefined);
       useEconomyStore.getState().applyCoinBalance(res.newBalance);
-      if (typeof res.bankBalance === "number") useEconomyStore.getState().applyBankBalance(res.bankBalance);
+      if (typeof res.bankBalance === "number")
+        useEconomyStore.getState().applyBankBalance(res.bankBalance);
       await loadBank().catch(() => undefined);
       audio.play("ui_confirm");
       setPaid(
@@ -123,10 +132,14 @@ function Checkout({ item, onDone }: { item: ShopItemView; onDone: () => void }) 
     } catch (e) {
       const r = pinRefusal(e);
       setPin("");
-      if (r?.locked) setMessage("Too many wrong PINs. Your card is locked for a few minutes, for your safety.");
-      else if (r) setMessage(`Wrong PIN. ${r.attemptsLeft} ${r.attemptsLeft === 1 ? "try" : "tries"} left.`);
-      else if (e instanceof ApiError && e.code === "INSUFFICIENT_FUNDS") setMessage("Not enough cash for that.");
-      else if (e instanceof ApiError && e.code === "INSUFFICIENT_BALANCE") setMessage("Card declined: there isn't enough in your account.");
+      if (r?.locked)
+        setMessage("Too many wrong PINs. Your card is locked for a few minutes, for your safety.");
+      else if (r)
+        setMessage(`Wrong PIN. ${r.attemptsLeft} ${r.attemptsLeft === 1 ? "try" : "tries"} left.`);
+      else if (e instanceof ApiError && e.code === "INSUFFICIENT_FUNDS")
+        setMessage("Not enough cash for that.");
+      else if (e instanceof ApiError && e.code === "INSUFFICIENT_BALANCE")
+        setMessage("Card declined: there isn't enough in your account.");
       else setMessage(e instanceof Error ? e.message : "Something went wrong.");
       audio.play("ui_error");
     } finally {
@@ -137,7 +150,9 @@ function Checkout({ item, onDone }: { item: ShopItemView; onDone: () => void }) 
   return (
     <Modal onClose={onDone} width="sm">
       <h2 className="font-display text-xl font-semibold text-gold">{item.name}</h2>
-      <p className="mt-1 text-sm text-muted">{item.priceCoins === 0 ? "Free" : `$${item.priceCoins}`}</p>
+      <p className="mt-1 text-sm text-muted">
+        {item.priceCoins === 0 ? "Free" : `$${item.priceCoins}`}
+      </p>
 
       {paid ? (
         <>
@@ -168,7 +183,9 @@ function Checkout({ item, onDone }: { item: ShopItemView; onDone: () => void }) 
                 onClick={() => setMethod("card")}
                 disabled={!canCard}
               >
-                <p className="font-semibold text-text">Debit card {canCard ? `•••• ${account!.cardLast4}` : ""}</p>
+                <p className="font-semibold text-text">
+                  Debit card {canCard ? `•••• ${account!.cardLast4}` : ""}
+                </p>
                 <p className="text-xs text-muted">
                   {canCard
                     ? `From your account: $${bank}. The money leaves your account straight away.`
@@ -179,7 +196,9 @@ function Checkout({ item, onDone }: { item: ShopItemView; onDone: () => void }) 
           )}
           {method === "card" && (
             <label className="mt-3 block">
-              <span className="text-xs uppercase tracking-widest text-muted">PIN (cover the keypad)</span>
+              <span className="text-xs uppercase tracking-widest text-muted">
+                PIN (cover the keypad)
+              </span>
               <input
                 type="password"
                 inputMode="numeric"
@@ -196,7 +215,11 @@ function Checkout({ item, onDone }: { item: ShopItemView; onDone: () => void }) 
             <button className={secondary} onClick={onDone}>
               Back
             </button>
-            <button className={primary} disabled={busy || !method || (method === "card" && pin.length !== 4)} onClick={pay}>
+            <button
+              className={primary}
+              disabled={busy || !method || (method === "card" && pin.length !== 4)}
+              onClick={pay}
+            >
               {busy ? "Paying…" : item.priceCoins === 0 ? "Take it" : `Pay $${item.priceCoins}`}
             </button>
           </div>

@@ -9,7 +9,6 @@ export const SHAPE_CLASS: Record<Shape, string> = {
   square: "aspect-square w-full max-w-[230px]",
 };
 
-
 /**
  * A tile shows the item as a true miniature: drawn at its full size and
  * scaled down, so the text on it scales with it instead of crowding.

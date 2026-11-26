@@ -126,7 +126,12 @@ export function buildRoom(tex: BankTextures): RoomLayer {
   }
 
   // ── Signs ─────────────────────────────────────────────────────────────────
-  const sign = (text: string, cell: Cell, lift: number, opts: { size?: number; plate?: number; ink?: number } = {}) => {
+  const sign = (
+    text: string,
+    cell: Cell,
+    lift: number,
+    opts: { size?: number; plate?: number; ink?: number } = {},
+  ) => {
     const w = mapToWorld(cell.x, cell.y);
     const t = label(text, opts.size ?? 15, opts.ink ?? P.goldLight);
     t.anchor.set(0.5, 0.5);
@@ -162,7 +167,10 @@ export function buildRoom(tex: BankTextures): RoomLayer {
   const sh = 40;
   const frame = new Graphics();
   frame.rect(-1, -sh / 2 - 22, 2, 22).fill(P.steel); // the hanger
-  frame.roundRect(-sw / 2, -sh / 2, sw, sh, 4).fill(P.ink).stroke({ color: P.gold, width: 1.5 });
+  frame
+    .roundRect(-sw / 2, -sh / 2, sw, sh, 4)
+    .fill(P.ink)
+    .stroke({ color: P.gold, width: 1.5 });
   const serving = label("", 16, P.screenGlow, "700");
   serving.anchor.set(0.5, 0.5);
   screen.addChild(frame, serving);

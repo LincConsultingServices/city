@@ -86,7 +86,10 @@ export function WalletHistory({ onClose }: { onClose: () => void }) {
   };
 
   const shown = useMemo(
-    () => (ledger ?? []).filter((r) => (filter === "all" ? true : filter === "in" ? r.amount > 0 : r.amount < 0)),
+    () =>
+      (ledger ?? []).filter((r) =>
+        filter === "all" ? true : filter === "in" ? r.amount > 0 : r.amount < 0,
+      ),
     [ledger, filter],
   );
   const totalIn = (ledger ?? []).filter((r) => r.amount > 0).reduce((s, r) => s + r.amount, 0);
@@ -94,9 +97,11 @@ export function WalletHistory({ onClose }: { onClose: () => void }) {
 
   const describe = (r: CoinTransaction): { what: string; detail: string } => {
     const base = REASONS[r.reason] ?? "An adjustment";
-    if (r.reason === "BADGE_AWARD") return { what: `${base}: ${names[r.refId] ?? "a badge"}`, detail: "" };
+    if (r.reason === "BADGE_AWARD")
+      return { what: `${base}: ${names[r.refId] ?? "a badge"}`, detail: "" };
     if (r.reason === "SHOP_PURCHASE") return { what: base, detail: names[r.refId] ?? r.refId };
-    if (r.reason === "BANK_WITHDRAWAL" && r.refType === "CHEQUE") return { what: "Cheque cashed at the bank", detail: `No. ${r.refId}` };
+    if (r.reason === "BANK_WITHDRAWAL" && r.refType === "CHEQUE")
+      return { what: "Cheque cashed at the bank", detail: `No. ${r.refId}` };
     if (r.reason === "ACTIVITY_COMPLETE") return { what: base, detail: r.refId };
     return { what: base, detail: "" };
   };
@@ -104,15 +109,21 @@ export function WalletHistory({ onClose }: { onClose: () => void }) {
   return (
     <Modal onClose={onClose} width="md">
       <h2 className="font-display text-xl font-semibold text-gold">Your wallet</h2>
-      <p className="mt-1 text-sm text-muted">The cash in your pocket, and where it came from and went.</p>
+      <p className="mt-1 text-sm text-muted">
+        The cash in your pocket, and where it came from and went.
+      </p>
 
       <div className="mt-5 flex items-baseline gap-3 rounded-xl border border-line/70 bg-surface-2/50 px-5 py-4">
         <span aria-hidden className="font-display text-3xl text-coin">
           $
         </span>
-        <span className="font-display text-3xl tabular-nums text-text">{coins === null ? "—" : coins}</span>
+        <span className="font-display text-3xl tabular-nums text-text">
+          {coins === null ? "—" : coins}
+        </span>
         {lifetime !== null && (
-          <span className="ml-auto text-xs uppercase tracking-widest text-muted">${lifetime} earned in all</span>
+          <span className="ml-auto text-xs uppercase tracking-widest text-muted">
+            ${lifetime} earned in all
+          </span>
         )}
       </div>
 
@@ -138,7 +149,9 @@ export function WalletHistory({ onClose }: { onClose: () => void }) {
               onClick={() => setFilter(f)}
               aria-pressed={filter === f}
               className={`rounded-full border px-2.5 py-0.5 text-xs ${
-                filter === f ? "border-gold bg-gold/15 text-text" : "border-line/70 text-muted hover:text-text"
+                filter === f
+                  ? "border-gold bg-gold/15 text-text"
+                  : "border-line/70 text-muted hover:text-text"
               }`}
             >
               {f === "all" ? "All" : f === "in" ? "In" : "Out"}
@@ -149,12 +162,15 @@ export function WalletHistory({ onClose }: { onClose: () => void }) {
 
       {!reachable ? (
         <p className="mt-3 text-sm text-muted">
-          Can't reach your wallet just now. Your money is safe: it's kept on your account, not in this browser.
+          Can't reach your wallet just now. Your money is safe: it's kept on your account, not in
+          this browser.
         </p>
       ) : ledger === null ? (
         <p className="mt-3 text-sm text-muted">Looking it up…</p>
       ) : shown.length === 0 ? (
-        <p className="mt-3 text-sm text-muted">{ledger.length === 0 ? "Nothing yet. Go and run something." : "Nothing here."}</p>
+        <p className="mt-3 text-sm text-muted">
+          {ledger.length === 0 ? "Nothing yet. Go and run something." : "Nothing here."}
+        </p>
       ) : (
         <ul className="mt-2 max-h-80 divide-y divide-line/50 overflow-y-auto">
           {shown.map((row, i) => {
@@ -164,9 +180,13 @@ export function WalletHistory({ onClose }: { onClose: () => void }) {
                 <span className="min-w-0">
                   <span className="text-text">{d.what}</span>
                   {d.detail && <span className="ml-2 truncate text-xs text-muted">{d.detail}</span>}
-                  {row.createdAt && <span className="block text-[11px] text-muted">{when(row.createdAt)}</span>}
+                  {row.createdAt && (
+                    <span className="block text-[11px] text-muted">{when(row.createdAt)}</span>
+                  )}
                 </span>
-                <span className={`ml-auto shrink-0 tabular-nums ${row.amount < 0 ? "text-muted" : "text-coin"}`}>
+                <span
+                  className={`ml-auto shrink-0 tabular-nums ${row.amount < 0 ? "text-muted" : "text-coin"}`}
+                >
                   {row.amount > 0 ? `+$${row.amount}` : `-$${Math.abs(row.amount)}`}
                 </span>
               </li>
@@ -175,7 +195,10 @@ export function WalletHistory({ onClose }: { onClose: () => void }) {
         </ul>
       )}
       {more && filter === "all" && (
-        <button onClick={loadMore} className="mt-2 text-xs text-muted underline underline-offset-2 hover:text-text">
+        <button
+          onClick={loadMore}
+          className="mt-2 text-xs text-muted underline underline-offset-2 hover:text-text"
+        >
           Show earlier
         </button>
       )}

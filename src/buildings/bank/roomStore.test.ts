@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { calledTo, finishTicket, resetRoomState, takeTicket, tickQueue, ticketLabel, useRoomStore } from "./roomStore";
+import {
+  calledTo,
+  finishTicket,
+  resetRoomState,
+  takeTicket,
+  tickQueue,
+  ticketLabel,
+  useRoomStore,
+} from "./roomStore";
 
 describe("the ticket queue", () => {
   beforeEach(() => resetRoomState());

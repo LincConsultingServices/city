@@ -8,7 +8,14 @@ import { Modal } from "@/ui/Modal";
 import { Portrait } from "@/ui/Portrait";
 import { audio } from "@/framework/audio/audioManager";
 import { activeTrack } from "@/framework/city/track";
-import { depositCheque, formProblem, issueChequeBook, newKey, useBankStore, writeCheque } from "@/framework/bank/bankStore";
+import {
+  depositCheque,
+  formProblem,
+  issueChequeBook,
+  newKey,
+  useBankStore,
+  writeCheque,
+} from "@/framework/bank/bankStore";
 import type { BankChequeWritten, Cheque } from "@/framework/api";
 import { BANK_CAST } from "@/ui/characters";
 import { finishTicket } from "./roomStore";
@@ -28,12 +35,17 @@ import {
 } from "./cheques";
 
 const SIGNATURE_FONT = '"Segoe Script", "Brush Script MT", "Snell Roundhand", cursive';
-const primary = "rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-60";
-const secondary = "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
-const paper = "rounded border border-[#22252c]/25 bg-white/70 px-2 py-1 text-sm text-[#22252c] outline-none focus:border-[#c9a24a]";
+const primary =
+  "rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-60";
+const secondary =
+  "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
+const paper =
+  "rounded border border-[#22252c]/25 bg-white/70 px-2 py-1 text-sm text-[#22252c] outline-none focus:border-[#c9a24a]";
 
 function errorText(e: unknown): string {
-  return formProblem(e)?.message ?? (e instanceof Error ? e.message : "Something went wrong. Try again.");
+  return (
+    formProblem(e)?.message ?? (e instanceof Error ? e.message : "Something went wrong. Try again.")
+  );
 }
 
 function when(iso?: string): string {
@@ -75,7 +87,10 @@ export function ChequeArt({ c, children }: { c: ChequeFace; children?: React.Rea
       style={{ background: "linear-gradient(120deg, #f6f1e4 0%, #eae4d2 100%)" }}
     >
       {c.crossed && (
-        <div aria-label="Crossed: account payee only" className="pointer-events-none absolute left-6 top-0 h-full w-16 -skew-x-[30deg] border-x-2 border-[#22252c]/70">
+        <div
+          aria-label="Crossed: account payee only"
+          className="pointer-events-none absolute left-6 top-0 h-full w-16 -skew-x-[30deg] border-x-2 border-[#22252c]/70"
+        >
           <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 skew-x-[30deg] whitespace-nowrap text-[9px] font-semibold tracking-wider">
             A/C PAYEE
           </span>
@@ -84,26 +99,42 @@ export function ChequeArt({ c, children }: { c: ChequeFace; children?: React.Rea
       <div className="flex items-start justify-between">
         <p className="font-display text-sm font-semibold">{c.bank ?? "MERIDIAN BANK"}</p>
         <p className="text-xs">
-          Date <span className="ml-1 border-b border-[#22252c]/40 px-1 font-mono">{c.date || "  /  /    "}</span>
+          Date{" "}
+          <span className="ml-1 border-b border-[#22252c]/40 px-1 font-mono">
+            {c.date || "  /  /    "}
+          </span>
         </p>
       </div>
       <p className="mt-3 text-sm">
-        Pay <span className="mx-1 inline-block min-w-[10rem] border-b border-[#22252c]/40 px-1 font-semibold">{c.payee}</span>
+        Pay{" "}
+        <span className="mx-1 inline-block min-w-[10rem] border-b border-[#22252c]/40 px-1 font-semibold">
+          {c.payee}
+        </span>
         <span className={c.bearerStruck ? "text-[#22252c]/50 line-through" : ""}>or bearer</span>
       </p>
       <div className="mt-2 flex items-end gap-3">
         <p className="flex-1 text-sm">
-          Dollars <span className="ml-1 inline-block w-[85%] border-b border-[#22252c]/40 px-1 italic">{c.words}</span>
+          Dollars{" "}
+          <span className="ml-1 inline-block w-[85%] border-b border-[#22252c]/40 px-1 italic">
+            {c.words}
+          </span>
         </p>
-        <p className="rounded border border-[#22252c]/50 bg-white/60 px-2 py-1 font-mono text-sm">${c.amount}</p>
+        <p className="rounded border border-[#22252c]/50 bg-white/60 px-2 py-1 font-mono text-sm">
+          ${c.amount}
+        </p>
       </div>
       <div className="mt-3 flex items-end justify-between text-[11px]">
         <span className="font-mono">
           {c.from ? `${c.from} · ` : ""}No. {c.number}
           {c.accountNumber ? ` · A/c ${c.accountNumber}` : ""}
         </span>
-        <span className="min-w-[8rem] border-t border-[#22252c]/40 pt-0.5 text-center text-base" style={{ fontFamily: SIGNATURE_FONT }}>
-          {c.signature || <span className="text-[10px] not-italic text-[#22252c]/50">signature</span>}
+        <span
+          className="min-w-[8rem] border-t border-[#22252c]/40 pt-0.5 text-center text-base"
+          style={{ fontFamily: SIGNATURE_FONT }}
+        >
+          {c.signature || (
+            <span className="text-[10px] not-italic text-[#22252c]/50">signature</span>
+          )}
         </span>
       </div>
       {c.memo && <p className="mt-1 text-[11px] italic text-[#22252c]/70">Memo: {c.memo}</p>}
@@ -128,7 +159,13 @@ const faceOf = (c: Cheque): ChequeFace => ({
 
 // ── Paying a cheque in ───────────────────────────────────────────────────────
 
-export function PayInCheque({ onClose, dropBox = false }: { onClose: () => void; dropBox?: boolean }) {
+export function PayInCheque({
+  onClose,
+  dropBox = false,
+}: {
+  onClose: () => void;
+  dropBox?: boolean;
+}) {
   const account = useBankStore((s) => s.account);
   const cheques = useBankStore((s) => s.cheques);
   const busy = useBankStore((s) => s.busy);
@@ -147,11 +184,14 @@ export function PayInCheque({ onClose, dropBox = false }: { onClose: () => void;
         {dropBox ? (
           <p className="text-sm text-text">The cheque drops into the box with a soft thud.</p>
         ) : (
-          <OmarSays>"Got it. ${done.amount} from {done.from}."</OmarSays>
+          <OmarSays>
+            "Got it. ${done.amount} from {done.from}."
+          </OmarSays>
         )}
         <p className="mt-3 rounded-xl border border-gold/40 bg-gold/10 p-3 text-sm leading-relaxed text-text">
-          A cheque isn't money yet. The bank has to <b>clear</b> it first: collect the ${done.amount} from {done.from}'s
-          bank. It will be in your account at about <b>{when(done.clearsAt)}</b>, and you'll see it in your passbook then.
+          A cheque isn't money yet. The bank has to <b>clear</b> it first: collect the $
+          {done.amount} from {done.from}'s bank. It will be in your account at about{" "}
+          <b>{when(done.clearsAt)}</b>, and you'll see it in your passbook then.
         </p>
         <div className="mt-5 flex justify-end">
           <button autoFocus className={primary} onClick={onClose}>
@@ -188,10 +228,13 @@ export function PayInCheque({ onClose, dropBox = false }: { onClose: () => void;
     <Modal onClose={onClose} width="lg">
       {dropBox ? (
         <p className="text-sm text-muted">
-          Cheque drop box. "Write your name and account number on the back of the cheque, then drop it in. No queue needed."
+          Cheque drop box. "Write your name and account number on the back of the cheque, then drop
+          it in. No queue needed."
         </p>
       ) : (
-        <OmarSays>"Paying in a cheque? Turn it over and write your account number on the back."</OmarSays>
+        <OmarSays>
+          "Paying in a cheque? Turn it over and write your account number on the back."
+        </OmarSays>
       )}
       {held.length === 0 ? (
         <p className="mt-4 text-sm text-text">You don't have any cheques to pay in.</p>
@@ -200,7 +243,11 @@ export function PayInCheque({ onClose, dropBox = false }: { onClose: () => void;
           {held.length > 1 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {held.map((c) => (
-                <button key={c.id} onClick={() => setPick(c.id)} className={c.id === pick ? primary : secondary}>
+                <button
+                  key={c.id}
+                  onClick={() => setPick(c.id)}
+                  className={c.id === pick ? primary : secondary}
+                >
                   ${c.amount} from {c.from}
                 </button>
               ))}
@@ -210,7 +257,9 @@ export function PayInCheque({ onClose, dropBox = false }: { onClose: () => void;
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <ChequeArt c={{ ...faceOf(cheque), payee: account.holder }} />
               <div className="rounded-xl border border-dashed border-[#c9a24a]/60 bg-[#f3efe6] p-4 text-[#22252c]">
-                <p className="text-[11px] uppercase tracking-widest text-[#22252c]/70">The back of the cheque</p>
+                <p className="text-[11px] uppercase tracking-widest text-[#22252c]/70">
+                  The back of the cheque
+                </p>
                 <label className="mt-2 block text-xs">
                   For deposit to account no.
                   <input
@@ -225,8 +274,8 @@ export function PayInCheque({ onClose, dropBox = false }: { onClose: () => void;
                 </p>
                 {cheque.crossed && (
                   <p className="mt-2 text-[11px] text-[#22252c]/70">
-                    It's crossed ("A/C payee"), so it can only go into an account, never be cashed. That keeps it safe if
-                    it's lost.
+                    It's crossed ("A/C payee"), so it can only go into an account, never be cashed.
+                    That keeps it safe if it's lost.
                   </p>
                 )}
               </div>
@@ -256,7 +305,13 @@ export function CashACheque({ onClose }: { onClose: () => void }) {
   const busy = useBankStore((s) => s.busy);
   const today = useMemo(() => isoDay(new Date()), []);
   const key = useMemo(newKey, []);
-  const [v, setV] = useState<ChequeValues>({ date: "", amount: "", words: "", signature: "", crossed: false });
+  const [v, setV] = useState<ChequeValues>({
+    date: "",
+    amount: "",
+    words: "",
+    signature: "",
+    crossed: false,
+  });
   const [issues, setIssues] = useState<ChequeIssue[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BankChequeWritten | null>(null);
@@ -266,7 +321,8 @@ export function CashACheque({ onClose }: { onClose: () => void }) {
   const payeeName = toSelf ? "Self" : (payees.find((p) => p.id === payeeId)?.name ?? "");
 
   if (!account) return null;
-  const set = <K extends ChequeField>(k: K, val: ChequeValues[K]) => setV((x) => ({ ...x, [k]: val }));
+  const set = <K extends ChequeField>(k: K, val: ChequeValues[K]) =>
+    setV((x) => ({ ...x, [k]: val }));
   const issueFor = (f: ChequeField) => issues?.find((i) => i.field === f)?.message;
   const number = String(account.nextCheque ?? 1).padStart(6, "0");
 
@@ -281,24 +337,26 @@ export function CashACheque({ onClose }: { onClose: () => void }) {
           <>
             <OmarSays>"I'm sorry. I can't pay this one."</OmarSays>
             <p className="mt-3 rounded-xl border border-gold/40 bg-gold/10 p-3 text-sm leading-relaxed text-text">
-              Your cheque for ${result.cheque.amount} <b>bounced</b>: there's only ${result.balance} in your account. When
-              a cheque has nothing behind it, the bank refuses to pay it. Nothing has moved, and nothing is charged, but
-              the cheque is used up. Only write a cheque when the money is already there.
+              Your cheque for ${result.cheque.amount} <b>bounced</b>: there's only ${result.balance}{" "}
+              in your account. When a cheque has nothing behind it, the bank refuses to pay it.
+              Nothing has moved, and nothing is charged, but the cheque is used up. Only write a
+              cheque when the money is already there.
             </p>
           </>
         ) : result.cheque.status === "paid" ? (
           <OmarSays>
-            "Cheque {result.cheque.number} for ${result.cheque.amount} is paid to {result.cheque.to}. Your balance is now $
-            {result.balance}. It's in your passbook under the cheque number."
+            "Cheque {result.cheque.number} for ${result.cheque.amount} is paid to {result.cheque.to}
+            . Your balance is now ${result.balance}. It's in your passbook under the cheque number."
           </OmarSays>
         ) : (
           <>
             <OmarSays>
-              "Cheque {result.cheque.number}, ${result.cheque.amount}, paid to you. Here's your cash. Your balance is now $
-              {result.balance}."
+              "Cheque {result.cheque.number}, ${result.cheque.amount}, paid to you. Here's your
+              cash. Your balance is now ${result.balance}."
             </OmarSays>
             <p className="mt-3 text-xs text-muted">
-              Writing a cheque to "Self" is a way to take cash out of your own account at the counter.
+              Writing a cheque to "Self" is a way to take cash out of your own account at the
+              counter.
             </p>
           </>
         )}
@@ -343,12 +401,16 @@ export function CashACheque({ onClose }: { onClose: () => void }) {
   return (
     <Modal onClose={onClose} width="lg">
       <OmarSays>
-        "Who's it to? 'Self' to take cash out here, or a business in the city. You have {account.chequeLeaves} cheques
-        left, and ${account.balance} in your account."
+        "Who's it to? 'Self' to take cash out here, or a business in the city. You have{" "}
+        {account.chequeLeaves} cheques left, and ${account.balance} in your account."
       </OmarSays>
       <label className="mt-3 block">
         <span className="text-xs uppercase tracking-widest text-muted">Pay</span>
-        <select className={`${inputDark} mt-1`} value={payeeId} onChange={(e) => setPayeeId(e.target.value)}>
+        <select
+          className={`${inputDark} mt-1`}
+          value={payeeId}
+          onChange={(e) => setPayeeId(e.target.value)}
+        >
           <option value="self">Self (cash at the counter)</option>
           {payees.map((p) => (
             <option key={p.id} value={p.id}>
@@ -374,10 +436,20 @@ export function CashACheque({ onClose }: { onClose: () => void }) {
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Box label="Date" issue={issueFor("date")}>
-          <input type="date" value={v.date} onChange={(e) => set("date", e.target.value)} className={inputDark} />
+          <input
+            type="date"
+            value={v.date}
+            onChange={(e) => set("date", e.target.value)}
+            className={inputDark}
+          />
         </Box>
         <Box label="Amount ($)" issue={issueFor("amount")}>
-          <input value={v.amount} inputMode="numeric" onChange={(e) => set("amount", e.target.value)} className={inputDark} />
+          <input
+            value={v.amount}
+            inputMode="numeric"
+            onChange={(e) => set("amount", e.target.value)}
+            className={inputDark}
+          />
         </Box>
         <Box label="Amount in words" issue={issueFor("words")}>
           <input
@@ -398,7 +470,11 @@ export function CashACheque({ onClose }: { onClose: () => void }) {
       </div>
       <Box label="Crossing" issue={issueFor("crossed")}>
         <label className="flex items-center gap-2 text-sm text-text">
-          <input type="checkbox" checked={v.crossed} onChange={(e) => set("crossed", e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={v.crossed}
+            onChange={(e) => set("crossed", e.target.checked)}
+          />
           Draw two lines across the corner (A/C payee only)
         </label>
       </Box>
@@ -418,11 +494,25 @@ export function CashACheque({ onClose }: { onClose: () => void }) {
 const inputDark =
   "w-full rounded-lg border border-line/70 bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-gold/70";
 
-function Box({ label, issue, children }: { label: string; issue?: string; children: React.ReactNode }) {
+function Box({
+  label,
+  issue,
+  children,
+}: {
+  label: string;
+  issue?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="mt-1 block">
       <span className="text-xs uppercase tracking-widest text-muted">{label}</span>
-      <div className={issue ? "mt-1 rounded-lg ring-2 ring-gold/70 ring-offset-2 ring-offset-surface" : "mt-1"}>{children}</div>
+      <div
+        className={
+          issue ? "mt-1 rounded-lg ring-2 ring-gold/70 ring-offset-2 ring-offset-surface" : "mt-1"
+        }
+      >
+        {children}
+      </div>
       {issue && <span className="mt-1 block text-xs leading-relaxed text-gold">✎ {issue}</span>}
     </label>
   );
@@ -440,8 +530,8 @@ export function ChequeBookRequest({ onClose }: { onClose: () => void }) {
     <Modal onClose={onClose} width="sm">
       {done ? (
         <OmarSays>
-          "Here's your cheque book: ten cheques, numbered, with your account number printed on every one. Keep it somewhere
-          safe, and never sign a cheque until you've filled it in."
+          "Here's your cheque book: ten cheques, numbered, with your account number printed on every
+          one. Keep it somewhere safe, and never sign a cheque until you've filled it in."
         </OmarSays>
       ) : (
         <OmarSays>
@@ -502,7 +592,8 @@ export function SpotTheCheque({ onClose }: { onClose: () => void }) {
             : `"${score} of ${cheques.length}. The ones that catch people are the small things: a date, a missing signature."`}
         </OmarSays>
         <p className="mt-3 text-xs text-muted">
-          Before the bank pays a cheque it checks: the date, the payee, that the words and figures match, and the signature.
+          Before the bank pays a cheque it checks: the date, the payee, that the words and figures
+          match, and the signature.
         </p>
         <div className="mt-5 flex justify-end">
           <button autoFocus className={primary} onClick={onClose}>
@@ -533,8 +624,8 @@ export function SpotTheCheque({ onClose }: { onClose: () => void }) {
   return (
     <Modal onClose={onClose} width="lg">
       <OmarSays>
-        "These came in today. Can the bank pay this one? Mark anything wrong with it, or nothing if it's fine." ({i + 1} of{" "}
-        {cheques.length})
+        "These came in today. Can the bank pay this one? Mark anything wrong with it, or nothing if
+        it's fine." ({i + 1} of {cheques.length})
       </OmarSays>
       <div className="mt-4">
         <ChequeArt
@@ -568,7 +659,12 @@ export function SpotTheCheque({ onClose }: { onClose: () => void }) {
                   ? "border-red-400/70 bg-red-400/10 text-text"
                   : "border-line/40 text-muted/60";
           return (
-            <button key={f} onClick={() => toggle(f)} aria-pressed={on} className={`rounded-xl border px-3 py-2 text-left text-sm ${tone}`}>
+            <button
+              key={f}
+              onClick={() => toggle(f)}
+              aria-pressed={on}
+              className={`rounded-xl border px-3 py-2 text-left text-sm ${tone}`}
+            >
               {FAULTS[f].label}
             </button>
           );
@@ -578,7 +674,10 @@ export function SpotTheCheque({ onClose }: { onClose: () => void }) {
         <div className="mt-3 rounded-xl border border-line/60 bg-surface-2/60 p-3 text-sm leading-relaxed text-text">
           <p className="font-semibold">{checked ? "Right." : "Not quite."}</p>
           {c.faults.length === 0 ? (
-            <p className="mt-1 text-muted">This one is fine: dated today, signed, and the words match the figures. The bank pays it.</p>
+            <p className="mt-1 text-muted">
+              This one is fine: dated today, signed, and the words match the figures. The bank pays
+              it.
+            </p>
           ) : (
             c.faults.map((f) => (
               <p key={f} className="mt-1 text-muted">

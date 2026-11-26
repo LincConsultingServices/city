@@ -25,7 +25,8 @@ export function storyLabel(): string {
   const parts: string[] = [];
   const cafe = readSession("cafe") as { stageId?: unknown; role?: unknown } | null;
   const stage = typeof cafe?.stageId === "string" ? stageById(cafe.stageId) : undefined;
-  const role = typeof cafe?.role === "string" ? ROLE_LABEL[cafe.role as keyof typeof ROLE_LABEL] : "";
+  const role =
+    typeof cafe?.role === "string" ? ROLE_LABEL[cafe.role as keyof typeof ROLE_LABEL] : "";
 
   if (stage?.kind === "exit") {
     if (cafe?.role === "ceo") {
@@ -40,7 +41,9 @@ export function storyLabel(): string {
 
   const maison = readJson(MAISON_KEY) as { decided?: unknown } | null;
   if (maison && Array.isArray(maison.decided) && maison.decided.length > 0) {
-    parts.push(`MAISON · ${maison.decided.length} ${maison.decided.length === 1 ? "beat" : "beats"}`);
+    parts.push(
+      `MAISON · ${maison.decided.length} ${maison.decided.length === 1 ? "beat" : "beats"}`,
+    );
   }
   return parts.length ? parts.join(" · ") : "The start of the game";
 }
@@ -105,7 +108,9 @@ export function ensureGameSession(): Promise<void> {
         try {
           window.sessionStorage.setItem(
             REVERT_NOTE,
-            res.state.anchorName ? `You're back at your save “${res.state.anchorName}”.` : "You're back at your last save.",
+            res.state.anchorName
+              ? `You're back at your save “${res.state.anchorName}”.`
+              : "You're back at your last save.",
           );
         } catch {
           /* no note, then */
@@ -193,7 +198,9 @@ export async function setAutosave(on: boolean): Promise<SaveState> {
   const r = await api.setAutosave(on, storyLabel(), browserExtra());
   autosaveOn = r.state.autosave;
   events.emit("toast", {
-    message: on ? "Autosave is on." : "Autosave is off. Save before you close the game, or this session will be lost.",
+    message: on
+      ? "Autosave is on."
+      : "Autosave is off. Save before you close the game, or this session will be lost.",
     kind: "info",
   });
   return r.state;

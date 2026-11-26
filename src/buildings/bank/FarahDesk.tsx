@@ -9,13 +9,23 @@ import { Modal } from "@/ui/Modal";
 import { Portrait } from "@/ui/Portrait";
 import { audio } from "@/framework/audio/audioManager";
 import { activeTrack } from "@/framework/city/track";
-import { breakDeposit, formProblem, newKey, openDeposit, quote, useBankStore } from "@/framework/bank/bankStore";
+import {
+  breakDeposit,
+  formProblem,
+  newKey,
+  openDeposit,
+  quote,
+  useBankStore,
+} from "@/framework/bank/bankStore";
 import type { QuoteMonth, TermDeposit } from "@/framework/api";
 import { BANK_CAST } from "@/ui/characters";
 
-const primary = "rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-60";
-const secondary = "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
-const input = "w-full rounded-lg border border-line/70 bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-gold/70";
+const primary =
+  "rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-60";
+const secondary =
+  "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
+const input =
+  "w-full rounded-lg border border-line/70 bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-gold/70";
 
 type Kind = "fd" | "rd";
 
@@ -24,7 +34,9 @@ const RD_TERMS = [6, 12] as const;
 const FD_RATE: Record<number, string> = { 3: "1.5%", 6: "2%", 12: "2.5%" };
 
 function errorText(e: unknown): string {
-  return formProblem(e)?.message ?? (e instanceof Error ? e.message : "Something went wrong. Try again.");
+  return (
+    formProblem(e)?.message ?? (e instanceof Error ? e.message : "Something went wrong. Try again.")
+  );
 }
 
 function FarahSays({ children }: { children: React.ReactNode }) {
@@ -68,10 +80,23 @@ function GrowthChart({ months }: { months: QuoteMonth[] }) {
   const lo = Math.max(0, min - (max - min) * 0.15);
   const x = (i: number) => pad + (i / Math.max(1, months.length - 1)) * (w - pad * 2);
   const y = (v: number) => h - pad - ((v - lo) / Math.max(1, max - lo)) * (h - pad * 2);
-  const path = (k: "deposit" | "savings" | "paid") => months.map((m, i) => `${i ? "L" : "M"}${x(i)},${y(m[k])}`).join(" ");
+  const path = (k: "deposit" | "savings" | "paid") =>
+    months.map((m, i) => `${i ? "L" : "M"}${x(i)},${y(m[k])}`).join(" ");
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="mt-3 w-full" role="img" aria-label="How the money grows, month by month">
-      <line x1={pad} x2={w - pad} y1={h - pad} y2={h - pad} stroke="currentColor" className="text-line" />
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className="mt-3 w-full"
+      role="img"
+      aria-label="How the money grows, month by month"
+    >
+      <line
+        x1={pad}
+        x2={w - pad}
+        y1={h - pad}
+        y2={h - pad}
+        stroke="currentColor"
+        className="text-line"
+      />
       <path d={path("paid")} fill="none" stroke="#8d96a6" strokeWidth={1.5} strokeDasharray="4 4" />
       <path d={path("savings")} fill="none" stroke="#6fd0e8" strokeWidth={2} />
       <path d={path("deposit")} fill="none" stroke="#c9a24a" strokeWidth={2.5} />
@@ -102,7 +127,8 @@ function Legend() {
         <span className="inline-block h-0.5 w-4 bg-[#6fd0e8]" /> Same money in savings
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="inline-block h-0.5 w-4 border-t border-dashed border-[#8d96a6]" /> What you put in
+        <span className="inline-block h-0.5 w-4 border-t border-dashed border-[#8d96a6]" /> What you
+        put in
       </span>
     </div>
   );
@@ -110,7 +136,13 @@ function Legend() {
 
 // ── The calculator ───────────────────────────────────────────────────────────
 
-export function SavingsCalculator({ onClose, onOpen }: { onClose: () => void; onOpen: (kind: Kind) => void }) {
+export function SavingsCalculator({
+  onClose,
+  onOpen,
+}: {
+  onClose: () => void;
+  onOpen: (kind: Kind) => void;
+}) {
   const [kind, setKind] = useState<Kind>("fd");
   const [amount, setAmount] = useState(kind === "fd" ? "1000" : "100");
   const [term, setTerm] = useState(12);
@@ -132,7 +164,8 @@ export function SavingsCalculator({ onClose, onOpen }: { onClose: () => void; on
   return (
     <Modal onClose={onClose} width="lg">
       <FarahSays>
-        "Let's see what your money could do. Pick an amount and a length of time, and I'll show you it month by month."
+        "Let's see what your money could do. Pick an amount and a length of time, and I'll show you
+        it month by month."
       </FarahSays>
       <div className="mt-4 flex gap-2">
         <button className={kind === "fd" ? primary : secondary} onClick={() => switchKind("fd")}>
@@ -185,7 +218,13 @@ export function SavingsCalculator({ onClose, onOpen }: { onClose: () => void; on
         <div className="mt-3 rounded-xl border border-gold/40 bg-gold/10 p-3 text-sm text-text">
           Before I show you: how much do you think it will be worth at the end?
           <div className="mt-2 flex gap-2">
-            <input className={input} inputMode="numeric" placeholder="Your guess, $" value={guess} onChange={(e) => setGuess(e.target.value.replace(/\D/g, ""))} />
+            <input
+              className={input}
+              inputMode="numeric"
+              placeholder="Your guess, $"
+              value={guess}
+              onChange={(e) => setGuess(e.target.value.replace(/\D/g, ""))}
+            />
             <button className={primary} disabled={!guess} onClick={() => setRevealed(true)}>
               Show me
             </button>
@@ -199,7 +238,11 @@ export function SavingsCalculator({ onClose, onOpen }: { onClose: () => void; on
           <Legend />
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
             <Stat label="You put in" value={`$${last.paid}`} />
-            <Stat label={`In the ${kind === "fd" ? "fixed" : "recurring"} deposit`} value={`$${last.deposit}`} tone="gold" />
+            <Stat
+              label={`In the ${kind === "fd" ? "fixed" : "recurring"} deposit`}
+              value={`$${last.deposit}`}
+              tone="gold"
+            />
             <Stat label="In savings instead" value={`$${last.savings}`} />
           </div>
           {guess && levelB && (
@@ -213,7 +256,8 @@ export function SavingsCalculator({ onClose, onOpen }: { onClose: () => void; on
             </p>
           )}
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            "The deposit earns ${last.deposit - last.savings} more than savings would. The trade is that{" "}
+            "The deposit earns ${last.deposit - last.savings} more than savings would. The trade is
+            that{" "}
             {kind === "fd"
               ? `the money is locked for ${term} months. You can take it out early, but then it only earns the savings rate.`
               : "you commit to saving every month. If your balance can't cover a month, that month is skipped, and you earn a bit less."}{" "}
@@ -223,7 +267,9 @@ export function SavingsCalculator({ onClose, onOpen }: { onClose: () => void; on
       )}
       {q === null && n > 0 && (
         <p className="mt-3 text-xs text-gold">
-          {kind === "fd" ? "A fixed deposit starts at $100." : "A recurring deposit is between $20 and $200 a month."}
+          {kind === "fd"
+            ? "A fixed deposit starts at $100."
+            : "A recurring deposit is between $20 and $200 a month."}
         </p>
       )}
 
@@ -243,7 +289,11 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "go
   return (
     <div className="rounded-xl border border-line/60 bg-surface-2/60 p-2">
       <p className="text-[11px] uppercase tracking-widest text-muted">{label}</p>
-      <p className={`mt-0.5 text-lg font-semibold tabular-nums ${tone === "gold" ? "text-gold" : "text-text"}`}>{value}</p>
+      <p
+        className={`mt-0.5 text-lg font-semibold tabular-nums ${tone === "gold" ? "text-gold" : "text-text"}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -272,7 +322,9 @@ export function OpenDeposit({ kind, onClose }: { kind: Kind; onClose: () => void
             ? `"Done. $${opened.principal} is in a ${opened.termMonths}-month fixed deposit. It matures on ${new Date(opened.maturesAt).toLocaleString()}, and the whole amount comes back into your account with the interest."`
             : `"Done. Your recurring deposit has started: $${opened.monthly} went in today, and $${opened.monthly} will be taken from your account at the end of every bank month for ${opened.termMonths} months."`}
         </FarahSays>
-        <p className="mt-3 text-xs text-muted">You can see it growing in your passbook, or at this desk under "My deposits".</p>
+        <p className="mt-3 text-xs text-muted">
+          You can see it growing in your passbook, or at this desk under "My deposits".
+        </p>
         <div className="mt-5 flex justify-end">
           <button autoFocus className={primary} onClick={onClose}>
             Thank you, Farah
@@ -285,7 +337,9 @@ export function OpenDeposit({ kind, onClose }: { kind: Kind; onClose: () => void
   const submit = async () => {
     setError(null);
     if (n > account.balance) {
-      setError(`There's $${account.balance} in your account. Pay more in at window 1 first, or choose a smaller amount.`);
+      setError(
+        `There's $${account.balance} in your account. Pay more in at window 1 first, or choose a smaller amount.`,
+      );
       return;
     }
     try {
@@ -307,14 +361,25 @@ export function OpenDeposit({ kind, onClose }: { kind: Kind; onClose: () => void
       </FarahSays>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block">
-          <span className="text-xs uppercase tracking-widest text-muted">{kind === "fd" ? "Amount (from $100)" : "Each month ($20–$200)"}</span>
-          <input className={`${input} mt-1`} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} />
+          <span className="text-xs uppercase tracking-widest text-muted">
+            {kind === "fd" ? "Amount (from $100)" : "Each month ($20–$200)"}
+          </span>
+          <input
+            className={`${input} mt-1`}
+            inputMode="numeric"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
+          />
         </label>
         <div>
           <span className="text-xs uppercase tracking-widest text-muted">For</span>
           <div className="mt-1 flex flex-wrap gap-2">
             {(kind === "fd" ? FD_TERMS : RD_TERMS).map((t) => (
-              <button key={t} className={term === t ? primary : secondary} onClick={() => setTerm(t)}>
+              <button
+                key={t}
+                className={term === t ? primary : secondary}
+                onClick={() => setTerm(t)}
+              >
                 {t} mo{kind === "fd" ? ` · ${FD_RATE[t]}` : ""}
               </button>
             ))}
@@ -340,7 +405,11 @@ export function OpenDeposit({ kind, onClose }: { kind: Kind; onClose: () => void
           Not now
         </button>
         <button className={primary} disabled={busy || !last} onClick={submit}>
-          {busy ? "Opening…" : kind === "fd" ? `Lock away $${n || 0}` : `Start saving $${n || 0} a month`}
+          {busy
+            ? "Opening…"
+            : kind === "fd"
+              ? `Lock away $${n || 0}`
+              : `Start saving $${n || 0} a month`}
         </button>
       </div>
     </Modal>
@@ -363,14 +432,22 @@ export function MyDeposits({ onClose }: { onClose: () => void }) {
           <FarahSays>"Done. ${paid} is back in your account."</FarahSays>
         ) : (
           <FarahSays>
-            "If you take it out now, you get ${confirm.savingsValue}: everything you put in (${confirm.paid}) plus interest at the
-            savings rate. If you wait until it matures, it will be worth more. There's no charge either way."
+            "If you take it out now, you get ${confirm.savingsValue}: everything you put in ($
+            {confirm.paid}) plus interest at the savings rate. If you wait until it matures, it will
+            be worth more. There's no charge either way."
           </FarahSays>
         )}
         {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           {paid !== null ? (
-            <button autoFocus className={primary} onClick={() => { setConfirm(null); setPaid(null); }}>
+            <button
+              autoFocus
+              className={primary}
+              onClick={() => {
+                setConfirm(null);
+                setPaid(null);
+              }}
+            >
               OK
             </button>
           ) : (
@@ -411,19 +488,33 @@ export function MyDeposits({ onClose }: { onClose: () => void }) {
               <div className="flex items-baseline justify-between gap-3">
                 <p className="font-semibold text-text">
                   {d.termMonths}-month {d.kind === "fd" ? "fixed" : "recurring"} deposit
-                  <span className="ml-2 text-xs font-normal text-muted">{(d.rateBp / 100).toString()}% a month</span>
+                  <span className="ml-2 text-xs font-normal text-muted">
+                    {(d.rateBp / 100).toString()}% a month
+                  </span>
                 </p>
-                <span className="text-xs uppercase tracking-widest text-muted">{d.status === "active" ? "running" : d.status === "matured" ? "matured" : "taken out early"}</span>
+                <span className="text-xs uppercase tracking-widest text-muted">
+                  {d.status === "active"
+                    ? "running"
+                    : d.status === "matured"
+                      ? "matured"
+                      : "taken out early"}
+                </span>
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-line/50">
-                <div className="h-full bg-gold" style={{ width: `${Math.min(100, (d.monthsDone / d.termMonths) * 100)}%` }} />
+                <div
+                  className="h-full bg-gold"
+                  style={{ width: `${Math.min(100, (d.monthsDone / d.termMonths) * 100)}%` }}
+                />
               </div>
               <p className="mt-2 text-sm text-muted">
                 Month {Math.min(d.monthsDone, d.termMonths)} of {d.termMonths} · put in ${d.paid}
-                {d.kind === "rd" && ` (${d.instalments} instalments${d.skipped ? `, ${d.skipped} skipped` : ""})`} ·{" "}
+                {d.kind === "rd" &&
+                  ` (${d.instalments} instalments${d.skipped ? `, ${d.skipped} skipped` : ""})`}{" "}
+                ·{" "}
                 {d.status === "active" ? (
                   <>
-                    worth <span className="text-gold">${d.value}</span> now · matures {new Date(d.maturesAt).toLocaleString()}
+                    worth <span className="text-gold">${d.value}</span> now · matures{" "}
+                    {new Date(d.maturesAt).toLocaleString()}
                   </>
                 ) : (
                   <>paid out ${d.payout ?? 0}</>

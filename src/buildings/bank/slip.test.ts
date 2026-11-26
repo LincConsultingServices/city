@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { amountInWords, numberToWords, wordsMatch } from "./words";
-import { checkSlip, emptySlip, notesTotal, slipAmount, type SlipContext, type SlipValues } from "./slip";
+import {
+  checkSlip,
+  emptySlip,
+  notesTotal,
+  slipAmount,
+  type SlipContext,
+  type SlipValues,
+} from "./slip";
 
 describe("amounts in words", () => {
   it("writes numbers the way a slip does", () => {
@@ -97,6 +104,8 @@ describe("Mei checks a withdrawal slip", () => {
 
   it("needs no notes, and can't take out more than the account holds", () => {
     expect(checkSlip(goodWithdrawal(), w)).toEqual([]);
-    expect(fields({ ...goodWithdrawal(), amount: "600", words: "six hundred" }, w)).toEqual(["amount"]);
+    expect(fields({ ...goodWithdrawal(), amount: "600", words: "six hundred" }, w)).toEqual([
+      "amount",
+    ]);
   });
 });

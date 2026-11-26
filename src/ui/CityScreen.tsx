@@ -5,7 +5,12 @@ import { useWorldStore } from "@/world/worldStore";
 import { events } from "@/framework/events";
 import { BuildingGate } from "@/framework/building/BuildingGate";
 import { loadBank } from "@/framework/bank/bankStore";
-import { autosave, ensureGameSession, isAutosaveOn, takeRevertNote } from "@/framework/saves/saveGame";
+import {
+  autosave,
+  ensureGameSession,
+  isAutosaveOn,
+  takeRevertNote,
+} from "@/framework/saves/saveGame";
 import { getBuildingManifest } from "@/framework/building/registry";
 import { useEggStore } from "@/framework/eggStore";
 import { EGG_COUNT, KONAMI, konamiStep } from "@/lib/eggs";
@@ -99,7 +104,8 @@ export function CityScreen() {
   // is up, so an interior can be checked without crossing town to it.
   // `import.meta.env.DEV` is false in production builds, so this never ships.
   useEffect(() => {
-    if (!import.meta.env.DEV || !worldReady || makeCharacter !== false || askTrack !== false) return;
+    if (!import.meta.env.DEV || !worldReady || makeCharacter !== false || askTrack !== false)
+      return;
     const id = new URLSearchParams(location.search).get("enter");
     const venue = id ? VENUES.find((v) => v.id === id) : undefined;
     if (venue) enterVenue(venue);

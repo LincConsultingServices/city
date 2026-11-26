@@ -40,7 +40,8 @@ export function emptyForm(name: string): AccountFormValues {
   };
 }
 
-const same = (a: string, b: string) => a.trim().toLowerCase().replace(/\s+/g, " ") === b.trim().toLowerCase().replace(/\s+/g, " ");
+const same = (a: string, b: string) =>
+  a.trim().toLowerCase().replace(/\s+/g, " ") === b.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** Every problem with the form, in the order the boxes appear. Empty = good to go. */
 export function checkAccountForm(f: AccountFormValues, pocket: Pocket): FormIssue[] {
@@ -52,31 +53,43 @@ export function checkAccountForm(f: AccountFormValues, pocket: Pocket): FormIssu
   } else if (!same(f.holder, pocket.name)) {
     issues.push({
       field: "holder",
-      message: "The name has to match your ID exactly. Otherwise the bank can't be sure the account is really yours.",
+      message:
+        "The name has to match your ID exactly. Otherwise the bank can't be sure the account is really yours.",
     });
   }
 
   if (!f.address) {
-    issues.push({ field: "address", message: "Fill in your address. The bank sends your statements and your card there." });
+    issues.push({
+      field: "address",
+      message: "Fill in your address. The bank sends your statements and your card there.",
+    });
   } else if (f.address !== pocket.address) {
     issues.push({
       field: "address",
-      message: "That isn't the address on your City ID. Copy it from the card, so your letters reach you.",
+      message:
+        "That isn't the address on your City ID. Copy it from the card, so your letters reach you.",
     });
   }
 
   const digits = f.phone.replace(/\D/g, "");
   if (digits.length !== 10) {
-    issues.push({ field: "phone", message: "A phone number here is ten digits. Check it against your phone." });
+    issues.push({
+      field: "phone",
+      message: "A phone number here is ten digits. Check it against your phone.",
+    });
   } else if (digits !== pocket.phone) {
     issues.push({
       field: "phone",
-      message: "That isn't your number. The bank uses it to warn you about anything unusual on your account.",
+      message:
+        "That isn't your number. The bank uses it to warn you about anything unusual on your account.",
     });
   }
 
   if (!card) {
-    issues.push({ field: "idDocument", message: "Choose an ID from your pocket. Every new account needs an identity check." });
+    issues.push({
+      field: "idDocument",
+      message: "Choose an ID from your pocket. Every new account needs an identity check.",
+    });
   } else if (!card.valid) {
     issues.push({ field: "idDocument", message: card.refusal ?? "That can't be used as ID." });
   }
@@ -84,12 +97,16 @@ export function checkAccountForm(f: AccountFormValues, pocket: Pocket): FormIssu
   if (!f.signature.trim()) {
     issues.push({
       field: "signature",
-      message: "Sign the form. Your signature is how the bank checks that cheques and slips really come from you.",
+      message:
+        "Sign the form. Your signature is how the bank checks that cheques and slips really come from you.",
     });
   }
 
   if (f.nomineeName.trim() && !f.nomineeRelation.trim()) {
-    issues.push({ field: "nomineeRelation", message: "Say how your nominee is related to you: a parent, a sibling, a friend." });
+    issues.push({
+      field: "nomineeRelation",
+      message: "Say how your nominee is related to you: a parent, a sibling, a friend.",
+    });
   }
 
   if (!f.type) {
@@ -124,6 +141,7 @@ export function pinProblem(pin: string): string | null {
   const d = pin.split("").map(Number);
   const up = d.every((v, i) => i === 0 || v === d[i - 1] + 1);
   const down = d.every((v, i) => i === 0 || v === d[i - 1] - 1);
-  if (up || down) return "Digits in a row, like 1234, are the easiest PINs to guess. Choose something harder.";
+  if (up || down)
+    return "Digits in a row, like 1234, are the easiest PINs to guess. Choose something harder.";
   return null;
 }

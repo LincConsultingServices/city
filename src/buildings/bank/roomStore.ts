@@ -223,7 +223,7 @@ export function actHere(): boolean {
       return true;
     }
     case "st_window3":
-      return read("Window 3 is closed. A brass sign says: \"Please use windows 1 and 2.\"");
+      return read('Window 3 is closed. A brass sign says: "Please use windows 1 and 2."');
     case "st_rates":
       audio.play("ui_open");
       s.setPanel({ kind: "rates" });
