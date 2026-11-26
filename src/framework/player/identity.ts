@@ -11,8 +11,8 @@
 // Stored on the account, in the city document beside the track (cityState),
 // and mirrored in this browser under the signed-in player's own key, so it
 // survives a reload offline and two accounts in one browser never swap faces.
-// A manual save carries a copy (framework/saves/manualSave.ts), so loading a
-// save brings back the character that career was played as.
+// It lives in the city document on the account, so a save game (which
+// snapshots that document) brings back the character the save was played as.
 import { create } from "zustand";
 import { isConfigured } from "@/framework/config/appConfig";
 import { auth } from "@/framework/auth/firebase";

@@ -4,6 +4,8 @@ import { VENUES, type CityBuilding } from "@/world/cityMap";
 import { useWorldStore } from "@/world/worldStore";
 import { events } from "@/framework/events";
 import { BuildingGate } from "@/framework/building/BuildingGate";
+import { loadBank } from "@/framework/bank/bankStore";
+import { autosave, ensureGameSession, isAutosaveOn, takeRevertNote } from "@/framework/saves/saveGame";
 import { getBuildingManifest } from "@/framework/building/registry";
 import { useEggStore } from "@/framework/eggStore";
 import { EGG_COUNT, KONAMI, konamiStep } from "@/lib/eggs";
@@ -24,7 +26,10 @@ import { hydrateIdentity } from "@/framework/player/identity";
 import { hydrateCityState } from "@/framework/city/cityState";
 import { api } from "@/framework/api";
 import { useEconomyStore } from "@/framework/economy/economyStore";
-import { BankPanel } from "./BankPanel";
+import { WalletHistory } from "./WalletHistory";
+import { Inventory } from "./inventory/Inventory";
+import { Passbook } from "@/buildings/bank/Passbook";
+import { ShopTill } from "./ShopTill";
 import { trackIsDue } from "@/framework/city/track";
 import { PlayerShell } from "@/activities/PlayerShell";
 import { MaisonPanel } from "@/buildings/fashion_brand/MaisonPanel";
@@ -35,6 +40,7 @@ type WorldPanel = "billboard" | "plaque";
 
 /** Kinds with a panel of their own; everything else falls back to InfoPanel. */
 const PANELLED_KINDS: ReadonlySet<VenueKind> = new Set<VenueKind>([
+  "shop",
   "competency",
   "trophy",
   "scenario",
@@ -50,6 +56,9 @@ export function CityScreen() {
   const [worldPanel, setWorldPanel] = useState<WorldPanel | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [passbookOpen, setPassbookOpen] = useState(false);
   const showMinimap = useSettings((s) => s.showMinimap);
   const [worldReady, setWorldReady] = useState(false);
   const [loadPct, setLoadPct] = useState(0);
@@ -66,7 +75,14 @@ export function CityScreen() {
 
   const nearVenue = nearVenueId ? (VENUES.find((v) => v.id === nearVenueId) ?? null) : null;
   const panelOpen =
-    openVenue !== null || playing !== null || worldPanel !== null || mapOpen || optionsOpen;
+    openVenue !== null ||
+    playing !== null ||
+    worldPanel !== null ||
+    mapOpen ||
+    optionsOpen ||
+    walletOpen ||
+    inventoryOpen ||
+    passbookOpen;
 
   // A venue with a registered building module gets a real walkable interior;
   // everything else keeps the framework's overlay panels (PRD §7.2).
@@ -79,31 +95,75 @@ export function CityScreen() {
     events.emit("venue_opened", v.id); // the world pops the building in response
   }, []);
 
+  // Dev only: `?enter=<venue id>` walks straight into a building once the city
+  // is up, so an interior can be checked without crossing town to it.
+  // `import.meta.env.DEV` is false in production builds, so this never ships.
+  useEffect(() => {
+    if (!import.meta.env.DEV || !worldReady || makeCharacter !== false || askTrack !== false) return;
+    const id = new URLSearchParams(location.search).get("enter");
+    const venue = id ? VENUES.find((v) => v.id === id) : undefined;
+    if (venue) enterVenue(venue);
+  }, [worldReady, makeCharacter, askTrack, enterVenue]);
+
   // The city document is read once, on arrival. The track lives in it, so the
   // gate question waits for it rather than asking on top of an answer that is
   // already on its way.
   useEffect(() => {
     let live = true;
-    void hydrateCityState().then(() => {
+    // First, the save game: with autosave off, a session that ended without
+    // saving is lost, and the server puts the game back at the last save
+    // before anything here reads it (framework/saves/saveGame.ts).
+    void ensureGameSession().then(() => {
       if (!live) return;
-      const identity = hydrateIdentity();
-      setMakeCharacter(!identity || !identity.confirmed);
-      setAskTrack(trackIsDue());
-    });
-    // The first authed call. It performs the starter grant server-side, which is
-    // why the HUD can show a real number from the first second rather than an em
-    // dash that fills in after the first activity.
-    void api
-      .getMe()
-      .then((me) => {
-        if (live) useEconomyStore.getState().applyWallet(me.wallet);
-      })
-      .catch(() => {
-        // No wallet is a wallet we do not know about, and the HUD says so.
+      const note = takeRevertNote();
+      if (note) events.emit("toast", { message: note, kind: "info" });
+      void hydrateCityState().then(() => {
+        if (!live) return;
+        const identity = hydrateIdentity();
+        setMakeCharacter(!identity || !identity.confirmed);
+        setAskTrack(trackIsDue());
       });
+      // The first authed call. It performs the starter grant server-side, which is
+      // why the HUD can show a real number from the first second rather than an em
+      // dash that fills in after the first activity.
+      void api
+        .getMe()
+        .then((me) => {
+          if (live) useEconomyStore.getState().applyWallet(me.wallet);
+          // Then the bank — after /me, so a brand-new player's starter grant has
+          // landed before the bank reports their cash. Reading it also settles
+          // any bank months that ended while they were away.
+          return live ? loadBank() : undefined;
+        })
+        .catch(() => {
+          // No wallet is a wallet we do not know about, and the HUD says so.
+        });
+    });
     return () => {
       live = false;
     };
+  }, []);
+
+  // Autosave: every few minutes of play, and each time you step out of a
+  // building (a café stage, a bank visit). Does nothing while autosave is off.
+  const wasInside = useRef(false);
+  useEffect(() => {
+    if (wasInside.current && !inInterior) autosave(true);
+    wasInside.current = inInterior;
+  }, [inInterior]);
+  useEffect(() => {
+    const t = window.setInterval(() => autosave(), 5 * 60_000);
+    return () => window.clearInterval(t);
+  }, []);
+  // With autosave off, leaving the page loses the session: let the browser ask.
+  useEffect(() => {
+    const onLeave = (e: BeforeUnloadEvent) => {
+      if (isAutosaveOn()) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
   }, []);
 
   // The gate holds the street the same way a panel does: nothing walks, nothing
@@ -141,9 +201,25 @@ export function CityScreen() {
         if (playing) setPlaying(null);
         else if (inInterior) return;
         else if (optionsOpen) setOptionsOpen(false);
+        else if (inventoryOpen) setInventoryOpen(false);
         else if (mapOpen) setMapOpen(false);
         else if (openVenue) setOpenVenue(null);
         else if (worldPanel) setWorldPanel(null);
+        return;
+      }
+      // I opens the inventory, from the street, when nothing else is open.
+      if (
+        (e.key === "i" || e.key === "I") &&
+        !e.repeat &&
+        !inInterior &&
+        askTrack === false &&
+        makeCharacter === false
+      ) {
+        if (inventoryOpen) setInventoryOpen(false);
+        else if (!panelOpen) {
+          audio.play("ui_open");
+          setInventoryOpen(true);
+        }
         return;
       }
       // M toggles the map, from the street only — never over a panel or a room.
@@ -177,6 +253,7 @@ export function CityScreen() {
     enterVenue,
     mapOpen,
     optionsOpen,
+    inventoryOpen,
     askTrack,
     makeCharacter,
   ]);
@@ -197,7 +274,28 @@ export function CityScreen() {
       {/* An interior owns the whole screen and brings its own chrome, so the
           street's HUD and control hint step aside rather than sit on top of it.
           Toasts and celebrations stay — they are about the player, not the view. */}
-      {!inInterior && <Hud onOptions={() => setOptionsOpen(true)} />}
+      {!inInterior && (
+        <Hud
+          onOptions={() => setOptionsOpen(true)}
+          onWallet={() => setWalletOpen(true)}
+          onInventory={() => setInventoryOpen(true)}
+        />
+      )}
+      {!inInterior && inventoryOpen && (
+        <Inventory
+          onClose={() => setInventoryOpen(false)}
+          onOpenWallet={() => {
+            setInventoryOpen(false);
+            setWalletOpen(true);
+          }}
+          onOpenPassbook={() => {
+            setInventoryOpen(false);
+            setPassbookOpen(true);
+          }}
+        />
+      )}
+      {!inInterior && passbookOpen && <Passbook onClose={() => setPassbookOpen(false)} />}
+      {!inInterior && walletOpen && <WalletHistory onClose={() => setWalletOpen(false)} />}
       {!inInterior && optionsOpen && (
         <OptionsMenu
           onClose={() => setOptionsOpen(false)}
@@ -253,7 +351,7 @@ export function CityScreen() {
       )}
       {/* The bank is where the money is, not another level list. */}
       {!inInterior && openVenue && !playing && openVenue.kind === "bank" && (
-        <BankPanel onClose={() => setOpenVenue(null)} />
+        <WalletHistory onClose={() => setOpenVenue(null)} />
       )}
       {/* A scenario venue owns its own panel — a storyline, not a level list —
           until it registers an interior, at which point the room replaces it. */}
@@ -263,6 +361,10 @@ export function CityScreen() {
           onClose={() => setOpenVenue(null)}
           onPlay={(a) => setPlaying(a)}
         />
+      )}
+      {/* The Shop's till: cash or the Meridian debit card. */}
+      {!inInterior && openVenue && !playing && openVenue.kind === "shop" && (
+        <ShopTill onClose={() => setOpenVenue(null)} />
       )}
       {!inInterior && openVenue && !playing && !PANELLED_KINDS.has(openVenue.kind) && (
         <InfoPanel venue={openVenue} onClose={() => setOpenVenue(null)} />

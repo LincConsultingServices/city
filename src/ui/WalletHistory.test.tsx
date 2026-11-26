@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import { BankPanel } from "./BankPanel";
+import { WalletHistory } from "./WalletHistory";
 import { api } from "@/framework/api";
 import { useEconomyStore } from "@/framework/economy/economyStore";
 
@@ -36,11 +36,11 @@ const ledger = () => {
   });
 };
 
-describe("the bank", () => {
+describe("the wallet", () => {
   it("shows the balance the server holds", async () => {
     ledger();
     await act(async () => {
-      render(<BankPanel onClose={() => {}} />);
+      render(<WalletHistory onClose={() => {}} />);
     });
     await waitFor(() => expect(screen.getByText("140")).toBeInTheDocument());
     expect(screen.getByText(/165 earned in all/)).toBeInTheDocument();
@@ -53,7 +53,7 @@ describe("the bank", () => {
     ledger();
     let container!: HTMLElement;
     await act(async () => {
-      ({ container } = render(<BankPanel onClose={() => {}} />));
+      ({ container } = render(<WalletHistory onClose={() => {}} />));
     });
     await waitFor(() => expect(screen.getByText("140")).toBeInTheDocument());
     const text = container.textContent ?? "";
@@ -78,9 +78,9 @@ describe("the bank", () => {
     vi.spyOn(api, "getWallet").mockRejectedValue(new Error("offline"));
     vi.spyOn(api, "getWalletTransactions").mockRejectedValue(new Error("offline"));
     await act(async () => {
-      render(<BankPanel onClose={() => {}} />);
+      render(<WalletHistory onClose={() => {}} />);
     });
-    await waitFor(() => expect(screen.getByText(/counter is closed/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/reach your wallet/)).toBeInTheDocument());
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 });

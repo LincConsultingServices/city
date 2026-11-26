@@ -1,0 +1,1 @@
+export { bankManifest } from "./manifest";

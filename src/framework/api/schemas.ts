@@ -439,6 +439,332 @@ export const WalletTransactions = z.object({
 });
 export type WalletTransactions = z.infer<typeof WalletTransactions>;
 
+// ── The bank (city/docs/PRD_Building_Bank.md) ────────────────────────────────
+
+export const BankAccountType = z.enum(["savings", "current"]);
+export type BankAccountType = z.infer<typeof BankAccountType>;
+
+export const BankAccount = z.object({
+  accountNumber: z.string(),
+  type: BankAccountType,
+  holder: z.string(),
+  /** The specimen signature from the opening form; slips are checked against it. */
+  signature: z.string().optional().default(""),
+  balance: z.number().int(),
+  openedAt: z.string(),
+  /** When the passbook was last printed up to; later lines are not in the book yet. */
+  printedThrough: z.string().optional(),
+  monthsSettled: z.number().int().optional().default(0),
+  /** The debit card, once issued: never the full number, never the PIN. */
+  cardLast4: z.string().optional(),
+  cardExpiry: z.string().optional(),
+  /** The loan being repaid, if any. */
+  activeLoan: z.string().optional(),
+  /** Salaries are paid straight into the account rather than into your pocket. */
+  salaryToAccount: z.boolean().optional().default(false),
+  /** Cheques left in the book (0 = no book yet, or used up). */
+  chequeLeaves: z.number().int().optional().default(0),
+  nextCheque: z.number().int().optional(),
+});
+export type BankAccount = z.infer<typeof BankAccount>;
+
+/** One passbook line. `amount` is positive for money in, negative for money out. */
+export const StatementLine = z.object({
+  id: z.string(),
+  kind: z.string(), // open | deposit | withdrawal | interest | close
+  channel: z.string().optional().default("bank"),
+  amount: z.number().int(),
+  balanceAfter: z.number().int(),
+  note: z.string().optional().default(""),
+  at: z.string(),
+  month: z.number().int().optional(),
+});
+export type StatementLine = z.infer<typeof StatementLine>;
+
+/** An account type's terms. The bank never charges anything, so interest is all there is. */
+export const BankProduct = z.object({
+  interestBp: z.number().int(),
+});
+export type BankProduct = z.infer<typeof BankProduct>;
+
+/** A cheque, received or written. */
+export const Cheque = z.object({
+  id: z.string(),
+  direction: z.enum(["in", "out"]),
+  number: z.string(),
+  from: z.string(),
+  to: z.string(),
+  amount: z.number().int(),
+  words: z.string().optional().default(""),
+  date: z.string(),
+  crossed: z.boolean().optional().default(false),
+  memo: z.string().optional(),
+  status: z.string(), // held | clearing | cleared | cashed | bounced
+  clearsAt: z.string().optional(),
+  createdAt: z.string(),
+});
+export type Cheque = z.infer<typeof Cheque>;
+
+/** A fixed ("fd") or recurring ("rd") deposit. */
+export const TermDeposit = z.object({
+  id: z.string(),
+  kind: z.enum(["fd", "rd"]),
+  principal: z.number().int().optional().default(0),
+  monthly: z.number().int().optional().default(0),
+  termMonths: z.number().int(),
+  rateBp: z.number().int(),
+  openedAt: z.string(),
+  maturesAt: z.string(),
+  monthsDone: z.number().int().optional().default(0),
+  paid: z.number().int(),
+  instalments: z.number().int().optional().default(0),
+  skipped: z.number().int().optional().default(0),
+  value: z.number().int(),
+  savingsValue: z.number().int(),
+  status: z.enum(["active", "matured", "broken"]),
+  payout: z.number().int().optional(),
+  closedAt: z.string().optional(),
+});
+export type TermDeposit = z.infer<typeof TermDeposit>;
+
+export const QuoteMonth = z.object({
+  month: z.number().int(),
+  paid: z.number().int(),
+  deposit: z.number().int(),
+  savings: z.number().int(),
+});
+export type QuoteMonth = z.infer<typeof QuoteMonth>;
+export const BankQuote = z.object({ months: z.array(QuoteMonth) });
+
+export const Loan = z.object({
+  id: z.string(),
+  purpose: z.string().optional().default(""),
+  principal: z.number().int(),
+  termMonths: z.number().int(),
+  rateBp: z.number().int(),
+  instalment: z.number().int(),
+  outstanding: z.number().int(),
+  openedAt: z.string(),
+  monthsDone: z.number().int().optional().default(0),
+  paid: z.number().int().optional().default(0),
+  interestPaid: z.number().int().optional().default(0),
+  onTime: z.number().int().optional().default(0),
+  missed: z.number().int().optional().default(0),
+  status: z.enum(["active", "repaid"]),
+  closedAt: z.string().optional(),
+});
+export type Loan = z.infer<typeof Loan>;
+
+export const CreditBand = z.object({
+  name: z.string(),
+  min: z.number().int(),
+  limit: z.number().int(),
+  rateBp: z.number().int(),
+});
+
+/** The credit score, the reasons for it, and what it means at the loans desk. */
+export const Credit = z.object({
+  score: z.number().int(),
+  band: CreditBand,
+  factors: z.array(z.object({ label: z.string(), points: z.number().int() })),
+  eligible: z.boolean(),
+  reason: z.string().optional(),
+  limit: z.number().int(),
+  rateBp: z.number().int(),
+});
+export type Credit = z.infer<typeof Credit>;
+
+export const LoanMonth = z.object({
+  month: z.number().int(),
+  interest: z.number().int(),
+  payment: z.number().int(),
+  outstanding: z.number().int(),
+  missed: z.boolean().optional().default(false),
+});
+export const LoanQuote = z.object({
+  principal: z.number().int(),
+  termMonths: z.number().int(),
+  rateBp: z.number().int(),
+  instalment: z.number().int(),
+  totalRepaid: z.number().int(),
+  totalInterest: z.number().int(),
+  schedule: z.array(LoanMonth),
+});
+export type LoanQuote = z.infer<typeof LoanQuote>;
+
+export const BankView = z.object({
+  account: BankAccount.nullable(),
+  statement: z.array(StatementLine).optional().default([]),
+  cheques: z.array(Cheque).optional().default([]),
+  deposits: z.array(TermDeposit).optional().default([]),
+  loans: z.array(Loan).optional().default([]),
+  credit: Credit.optional(),
+  cash: z.number().int(),
+  rules: z.object({
+    monthHours: z.number(),
+    products: z.record(z.string(), BankProduct),
+    nextMonthAt: z.string().optional(),
+  }),
+});
+export type BankView = z.infer<typeof BankView>;
+
+export const BankStatement = z.object({ statement: z.array(StatementLine).optional().default([]) });
+
+export const BankOpened = z.object({ account: BankAccount });
+
+export const BankMove = z.object({
+  line: StatementLine,
+  balance: z.number().int(),
+  cash: z.number().int(),
+  repeat: z.boolean().optional().default(false),
+});
+export type BankMove = z.infer<typeof BankMove>;
+
+export const BankCard = z.object({ card: z.object({ last4: z.string(), expiry: z.string() }) });
+
+export const BankPrinted = z.object({
+  lines: z.array(StatementLine).optional().default([]),
+  balance: z.number().int(),
+});
+export type BankPrinted = z.infer<typeof BankPrinted>;
+
+export const BankChequeResult = z.object({ cheque: Cheque });
+
+export const BankChequeWritten = z.object({
+  cheque: Cheque,
+  bounced: z.boolean(),
+  balance: z.number().int(),
+  cash: z.number().int(),
+});
+export type BankChequeWritten = z.infer<typeof BankChequeWritten>;
+
+export interface WriteChequeForm {
+  /** "self" (cashed at the counter) or a business's id from the directory. */
+  payee: string;
+  amount: number;
+  words: string;
+  date: string;
+  signature: string;
+  crossed: boolean;
+  idempotencyKey: string;
+}
+
+export const BankDepositOpened = z.object({ deposit: TermDeposit });
+export const BankDepositBroken = z.object({
+  deposit: TermDeposit,
+  payout: z.number().int(),
+  balance: z.number().int(),
+});
+
+/** A business in the city that can be paid by transfer or by cheque. */
+export const Payee = z.object({
+  id: z.string(),
+  name: z.string(),
+  accountNumber: z.string(),
+  kind: z.string(),
+  about: z.string().optional().default(""),
+});
+export type Payee = z.infer<typeof Payee>;
+export const BankPayees = z.object({ payees: z.array(Payee) });
+export const BankPayeeLookup = z.object({ payee: Payee });
+
+export const BankTransfer = z.object({
+  line: StatementLine,
+  payee: Payee,
+  balance: z.number().int(),
+  repeat: z.boolean().optional().default(false),
+});
+export type BankTransfer = z.infer<typeof BankTransfer>;
+
+// ── The shop's till ──────────────────────────────────────────────────────────
+
+export const ShopItemView = z.object({
+  id: z.string(),
+  category: z.string(),
+  name: z.string(),
+  description: z.string().optional().default(""),
+  priceCoins: z.number().int(),
+  rarity: z.string().optional().default(""),
+  owned: z.boolean(),
+  affordable: z.boolean(),
+  locked: z.boolean(),
+});
+export type ShopItemView = z.infer<typeof ShopItemView>;
+export const ShopItems = z.object({ items: z.array(ShopItemView) });
+
+/** A shop item the player owns. */
+export const OwnedItem = z.object({
+  id: z.string(),
+  category: z.string(),
+  slot: z.string().optional().default(""),
+  name: z.string(),
+  description: z.string().optional().default(""),
+  priceCoins: z.number().int(),
+  rarity: z.string().optional().default(""),
+  source: z.string().optional().default(""),
+  acquiredAt: z.string().optional().default(""),
+});
+export type OwnedItem = z.infer<typeof OwnedItem>;
+export const OwnedItems = z.object({ items: z.array(OwnedItem) });
+export const AvatarEquipped = z.object({ equipped: z.record(z.string(), z.string()).nullable().optional() });
+
+export const ShopPurchase = z.object({
+  newBalance: z.number().int(),
+  alreadyOwned: z.boolean(),
+  paidBy: z.string().optional().default("cash"),
+  bankBalance: z.number().int().optional(),
+});
+export type ShopPurchase = z.infer<typeof ShopPurchase>;
+
+export const BankLoanQuote = z.object({ quote: LoanQuote });
+export const BankLoanOpened = z.object({ loan: Loan });
+export const BankLoanRepaid = z.object({ loan: Loan, paid: z.number().int(), balance: z.number().int() });
+
+// ── Save games ───────────────────────────────────────────────────────────────
+
+/** One save slot. An empty slot has no name and no savedAt. */
+export const SaveSlot = z.object({
+  slot: z.string(), // "auto", "1" … "6"
+  name: z.string().optional().default(""),
+  story: z.string().optional().default(""),
+  savedAt: z.string().optional(),
+  cash: z.number().int().optional().default(0),
+  bank: z.number().int().optional(),
+  badges: z.number().int().optional().default(0),
+});
+export type SaveSlot = z.infer<typeof SaveSlot>;
+
+export const SaveState = z.object({
+  autosave: z.boolean(),
+  dirty: z.boolean().optional().default(false),
+  anchored: z.boolean().optional().default(false),
+  anchorName: z.string().optional(),
+  anchorAt: z.string().optional(),
+});
+export type SaveState = z.infer<typeof SaveState>;
+
+export const SavesList = z.object({ slots: z.array(SaveSlot), state: SaveState });
+export const SaveWritten = z.object({ slot: SaveSlot.nullable() });
+export const SaveLoaded = z.object({ slot: SaveSlot, extra: z.string().optional().default("") });
+export const SaveSessionStart = z.object({
+  reverted: z.boolean(),
+  state: SaveState,
+  extra: z.string().optional().default(""),
+});
+export const SaveStateResult = z.object({ state: SaveState });
+
+export const BankClosed = z.object({ returned: z.number().int(), cash: z.number().int() });
+
+export interface OpenAccountForm {
+  type: BankAccountType;
+  holder: string;
+  signature: string;
+  address?: string;
+  phone?: string;
+  idDocument?: string;
+  nominee?: string;
+}
+
 // ── Bootstrap (GET /me) ───────────────────────────────────────────────────────
 
 // The first authed call: identity, wallet, avatar. It also performs the starter

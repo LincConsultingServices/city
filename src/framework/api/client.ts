@@ -2,7 +2,7 @@
 // (PRD §7.3, §12.2). Everyone else calls typed methods and receives parsed data or
 // a thrown ApiError. Ported from the Godot F0 (autoload/api_client.gd): auth attach,
 // ONE silent refresh on 401, backoff on NETWORK/5xx, Zod-validated bodies.
-import type { z } from "zod";
+import { z } from "zod";
 import { appConfig, CLIENT_VERSION } from "@/framework/config/appConfig";
 import { ApiError, parseEnvelope } from "./errors";
 import {
@@ -25,6 +25,35 @@ import {
   Me,
   Wallet,
   WalletTransactions,
+  BankView,
+  BankStatement,
+  BankOpened,
+  BankMove,
+  BankClosed,
+  BankCard,
+  BankPrinted,
+  BankChequeResult,
+  BankChequeWritten,
+  BankQuote,
+  BankDepositOpened,
+  BankDepositBroken,
+  BankPayees,
+  BankPayeeLookup,
+  BankTransfer,
+  ShopItems,
+  ShopPurchase,
+  OwnedItems,
+  AvatarEquipped,
+  BankLoanQuote,
+  BankLoanOpened,
+  BankLoanRepaid,
+  SavesList,
+  SaveWritten,
+  SaveLoaded,
+  SaveSessionStart,
+  SaveStateResult,
+  type WriteChequeForm,
+  type OpenAccountForm,
   type SubmitRequest,
   type StateWriteResult,
 } from "./schemas";
@@ -218,6 +247,190 @@ export class ApiClient {
       `/api/v1/wallet/transactions?limit=${limit}&offset=${offset}`,
       WalletTransactions,
     );
+  }
+
+  // ── The bank (city/docs/PRD_Building_Bank.md) ──────────────────────────────
+
+  /** The account (or null), the latest statement, cash, and the bank's terms. */
+  getBank() {
+    return this.request("GET", "/api/v1/bank", BankView);
+  }
+
+  getBankStatement(limit = 50, offset = 0) {
+    return this.request("GET", `/api/v1/bank/statement?limit=${limit}&offset=${offset}`, BankStatement);
+  }
+
+  openBankAccount(form: OpenAccountForm) {
+    return this.request("POST", "/api/v1/bank/account", BankOpened, form);
+  }
+
+  /** Issue the debit card, protected by the PIN the player chose. */
+  issueBankCard(pin: string) {
+    return this.request("POST", "/api/v1/bank/card", BankCard, { pin });
+  }
+
+  /** Check a PIN at the ATM. Three wrong in a row lock the card for a few minutes. */
+  bankAtmPin(pin: string) {
+    return this.request("POST", "/api/v1/bank/atm/pin", z.object({ ok: z.boolean() }), { pin });
+  }
+
+  /** Cash from the ATM: multiples of $10, up to $500, PIN checked by the server. */
+  bankAtmWithdraw(pin: string, amount: number, idempotencyKey: string) {
+    return this.request("POST", "/api/v1/bank/atm/withdraw", BankMove, { pin, amount, idempotencyKey });
+  }
+
+  /** Print the passbook up to date: the lines that were not in the book yet. */
+  printPassbook() {
+    return this.request("POST", "/api/v1/bank/passbook/print", BankPrinted);
+  }
+
+  /** A new book of cheques. */
+  issueChequeBook() {
+    return this.request("POST", "/api/v1/bank/chequebook", BankOpened);
+  }
+
+  /** Pay a received cheque in. It clears after a while; the money arrives then. */
+  depositCheque(id: string) {
+    return this.request("POST", `/api/v1/bank/cheques/${encodeURIComponent(id)}/deposit`, BankChequeResult);
+  }
+
+  /** Present a cheque the player wrote. It may bounce: nothing moves, nothing is charged. */
+  writeCheque(form: WriteChequeForm) {
+    return this.request("POST", "/api/v1/bank/cheques/write", BankChequeWritten, form);
+  }
+
+  /** What a deposit would grow to, month by month, beside the same money in savings. */
+  bankQuote(kind: "fd" | "rd", amount: number, term: number) {
+    return this.request("GET", `/api/v1/bank/quote?kind=${kind}&amount=${amount}&term=${term}`, BankQuote);
+  }
+
+  /** Open a fixed deposit (amount = the sum) or a recurring one (amount = each month's instalment). */
+  openDeposit(kind: "fd" | "rd", amount: number, termMonths: number, idempotencyKey: string) {
+    return this.request("POST", "/api/v1/bank/deposits", BankDepositOpened, { kind, amount, termMonths, idempotencyKey });
+  }
+
+  /** Take a deposit out early: everything back, with interest at the savings rate. */
+  breakDeposit(id: string) {
+    return this.request("POST", `/api/v1/bank/deposits/${encodeURIComponent(id)}/break`, BankDepositBroken);
+  }
+
+  /** The city's businesses, with their account numbers. */
+  bankPayees() {
+    return this.request("GET", "/api/v1/bank/payees", BankPayees);
+  }
+
+  /** Confirmation of payee: whose account a number is. 404 NO_SUCH_PAYEE if nobody's. */
+  bankLookupPayee(accountNumber: string) {
+    return this.request("GET", `/api/v1/bank/payees/lookup?account=${encodeURIComponent(accountNumber)}`, BankPayeeLookup);
+  }
+
+  /** Send money to a business, by account number. */
+  bankTransfer(accountNumber: string, amount: number, reference: string, idempotencyKey: string) {
+    return this.request("POST", "/api/v1/bank/transfer", BankTransfer, { accountNumber, amount, reference, idempotencyKey });
+  }
+
+  /** Pay salaries into the account (on) or into your pocket (off). */
+  bankSalaryToAccount(on: boolean) {
+    return this.request("POST", "/api/v1/bank/salary", BankOpened, { on });
+  }
+
+  /** The shop's catalogue, marked owned / affordable / locked for this player. */
+  shopItems() {
+    return this.request("GET", "/api/v1/shop/items", ShopItems);
+  }
+
+  /** The shop items the player owns. */
+  getInventory() {
+    return this.request("GET", "/api/v1/inventory", OwnedItems);
+  }
+
+  /** What is equipped, slot → item id. */
+  getAvatar() {
+    return this.request("GET", "/api/v1/avatar", AvatarEquipped);
+  }
+
+  equipItem(itemId: string) {
+    return this.request("PUT", "/api/v1/avatar/equip", AvatarEquipped, { itemId });
+  }
+
+  unequipSlot(slot: string) {
+    return this.request("PUT", "/api/v1/avatar/unequip", AvatarEquipped, { slot });
+  }
+
+  /** Buy an item, with cash or by debit card (the card needs its PIN). */
+  shopPurchase(itemId: string, method: "cash" | "card", pin?: string) {
+    return this.request("POST", "/api/v1/shop/purchase", ShopPurchase, { itemId, method, pin });
+  }
+
+  /** What a loan would cost this player, at their own rate, paid on time. */
+  loanQuote(amount: number, term: number) {
+    return this.request("GET", `/api/v1/bank/loans/quote?amount=${amount}&term=${term}`, BankLoanQuote);
+  }
+
+  /** Borrow: the money lands in the account; instalments come out each bank month. */
+  openLoan(amount: number, termMonths: number, purpose: string, idempotencyKey: string) {
+    return this.request("POST", "/api/v1/bank/loans", BankLoanOpened, { amount, termMonths, purpose, idempotencyKey });
+  }
+
+  /** Pay some of the loan early (amount > 0) or all of it (0). No penalty. */
+  repayLoan(amount: number, idempotencyKey: string) {
+    return this.request("POST", "/api/v1/bank/loans/repay", BankLoanRepaid, { amount, idempotencyKey });
+  }
+
+  // ── Save games ─────────────────────────────────────────────────────────────
+
+  /** First call when the game opens: with autosave off, an unsaved last session is lost. */
+  startGameSession() {
+    return this.request("POST", "/api/v1/game/session", SaveSessionStart);
+  }
+
+  /** The six slots, the autosave slot, and the autosave setting. */
+  listSaves() {
+    return this.request("GET", "/api/v1/saves", SavesList);
+  }
+
+  /** Save the whole game into a slot ("1"–"6", or "auto"), overwriting it. */
+  saveGame(slot: string, name: string, story: string, extra: string) {
+    return this.request("PUT", `/api/v1/saves/${encodeURIComponent(slot)}`, SaveWritten, { name, story, extra });
+  }
+
+  renameSave(slot: string, name: string) {
+    return this.request("PATCH", `/api/v1/saves/${encodeURIComponent(slot)}`, SaveWritten, { name });
+  }
+
+  deleteSave(slot: string) {
+    return this.perform("DELETE", `/api/v1/saves/${encodeURIComponent(slot)}`);
+  }
+
+  /** Put the whole game back as it was in a slot. */
+  loadGame(slot: string) {
+    return this.request("POST", `/api/v1/saves/${encodeURIComponent(slot)}/load`, SaveLoaded);
+  }
+
+  /** A brand-new game: money, badges, bank, progress all cleared. Saves are kept. */
+  restartGameOnServer() {
+    return this.perform("POST", "/api/v1/game/restart");
+  }
+
+  setAutosave(on: boolean, story: string, extra: string) {
+    return this.request("POST", "/api/v1/saves/autosave", SaveStateResult, { on, story, extra });
+  }
+
+  /** Close the account; the whole balance comes back as cash. Safe with no account. */
+  closeBankAccount() {
+    return this.request("DELETE", "/api/v1/bank/account", BankClosed);
+  }
+
+  /**
+   * Cash into the account. `idempotencyKey` identifies this one deposit: send
+   * the same key again (a retry, a double click) and nothing moves twice.
+   */
+  bankDeposit(amount: number, idempotencyKey: string, channel: "counter" | "atm" = "counter") {
+    return this.request("POST", "/api/v1/bank/deposit", BankMove, { amount, idempotencyKey, channel });
+  }
+
+  bankWithdraw(amount: number, idempotencyKey: string, channel: "counter" | "atm" = "counter") {
+    return this.request("POST", "/api/v1/bank/withdraw", BankMove, { amount, idempotencyKey, channel });
   }
 
   // ── The generated transfer beat (ADR-006 §7.3) ──────────────────────────────

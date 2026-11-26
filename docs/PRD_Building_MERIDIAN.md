@@ -1,5 +1,7 @@
 # PRD — MERIDIAN BANK · a growing retail & commercial bank
 
+> **SHELVED (2026-11-16).** The bank is now a customer-side money-skills building: see [PRD_Building_Bank.md](PRD_Building_Bank.md). This "run the bank" design is kept for reference only.
+
 _The City · Building 02 · Downtown · **v2.0** · 2026-08-04 · **Status: Designed, zero code** · Owner: TBD (one dev, per CODEOWNERS)_
 
 _Inherits [ADR-005 v2.0 — Interior Framework](ADR-005_Interior_Framework.md) for the interior pattern, the silent-tier contract, accessibility and budgets, and [ADR-006](ADR-006_Missions_AI_Followups_and_Session_State.md) for the mission spine, the three-beat decision and session state. Backend endpoints: [PRD_Backend_Missions.md](PRD_Backend_Missions.md); §19 below carries MERIDIAN's payloads._
