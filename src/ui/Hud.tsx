@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/framework/auth/AuthProvider";
 import { signOutUser } from "@/framework/auth/firebase";
 import { useEconomyStore } from "@/framework/economy/economyStore";
+import { useBankStore } from "@/framework/bank/bankStore";
 import { useIdentity } from "@/framework/player/identity";
 import { events } from "@/framework/events";
 import { useWorldStore } from "@/world/worldStore";
@@ -14,10 +15,15 @@ import { Icon } from "./Icon";
 // Persistent minimal HUD (PRD §9.1). Coin balance is server-authoritative; until
 // the economy endpoints land (§21 BE-1) it shows "—" — never fake data. The
 // count-up tween and +N floater only ever animate between real server values.
-export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
+export function Hud({
+  onOptions,
+  onWallet,
+  onInventory,
+}: { onOptions?: () => void; onWallet?: () => void; onInventory?: () => void } = {}) {
   const { user, configured } = useAuth();
   const coins = useEconomyStore((s) => s.coinBalance);
   const displayCoins = useCountUp(coins);
+  const bank = useEconomyStore((s) => s.bankBalance);
   const [floater, setFloater] = useState<{ id: number; amount: number } | null>(null);
   const [soundOn, setSoundOn] = useState(audio.isEnabled());
   // A panel is open (inputLocked) while the result modal covers the screen.
@@ -30,7 +36,16 @@ export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
   // changes inside the Café, CityScreen unmounts the HUD while an interior is
   // open, and coming back out to the street mounts it again — which is the only
   // place the line is ever on screen anyway.
-  const [objective] = useState(() => currentObjective());
+  // The bank's answer can arrive after the HUD mounts, and opening an account
+  // or paying in moves the objective on, so the line re-reads when it changes.
+  const bankAccount = useBankStore((s) => s.account);
+  const bankStatement = useBankStore((s) => s.statement);
+  const bankLoaded = useBankStore((s) => s.loaded);
+  const objective = useMemo(
+    () => currentObjective(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bankAccount, bankStatement, bankLoaded],
+  );
   // The name they gave their character; the account's name only before there is one.
   const characterName = useIdentity((s) => s.identity?.name);
   const shownName = characterName || user?.displayName || user?.email || "Player";
@@ -81,7 +96,7 @@ export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
       {objective && !panelOpen && (
         <div className="pointer-events-none absolute left-4 top-16 max-w-[min(22rem,60vw)]">
           <div className="rounded-2xl border border-gold/40 bg-surface/85 px-4 py-2.5 backdrop-blur">
-            <p className="text-[11px] uppercase tracking-widest text-muted">First thing</p>
+            <p className="text-[11px] uppercase tracking-widest text-muted">{objective.label}</p>
             <p className="mt-0.5 text-sm leading-relaxed text-text">{objective.line}</p>
           </div>
         </div>
@@ -98,18 +113,23 @@ export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
           <span className="text-sm font-semibold tabular-nums text-text">{clock}</span>
         </div>
         <div className="relative">
-          <div
+          <button
             key={coins ?? "empty"}
-            className="flex animate-pop-in items-center gap-1.5 rounded-full border border-line/70 bg-surface/80 px-3 py-1.5 backdrop-blur"
-            title={coins === null ? "Your wallet isn't connected yet" : "Dollars"}
+            onClick={() => onWallet?.()}
+            className="flex animate-pop-in items-center gap-1.5 rounded-full border border-line/70 bg-surface/80 px-3 py-1.5 backdrop-blur transition hover:border-gold/60"
+            title={coins === null ? "Your wallet isn't connected yet" : "Cash in your pocket: click for your wallet"}
+            aria-label={coins === null ? "Cash unknown" : `Cash $${coins}. Open your wallet`}
           >
+            {typeof bank === "number" && (
+              <span className="text-[10px] uppercase tracking-widest text-muted">Cash</span>
+            )}
             <span aria-hidden className="text-sm font-semibold text-coin">
               $
             </span>
             <span className="tabular-nums text-sm text-text">
               {displayCoins === null ? "—" : displayCoins}
             </span>
-          </div>
+          </button>
           {floater && !panelOpen && (
             <span
               key={floater.id}
@@ -119,6 +139,22 @@ export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
             </span>
           )}
         </div>
+        {/* Once you have an account, what is in it — beside your cash, because
+            the two together are what you have. */}
+        {typeof bank === "number" && (
+          <div
+            key={`bank-${bank}`}
+            className="flex animate-pop-in items-center gap-1.5 rounded-full border border-gold/40 bg-surface/80 px-3 py-1.5 backdrop-blur"
+            title="In your Meridian Bank account"
+            aria-label={`Bank balance $${bank}`}
+          >
+            <span className="text-[10px] uppercase tracking-widest text-muted">Bank</span>
+            <span aria-hidden className="text-sm font-semibold text-gold">
+              $
+            </span>
+            <span className="tabular-nums text-sm text-text">{bank}</span>
+          </div>
+        )}
         <button
           onClick={() => {
             const on = audio.toggle();
@@ -131,6 +167,23 @@ export function Hud({ onOptions }: { onOptions?: () => void } = {}) {
         >
           <Icon name={soundOn ? "audio-on" : "audio-off"} className="h-4 w-4" />
         </button>
+        {onInventory && (
+          <button
+            onClick={() => {
+              audio.play("ui_open");
+              onInventory();
+            }}
+            className="flex h-9 items-center gap-1.5 rounded-full border border-line/70 bg-surface/80 px-3 text-sm text-muted backdrop-blur transition hover:border-gold/60 hover:text-text"
+            aria-label="Inventory"
+            title="Inventory (I)"
+          >
+            <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden>
+              <path d="M6 7V6a4 4 0 0 1 8 0v1" fill="none" stroke="currentColor" strokeWidth="1.6" />
+              <rect x="3.5" y="7" width="13" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+            </svg>
+            <span className="hidden sm:inline">Inventory</span>
+          </button>
+        )}
         {onOptions && (
           <button
             onClick={() => {

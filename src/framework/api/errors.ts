@@ -14,6 +14,26 @@ export type ApiErrorCode =
   | "INSUFFICIENT_FUNDS"
   | "ITEM_LOCKED"
   | "NOT_OWNED"
+  // The bank (city/docs/PRD_Building_Bank.md).
+  | "NO_ACCOUNT"
+  | "ACCOUNT_EXISTS"
+  | "INSUFFICIENT_BALANCE" // not that much in the account
+  | "INSUFFICIENT_CASH" // not that much in your pocket
+  | "BAD_AMOUNT"
+  | "FORM_INVALID" // a box on a bank form; the body carries `field`
+  | "CARD_EXISTS"
+  | "NO_CARD"
+  | "NO_CHEQUE_BOOK"
+  | "CHEQUE_BOOK_HELD"
+  | "CHEQUE_PAID_IN"
+  | "DEPOSIT_CLOSED"
+  | "NO_SUCH_PAYEE"
+  | "LOAN_ACTIVE"
+  | "TOO_SOON"
+  | "NO_LOAN"
+  | "DECLINED"
+  | "WRONG_PIN" // the body carries attemptsLeft
+  | "CARD_LOCKED" // the body carries lockedUntil
   | "SERVER_ERROR" // 5xx
   | "BAD_RESPONSE" // 2xx body failed schema validation
   | "HTTP_ERROR"; // any other non-2xx
@@ -90,6 +110,25 @@ const KNOWN_CODES = new Set<string>([
   "NOT_OWNED",
   "BAD_REQUEST",
   "NOT_FOUND",
+  "NO_ACCOUNT",
+  "ACCOUNT_EXISTS",
+  "INSUFFICIENT_BALANCE",
+  "INSUFFICIENT_CASH",
+  "BAD_AMOUNT",
+  "FORM_INVALID",
+  "CARD_EXISTS",
+  "NO_CARD",
+  "NO_CHEQUE_BOOK",
+  "CHEQUE_BOOK_HELD",
+  "CHEQUE_PAID_IN",
+  "DEPOSIT_CLOSED",
+  "NO_SUCH_PAYEE",
+  "LOAN_ACTIVE",
+  "TOO_SOON",
+  "NO_LOAN",
+  "DECLINED",
+  "WRONG_PIN",
+  "CARD_LOCKED",
 ]);
 
 /**

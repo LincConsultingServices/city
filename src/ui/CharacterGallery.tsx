@@ -6,6 +6,7 @@
 import { Portrait } from "./Portrait";
 import { hasArt } from "./paintedArt";
 import {
+  BANK_CAST,
   CAFE_CAST,
   CAFE_CREW,
   MAISON_CAST,
@@ -26,6 +27,7 @@ const GROUPS: readonly [string, Readonly<Record<string, CharacterDesign>>][] = [
   ["The Café", CAFE_CAST],
   ["The Café's crew", CAFE_CREW],
   ["MAISON", MAISON_CAST],
+  ["Meridian Bank", BANK_CAST],
 ];
 
 export function CharacterGallery() {
