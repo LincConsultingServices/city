@@ -30,12 +30,18 @@ type Step = "form" | "pin" | "welcome";
 export function AccountOpening({ onClose }: { onClose: () => void }) {
   const account = useBankStore((s) => s.account);
   // Coming back to the desk with an account but no card picks up at the card.
-  const [step, setStep] = useState<Step>(account ? (account.cardLast4 ? "welcome" : "pin") : "form");
+  const [step, setStep] = useState<Step>(
+    account ? (account.cardLast4 ? "welcome" : "pin") : "form",
+  );
 
   return (
     <Modal onClose={onClose} width="lg">
       <div className="flex items-center gap-3">
-        <Portrait look={BANK_CAST.daniel.look} artId="bank_daniel" className="h-14 w-auto shrink-0" />
+        <Portrait
+          look={BANK_CAST.daniel.look}
+          artId="bank_daniel"
+          className="h-14 w-auto shrink-0"
+        />
         <div>
           <p className="font-display text-lg font-semibold text-gold">New Accounts</p>
           <p className="text-xs uppercase tracking-widest text-muted">
@@ -61,7 +67,8 @@ function FormStep({ onDone }: { onDone: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const busy = useBankStore((s) => s.busy);
 
-  const set = <K extends FormField>(k: K, v: AccountFormValues[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends FormField>(k: K, v: AccountFormValues[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
   const issueFor = (k: FormField) => issues?.find((i) => i.field === k)?.message;
 
   const submit = async () => {
@@ -106,13 +113,21 @@ function FormStep({ onDone }: { onDone: () => void }) {
           ))}
           <li className="rounded-xl border border-line/60 bg-surface-2/60 p-3">
             <p className="text-[11px] uppercase tracking-widest text-muted">Your phone</p>
-            <p className="mt-1 font-mono text-sm tabular-nums text-text">{formatPhone(pocket.phone)}</p>
+            <p className="mt-1 font-mono text-sm tabular-nums text-text">
+              {formatPhone(pocket.phone)}
+            </p>
           </li>
         </ul>
         {looking && (
           <p className="mt-2 rounded-lg bg-surface-2/60 p-2 text-xs text-muted">
             {looking.title}: {looking.status}.{" "}
-            <button className="text-gold underline" onClick={() => { set("idDocument", looking.id); setLooking(null); }}>
+            <button
+              className="text-gold underline"
+              onClick={() => {
+                set("idDocument", looking.id);
+                setLooking(null);
+              }}
+            >
               Hand this one over
             </button>
           </p>
@@ -122,15 +137,24 @@ function FormStep({ onDone }: { onDone: () => void }) {
       {/* The form. */}
       <div className="space-y-3">
         <p className="text-sm text-muted">
-          "Fill this in from your ID and I'll check it. Take your time: everyone gets one box wrong the first time."
+          "Fill this in from your ID and I'll check it. Take your time: everyone gets one box wrong
+          the first time."
         </p>
 
         <Field label="Full name" issue={issueFor("holder")}>
-          <input value={form.holder} onChange={(e) => set("holder", e.target.value)} className={input} />
+          <input
+            value={form.holder}
+            onChange={(e) => set("holder", e.target.value)}
+            className={input}
+          />
         </Field>
 
         <Field label="Address" issue={issueFor("address")}>
-          <select value={form.address} onChange={(e) => set("address", e.target.value)} className={input}>
+          <select
+            value={form.address}
+            onChange={(e) => set("address", e.target.value)}
+            className={input}
+          >
             <option value="">Choose…</option>
             {CITY_ADDRESSES.map((a) => (
               <option key={a} value={a}>
@@ -159,7 +183,9 @@ function FormStep({ onDone }: { onDone: () => void }) {
                 aria-pressed={form.idDocument === c.id}
                 onClick={() => set("idDocument", c.id)}
                 className={`rounded-full border px-3 py-1 text-xs ${
-                  form.idDocument === c.id ? "border-gold bg-gold/15 text-text" : "border-line/70 text-muted hover:text-text"
+                  form.idDocument === c.id
+                    ? "border-gold bg-gold/15 text-text"
+                    : "border-line/70 text-muted hover:text-text"
                 }`}
               >
                 {c.title}
@@ -170,7 +196,11 @@ function FormStep({ onDone }: { onDone: () => void }) {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Nominee (optional)" issue={issueFor("nomineeName")}>
-            <input value={form.nomineeName} onChange={(e) => set("nomineeName", e.target.value)} className={input} />
+            <input
+              value={form.nomineeName}
+              onChange={(e) => set("nomineeName", e.target.value)}
+              className={input}
+            />
           </Field>
           <Field label="Relationship" issue={issueFor("nomineeRelation")}>
             <input
@@ -214,7 +244,8 @@ function FormStep({ onDone }: { onDone: () => void }) {
 
         {issues && issues.length > 0 && (
           <p className="rounded-xl border border-gold/40 bg-gold/10 p-3 text-sm text-text">
-            Daniel hands the form back: "Nearly there. I've marked {issues.length === 1 ? "one box" : `${issues.length} boxes`} for you."
+            Daniel hands the form back: "Nearly there. I've marked{" "}
+            {issues.length === 1 ? "one box" : `${issues.length} boxes`} for you."
           </p>
         )}
         {error && <p className="text-sm text-red-300">{error}</p>}
@@ -236,17 +267,39 @@ function FormStep({ onDone }: { onDone: () => void }) {
 const input =
   "w-full rounded-lg border border-line/70 bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-gold/70";
 
-function Field({ label, issue, children }: { label: string; issue?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  issue,
+  children,
+}: {
+  label: string;
+  issue?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
       <span className="text-xs uppercase tracking-widest text-muted">{label}</span>
-      <div className={`mt-1 ${issue ? "rounded-lg ring-2 ring-gold/70 ring-offset-2 ring-offset-surface" : ""}`}>{children}</div>
+      <div
+        className={`mt-1 ${issue ? "rounded-lg ring-2 ring-gold/70 ring-offset-2 ring-offset-surface" : ""}`}
+      >
+        {children}
+      </div>
       {issue && <span className="mt-1 block text-xs leading-relaxed text-gold">✎ {issue}</span>}
     </label>
   );
 }
 
-function TypeCard({ on, onPick, title, text }: { on: boolean; onPick: () => void; title: string; text: string }) {
+function TypeCard({
+  on,
+  onPick,
+  title,
+  text,
+}: {
+  on: boolean;
+  onPick: () => void;
+  title: string;
+  text: string;
+}) {
   return (
     <button
       type="button"
@@ -274,7 +327,9 @@ function PinStep({ onDone }: { onDone: () => void }) {
   const holder = useBankStore((s) => s.account?.holder ?? "");
 
   const submit = async () => {
-    const p = pinProblem(pin) ?? (pin !== again ? "The two PINs don't match. Type the same four digits twice." : null);
+    const p =
+      pinProblem(pin) ??
+      (pin !== again ? "The two PINs don't match. Type the same four digits twice." : null);
     setProblem(p);
     if (p) {
       audio.play("ui_error");
@@ -285,7 +340,9 @@ function PinStep({ onDone }: { onDone: () => void }) {
       audio.play("ui_open");
       onDone();
     } catch (e) {
-      setProblem(formProblem(e)?.message ?? (e instanceof Error ? e.message : "Something went wrong."));
+      setProblem(
+        formProblem(e)?.message ?? (e instanceof Error ? e.message : "Something went wrong."),
+      );
       audio.play("ui_error");
     }
   };
@@ -294,8 +351,8 @@ function PinStep({ onDone }: { onDone: () => void }) {
     <div className="mt-4 grid gap-5 md:grid-cols-2">
       <div>
         <p className="text-sm text-muted">
-          "Your account is open. Here's your debit card. It takes money straight from your account, at the ATM or in
-          shops. Choose a four-digit PIN to protect it."
+          "Your account is open. Here's your debit card. It takes money straight from your account,
+          at the ATM or in shops. Choose a four-digit PIN to protect it."
         </p>
         <BankCardArt holder={holder} last4="••••" expiry="--/--" />
       </div>
@@ -326,8 +383,13 @@ function PinStep({ onDone }: { onDone: () => void }) {
         </label>
         {problem && <p className="text-xs leading-relaxed text-gold">✎ {problem}</p>}
         <ul className="space-y-1 text-xs text-muted">
-          <li>• Not your birthday, and not 1234 or 0000: those are the first ones a thief tries.</li>
-          <li>• Never write it on the card, and never tell anyone, even someone who says they're from the bank.</li>
+          <li>
+            • Not your birthday, and not 1234 or 0000: those are the first ones a thief tries.
+          </li>
+          <li>
+            • Never write it on the card, and never tell anyone, even someone who says they're from
+            the bank.
+          </li>
           <li>• Cover the keypad when you type it.</li>
         </ul>
         <div className="flex justify-end">
@@ -344,7 +406,15 @@ function PinStep({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function BankCardArt({ holder, last4, expiry }: { holder: string; last4: string; expiry: string }) {
+export function BankCardArt({
+  holder,
+  last4,
+  expiry,
+}: {
+  holder: string;
+  last4: string;
+  expiry: string;
+}) {
   return (
     <div
       className="mt-3 aspect-[1.586] w-full max-w-xs rounded-2xl p-4 text-white shadow-lg"
@@ -373,7 +443,9 @@ function WelcomeStep({ onClose }: { onClose: () => void }) {
   return (
     <div className="mt-4 grid gap-5 md:grid-cols-2">
       <div className="rounded-2xl border border-gold/40 bg-[#1f2d4d] p-5 text-white shadow-lg">
-        <p className="text-[11px] uppercase tracking-widest text-[#e5c77a]">Meridian Bank · Passbook</p>
+        <p className="text-[11px] uppercase tracking-widest text-[#e5c77a]">
+          Meridian Bank · Passbook
+        </p>
         <p className="mt-3 font-display text-xl">{account.holder}</p>
         <dl className="mt-3 grid grid-cols-2 gap-y-1 text-sm">
           <dt className="opacity-70">Account no.</dt>
@@ -387,14 +459,18 @@ function WelcomeStep({ onClose }: { onClose: () => void }) {
         </dl>
       </div>
       <div>
-        <BankCardArt holder={account.holder} last4={account.cardLast4 ?? "••••"} expiry={account.cardExpiry ?? "--/--"} />
+        <BankCardArt
+          holder={account.holder}
+          last4={account.cardLast4 ?? "••••"}
+          expiry={account.cardExpiry ?? "--/--"}
+        />
         <p className="mt-4 text-sm leading-relaxed text-text">
-          "Welcome to Meridian! Your account number is on the first page of your passbook. You'll need it on every
-          slip, so keep it handy."
+          "Welcome to Meridian! Your account number is on the first page of your passbook. You'll
+          need it on every slip, so keep it handy."
         </p>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          "Your account is empty for now. Take a ticket from the machine by the door, and when your number's called,
-          Mei at window 1 will pay your cash in."
+          "Your account is empty for now. Take a ticket from the machine by the door, and when your
+          number's called, Mei at window 1 will pay your cash in."
         </p>
         <div className="mt-4 flex justify-end">
           <button

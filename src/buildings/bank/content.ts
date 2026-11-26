@@ -82,7 +82,7 @@ export const LEAFLETS: readonly Leaflet[] = [
     body: [
       "A cheque tells your bank to pay someone from your account. Write the date, the name of the person being paid, the amount in words and in figures, and sign it.",
       "Write the figures right up against the $ sign and finish the words with \"only\", so nobody can add to them. If the words and figures don't match, the bank won't pay it.",
-      "If there isn't enough money in the account to cover it, the cheque \"bounces\": the bank refuses to pay it. Only write a cheque when the money is already there.",
+      'If there isn\'t enough money in the account to cover it, the cheque "bounces": the bank refuses to pay it. Only write a cheque when the money is already there.',
     ],
   },
   {

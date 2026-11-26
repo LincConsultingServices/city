@@ -12,12 +12,21 @@ import { audio } from "@/framework/audio/audioManager";
 import { api, ApiError } from "@/framework/api";
 import type { BankTransfer, Payee } from "@/framework/api";
 import { usePayees } from "./usePayees";
-import { formProblem, newKey, setSalaryToAccount, transfer, useBankStore } from "@/framework/bank/bankStore";
+import {
+  formProblem,
+  newKey,
+  setSalaryToAccount,
+  transfer,
+  useBankStore,
+} from "@/framework/bank/bankStore";
 import { BANK_CAST } from "@/ui/characters";
 
-const primary = "rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-60";
-const secondary = "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
-const input = "w-full rounded-lg border border-line/70 bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-gold/70";
+const primary =
+  "rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-60";
+const secondary =
+  "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
+const input =
+  "w-full rounded-lg border border-line/70 bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-gold/70";
 
 function DanielSays({ children }: { children: React.ReactNode }) {
   return (
@@ -84,7 +93,9 @@ export function TransferMoney({ onClose }: { onClose: () => void }) {
       setDone(res);
       setStep("done");
     } catch (e) {
-      setNote(formProblem(e)?.message ?? (e instanceof Error ? e.message : "Something went wrong."));
+      setNote(
+        formProblem(e)?.message ?? (e instanceof Error ? e.message : "Something went wrong."),
+      );
       audio.play("ui_error");
     }
   };
@@ -94,13 +105,20 @@ export function TransferMoney({ onClose }: { onClose: () => void }) {
       {step === "who" && (
         <>
           <DanielSays>
-            "Sending money? Tell me the account number. If you don't know it, the directory has every business in the
-            city."
+            "Sending money? Tell me the account number. If you don't know it, the directory has
+            every business in the city."
           </DanielSays>
           <label className="mt-4 block">
-            <span className="text-xs uppercase tracking-widest text-muted">Their account number</span>
+            <span className="text-xs uppercase tracking-widest text-muted">
+              Their account number
+            </span>
             <div className="mt-1 flex gap-2">
-              <input className={`${input} font-mono tracking-widest`} inputMode="numeric" value={number} onChange={(e) => setNumber(e.target.value)} />
+              <input
+                className={`${input} font-mono tracking-widest`}
+                inputMode="numeric"
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
+              />
               <button className={primary} onClick={lookUp}>
                 Check
               </button>
@@ -130,13 +148,15 @@ export function TransferMoney({ onClose }: { onClose: () => void }) {
         <>
           <DanielSays>"Before anything moves, check whose account this is."</DanielSays>
           <div className="mt-4 rounded-xl border border-gold/50 bg-gold/10 p-4">
-            <p className="text-xs uppercase tracking-widest text-muted">Account {payee.accountNumber} belongs to</p>
+            <p className="text-xs uppercase tracking-widest text-muted">
+              Account {payee.accountNumber} belongs to
+            </p>
             <p className="mt-1 font-display text-xl text-text">{payee.name}</p>
             <p className="text-xs text-muted">{payee.about}</p>
           </div>
           <p className="mt-3 text-xs text-muted">
-            If that isn't who you meant, go back and check the number. Money sent to the wrong account is very hard to
-            get back.
+            If that isn't who you meant, go back and check the number. Money sent to the wrong
+            account is very hard to get back.
           </p>
           <div className="mt-5 flex justify-end gap-2">
             <button className={secondary} onClick={() => setStep("who")}>
@@ -152,17 +172,28 @@ export function TransferMoney({ onClose }: { onClose: () => void }) {
       {step === "how_much" && payee && (
         <>
           <DanielSays>
-            "How much to {payee.name}? You have ${account.balance} in your account. Add a reference so you'll know
-            later what it was for."
+            "How much to {payee.name}? You have ${account.balance} in your account. Add a reference
+            so you'll know later what it was for."
           </DanielSays>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="text-xs uppercase tracking-widest text-muted">Amount ($)</span>
-              <input className={`${input} mt-1`} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} />
+              <input
+                className={`${input} mt-1`}
+                inputMode="numeric"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
+              />
             </label>
             <label className="block">
               <span className="text-xs uppercase tracking-widest text-muted">Reference</span>
-              <input className={`${input} mt-1`} maxLength={40} placeholder="e.g. Water bill" value={reference} onChange={(e) => setReference(e.target.value)} />
+              <input
+                className={`${input} mt-1`}
+                maxLength={40}
+                placeholder="e.g. Water bill"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+              />
             </label>
           </div>
           {note && <p className="mt-2 text-xs text-gold">✎ {note}</p>}
@@ -180,8 +211,8 @@ export function TransferMoney({ onClose }: { onClose: () => void }) {
       {step === "done" && done && (
         <>
           <DanielSays>
-            "Sent: ${-done.line.amount} to {done.payee.name}. Your balance is now ${done.balance}. It's in your passbook
-            as '{done.line.note}'."
+            "Sent: ${-done.line.amount} to {done.payee.name}. Your balance is now ${done.balance}.
+            It's in your passbook as '{done.line.note}'."
           </DanielSays>
           <div className="mt-5 flex justify-end">
             <button autoFocus className={primary} onClick={onClose}>

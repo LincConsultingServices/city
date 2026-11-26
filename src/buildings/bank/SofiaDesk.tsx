@@ -11,12 +11,23 @@ import { Modal } from "@/ui/Modal";
 import { Portrait } from "@/ui/Portrait";
 import { audio } from "@/framework/audio/audioManager";
 import type { Credit, Loan, LoanQuote } from "@/framework/api";
-import { activeLoan, borrow, formProblem, loanQuote, newKey, repayLoan, useBankStore } from "@/framework/bank/bankStore";
+import {
+  activeLoan,
+  borrow,
+  formProblem,
+  loanQuote,
+  newKey,
+  repayLoan,
+  useBankStore,
+} from "@/framework/bank/bankStore";
 import { BANK_CAST } from "@/ui/characters";
 
-const primary = "rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-60";
-const secondary = "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
-const input = "w-full rounded-lg border border-line/70 bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-gold/70";
+const primary =
+  "rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-60";
+const secondary =
+  "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
+const input =
+  "w-full rounded-lg border border-line/70 bg-surface-2/70 px-3 py-2 text-sm text-text outline-none focus:border-gold/70";
 
 const TERMS = [3, 6, 12] as const;
 const BANDS = [
@@ -30,7 +41,9 @@ const BANDS = [
 const pct = (bp: number) => `${bp / 100}%`;
 
 function errorText(e: unknown): string {
-  return formProblem(e)?.message ?? (e instanceof Error ? e.message : "Something went wrong. Try again.");
+  return (
+    formProblem(e)?.message ?? (e instanceof Error ? e.message : "Something went wrong. Try again.")
+  );
 }
 
 function SofiaSays({ children }: { children: React.ReactNode }) {
@@ -52,7 +65,10 @@ function ScoreBar({ credit }: { credit: Credit }) {
         <p className="text-sm font-semibold text-text">{credit.band.name}</p>
       </div>
       <div className="relative mt-2 h-2 rounded-full bg-gradient-to-r from-[#a83a32] via-[#c9a24a] to-[#3f9a5a]">
-        <div className="absolute -top-1 h-4 w-1 rounded bg-white shadow" style={{ left: `calc(${at}% - 2px)` }} />
+        <div
+          className="absolute -top-1 h-4 w-1 rounded bg-white shadow"
+          style={{ left: `calc(${at}% - 2px)` }}
+        />
       </div>
       <div className="mt-1 flex justify-between text-[10px] text-muted">
         <span>300</span>
@@ -73,8 +89,8 @@ export function CreditReport({ onClose }: { onClose: () => void }) {
   return (
     <Modal onClose={onClose} width="md">
       <SofiaSays>
-        "This is your credit score. It's how a bank judges how safely it can lend to you, worked out from how you've
-        handled money with us. Here's every line of it."
+        "This is your credit score. It's how a bank judges how safely it can lend to you, worked out
+        from how you've handled money with us. Here's every line of it."
       </SofiaSays>
       <ScoreBar credit={credit} />
       <ul className="mt-4 space-y-1 text-sm">
@@ -101,9 +117,10 @@ export function CreditReport({ onClose }: { onClose: () => void }) {
         </tbody>
       </table>
       <p className="mt-3 text-xs leading-relaxed text-muted">
-        Paying instalments on time and repaying loans in full raise it. Missed instalments and bounced cheques lower it.
-        A better score means you can borrow more, and it costs you less. Each loan application is a credit check that
-        stays on your record for 6 bank months and lowers the score a little, so apply only when you mean it.
+        Paying instalments on time and repaying loans in full raise it. Missed instalments and
+        bounced cheques lower it. A better score means you can borrow more, and it costs you less.
+        Each loan application is a credit check that stays on your record for 6 bank months and
+        lowers the score a little, so apply only when you mean it.
       </p>
       <div className="mt-5 flex justify-end">
         <button autoFocus className={primary} onClick={onClose}>
@@ -164,9 +181,10 @@ export function BorrowMoney({ onClose }: { onClose: () => void }) {
     return (
       <Modal onClose={onClose} width="md">
         <SofiaSays>
-          "${done.principal} is in your account now. ${done.instalment} will come out at the end of every bank month for{" "}
-          {done.termMonths} months. If your balance is short one month, the instalment is missed: there's no fee, but that
-          month's interest is added to what you owe, and it shows on your credit score."
+          "${done.principal} is in your account now. ${done.instalment} will come out at the end of
+          every bank month for {done.termMonths} months. If your balance is short one month, the
+          instalment is missed: there's no fee, but that month's interest is added to what you owe,
+          and it shows on your credit score."
         </SofiaSays>
         <div className="mt-5 flex justify-end">
           <button autoFocus className={primary} onClick={onClose}>
@@ -191,19 +209,37 @@ export function BorrowMoney({ onClose }: { onClose: () => void }) {
   return (
     <Modal onClose={onClose} width="lg">
       <SofiaSays>
-        "With a {credit.band.name.toLowerCase()} score ({credit.score}) I can lend you up to ${credit.limit}, at{" "}
-        {pct(credit.rateBp)} interest a month. Interest is the price of borrowing: you pay back more than you borrow."
+        "With a {credit.band.name.toLowerCase()} score ({credit.score}) I can lend you up to $
+        {credit.limit}, at {pct(credit.rateBp)} interest a month. Interest is the price of
+        borrowing: you pay back more than you borrow."
       </SofiaSays>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <label className="block">
-          <span className="text-xs uppercase tracking-widest text-muted">Borrow ($100–${credit.limit})</span>
-          <input className={`${input} mt-1`} inputMode="numeric" value={amount} onChange={(e) => { setAmount(e.target.value.replace(/\D/g, "")); setAgreed(false); }} />
+          <span className="text-xs uppercase tracking-widest text-muted">
+            Borrow ($100–${credit.limit})
+          </span>
+          <input
+            className={`${input} mt-1`}
+            inputMode="numeric"
+            value={amount}
+            onChange={(e) => {
+              setAmount(e.target.value.replace(/\D/g, ""));
+              setAgreed(false);
+            }}
+          />
         </label>
         <div className="sm:col-span-2">
           <span className="text-xs uppercase tracking-widest text-muted">Repay over</span>
           <div className="mt-1 flex gap-2">
             {TERMS.map((t) => (
-              <button key={t} className={term === t ? primary : secondary} onClick={() => { setTerm(t); setAgreed(false); }}>
+              <button
+                key={t}
+                className={term === t ? primary : secondary}
+                onClick={() => {
+                  setTerm(t);
+                  setAgreed(false);
+                }}
+              >
                 {t} months
               </button>
             ))}
@@ -212,7 +248,13 @@ export function BorrowMoney({ onClose }: { onClose: () => void }) {
       </div>
       <label className="mt-3 block">
         <span className="text-xs uppercase tracking-widest text-muted">What is it for?</span>
-        <input className={`${input} mt-1`} maxLength={60} placeholder="e.g. Equipment for my business" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+        <input
+          className={`${input} mt-1`}
+          maxLength={60}
+          placeholder="e.g. Equipment for my business"
+          value={purpose}
+          onChange={(e) => setPurpose(e.target.value)}
+        />
       </label>
 
       {problem && <p className="mt-3 text-sm text-gold">✎ {problem}</p>}
@@ -251,14 +293,19 @@ export function BorrowMoney({ onClose }: { onClose: () => void }) {
             </p>
           </details>
           <p className="mt-3 text-xs leading-relaxed text-muted">
-            "Borrowing for something that earns or saves you money, like equipment for a business, can be worth its
-            interest. Borrowing for things that are gone once you've bought them just costs more. Only you know which
-            this is."
+            "Borrowing for something that earns or saves you money, like equipment for a business,
+            can be worth its interest. Borrowing for things that are gone once you've bought them
+            just costs more. Only you know which this is."
           </p>
           <label className="mt-3 flex items-start gap-2 text-sm text-text">
-            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1" />
-            I understand I'll repay ${q.totalRepaid} in total, ${q.instalment} a month for {q.termMonths} months, taken from
-            my account.
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="mt-1"
+            />
+            I understand I'll repay ${q.totalRepaid} in total, ${q.instalment} a month for{" "}
+            {q.termMonths} months, taken from my account.
           </label>
         </>
       )}
@@ -279,7 +326,11 @@ function Stat({ label, value, gold }: { label: string; value: string; gold?: boo
   return (
     <div className="rounded-xl border border-line/60 bg-surface-2/60 p-2">
       <p className="text-[11px] uppercase tracking-widest text-muted">{label}</p>
-      <p className={`mt-0.5 text-lg font-semibold tabular-nums ${gold ? "text-gold" : "text-text"}`}>{value}</p>
+      <p
+        className={`mt-0.5 text-lg font-semibold tabular-nums ${gold ? "text-gold" : "text-text"}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -302,7 +353,11 @@ export function MyLoan({ onClose }: { onClose: () => void }) {
     try {
       const paid = await repayLoan(amount, `${key}-${amount}-${Date.now()}`);
       audio.play("ui_confirm");
-      setMessage(amount === 0 || (l && paid >= l.outstanding) ? `Repaid in full. No penalty for paying early.` : `Paid $${paid} off your loan.`);
+      setMessage(
+        amount === 0 || (l && paid >= l.outstanding)
+          ? `Repaid in full. No penalty for paying early.`
+          : `Paid $${paid} off your loan.`,
+      );
       setExtra("");
     } catch (e) {
       setMessage(errorText(e));
@@ -315,12 +370,15 @@ export function MyLoan({ onClose }: { onClose: () => void }) {
       <h2 className="font-display text-xl font-semibold text-gold">My loan</h2>
       {!l ? (
         <p className="mt-3 text-sm text-muted">
-          {past.length ? `You've repaid ${past.length} loan${past.length > 1 ? "s" : ""} in full.` : "You don't have a loan."}
+          {past.length
+            ? `You've repaid ${past.length} loan${past.length > 1 ? "s" : ""} in full.`
+            : "You don't have a loan."}
         </p>
       ) : (
         <>
           <p className="mt-2 text-sm text-text">
-            ${l.principal} borrowed{l.purpose ? ` for ${l.purpose.toLowerCase()}` : ""}, {pct(l.rateBp)} a month.
+            ${l.principal} borrowed{l.purpose ? ` for ${l.purpose.toLowerCase()}` : ""},{" "}
+            {pct(l.rateBp)} a month.
           </p>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
             <Stat label="Still owed" value={`$${l.outstanding}`} gold />
@@ -329,24 +387,44 @@ export function MyLoan({ onClose }: { onClose: () => void }) {
           </div>
           <p className="mt-3 text-xs text-muted">
             {l.onTime} paid on time{l.missed ? `, ${l.missed} missed` : ""}. Next instalment:{" "}
-            {monthHours ? new Date(Date.parse(l.openedAt) + (l.monthsDone + 1) * monthHours * 3_600_000).toLocaleString() : "soon"}.
+            {monthHours
+              ? new Date(
+                  Date.parse(l.openedAt) + (l.monthsDone + 1) * monthHours * 3_600_000,
+                ).toLocaleString()
+              : "soon"}
+            .
             {account && account.balance < Math.min(l.instalment, l.outstanding) && (
-              <span className="text-gold"> Your balance (${account.balance}) won't cover it: pay some in first, or it will be missed.</span>
+              <span className="text-gold">
+                {" "}
+                Your balance (${account.balance}) won't cover it: pay some in first, or it will be
+                missed.
+              </span>
             )}
           </p>
           <div className="mt-4 flex flex-wrap items-end gap-2">
             <label className="block">
               <span className="text-xs uppercase tracking-widest text-muted">Pay extra ($)</span>
-              <input className={`${input} mt-1 w-32`} inputMode="numeric" value={extra} onChange={(e) => setExtra(e.target.value.replace(/\D/g, ""))} />
+              <input
+                className={`${input} mt-1 w-32`}
+                inputMode="numeric"
+                value={extra}
+                onChange={(e) => setExtra(e.target.value.replace(/\D/g, ""))}
+              />
             </label>
-            <button className={secondary} disabled={busy || !extra} onClick={() => pay(Number(extra))}>
+            <button
+              className={secondary}
+              disabled={busy || !extra}
+              onClick={() => pay(Number(extra))}
+            >
               Pay extra
             </button>
             <button className={primary} disabled={busy} onClick={() => pay(0)}>
               Repay all ${l.outstanding}
             </button>
           </div>
-          <p className="mt-2 text-xs text-muted">Paying early is free, and it means less interest.</p>
+          <p className="mt-2 text-xs text-muted">
+            Paying early is free, and it means less interest.
+          </p>
         </>
       )}
       {message && <p className="mt-3 text-sm text-gold">{message}</p>}

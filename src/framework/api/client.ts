@@ -257,7 +257,11 @@ export class ApiClient {
   }
 
   getBankStatement(limit = 50, offset = 0) {
-    return this.request("GET", `/api/v1/bank/statement?limit=${limit}&offset=${offset}`, BankStatement);
+    return this.request(
+      "GET",
+      `/api/v1/bank/statement?limit=${limit}&offset=${offset}`,
+      BankStatement,
+    );
   }
 
   openBankAccount(form: OpenAccountForm) {
@@ -276,7 +280,11 @@ export class ApiClient {
 
   /** Cash from the ATM: multiples of $10, up to $500, PIN checked by the server. */
   bankAtmWithdraw(pin: string, amount: number, idempotencyKey: string) {
-    return this.request("POST", "/api/v1/bank/atm/withdraw", BankMove, { pin, amount, idempotencyKey });
+    return this.request("POST", "/api/v1/bank/atm/withdraw", BankMove, {
+      pin,
+      amount,
+      idempotencyKey,
+    });
   }
 
   /** Print the passbook up to date: the lines that were not in the book yet. */
@@ -291,7 +299,11 @@ export class ApiClient {
 
   /** Pay a received cheque in. It clears after a while; the money arrives then. */
   depositCheque(id: string) {
-    return this.request("POST", `/api/v1/bank/cheques/${encodeURIComponent(id)}/deposit`, BankChequeResult);
+    return this.request(
+      "POST",
+      `/api/v1/bank/cheques/${encodeURIComponent(id)}/deposit`,
+      BankChequeResult,
+    );
   }
 
   /** Present a cheque the player wrote. It may bounce: nothing moves, nothing is charged. */
@@ -301,17 +313,30 @@ export class ApiClient {
 
   /** What a deposit would grow to, month by month, beside the same money in savings. */
   bankQuote(kind: "fd" | "rd", amount: number, term: number) {
-    return this.request("GET", `/api/v1/bank/quote?kind=${kind}&amount=${amount}&term=${term}`, BankQuote);
+    return this.request(
+      "GET",
+      `/api/v1/bank/quote?kind=${kind}&amount=${amount}&term=${term}`,
+      BankQuote,
+    );
   }
 
   /** Open a fixed deposit (amount = the sum) or a recurring one (amount = each month's instalment). */
   openDeposit(kind: "fd" | "rd", amount: number, termMonths: number, idempotencyKey: string) {
-    return this.request("POST", "/api/v1/bank/deposits", BankDepositOpened, { kind, amount, termMonths, idempotencyKey });
+    return this.request("POST", "/api/v1/bank/deposits", BankDepositOpened, {
+      kind,
+      amount,
+      termMonths,
+      idempotencyKey,
+    });
   }
 
   /** Take a deposit out early: everything back, with interest at the savings rate. */
   breakDeposit(id: string) {
-    return this.request("POST", `/api/v1/bank/deposits/${encodeURIComponent(id)}/break`, BankDepositBroken);
+    return this.request(
+      "POST",
+      `/api/v1/bank/deposits/${encodeURIComponent(id)}/break`,
+      BankDepositBroken,
+    );
   }
 
   /** The city's businesses, with their account numbers. */
@@ -321,12 +346,21 @@ export class ApiClient {
 
   /** Confirmation of payee: whose account a number is. 404 NO_SUCH_PAYEE if nobody's. */
   bankLookupPayee(accountNumber: string) {
-    return this.request("GET", `/api/v1/bank/payees/lookup?account=${encodeURIComponent(accountNumber)}`, BankPayeeLookup);
+    return this.request(
+      "GET",
+      `/api/v1/bank/payees/lookup?account=${encodeURIComponent(accountNumber)}`,
+      BankPayeeLookup,
+    );
   }
 
   /** Send money to a business, by account number. */
   bankTransfer(accountNumber: string, amount: number, reference: string, idempotencyKey: string) {
-    return this.request("POST", "/api/v1/bank/transfer", BankTransfer, { accountNumber, amount, reference, idempotencyKey });
+    return this.request("POST", "/api/v1/bank/transfer", BankTransfer, {
+      accountNumber,
+      amount,
+      reference,
+      idempotencyKey,
+    });
   }
 
   /** Pay salaries into the account (on) or into your pocket (off). */
@@ -364,17 +398,29 @@ export class ApiClient {
 
   /** What a loan would cost this player, at their own rate, paid on time. */
   loanQuote(amount: number, term: number) {
-    return this.request("GET", `/api/v1/bank/loans/quote?amount=${amount}&term=${term}`, BankLoanQuote);
+    return this.request(
+      "GET",
+      `/api/v1/bank/loans/quote?amount=${amount}&term=${term}`,
+      BankLoanQuote,
+    );
   }
 
   /** Borrow: the money lands in the account; instalments come out each bank month. */
   openLoan(amount: number, termMonths: number, purpose: string, idempotencyKey: string) {
-    return this.request("POST", "/api/v1/bank/loans", BankLoanOpened, { amount, termMonths, purpose, idempotencyKey });
+    return this.request("POST", "/api/v1/bank/loans", BankLoanOpened, {
+      amount,
+      termMonths,
+      purpose,
+      idempotencyKey,
+    });
   }
 
   /** Pay some of the loan early (amount > 0) or all of it (0). No penalty. */
   repayLoan(amount: number, idempotencyKey: string) {
-    return this.request("POST", "/api/v1/bank/loans/repay", BankLoanRepaid, { amount, idempotencyKey });
+    return this.request("POST", "/api/v1/bank/loans/repay", BankLoanRepaid, {
+      amount,
+      idempotencyKey,
+    });
   }
 
   // ── Save games ─────────────────────────────────────────────────────────────
@@ -391,11 +437,17 @@ export class ApiClient {
 
   /** Save the whole game into a slot ("1"–"6", or "auto"), overwriting it. */
   saveGame(slot: string, name: string, story: string, extra: string) {
-    return this.request("PUT", `/api/v1/saves/${encodeURIComponent(slot)}`, SaveWritten, { name, story, extra });
+    return this.request("PUT", `/api/v1/saves/${encodeURIComponent(slot)}`, SaveWritten, {
+      name,
+      story,
+      extra,
+    });
   }
 
   renameSave(slot: string, name: string) {
-    return this.request("PATCH", `/api/v1/saves/${encodeURIComponent(slot)}`, SaveWritten, { name });
+    return this.request("PATCH", `/api/v1/saves/${encodeURIComponent(slot)}`, SaveWritten, {
+      name,
+    });
   }
 
   deleteSave(slot: string) {
@@ -426,11 +478,19 @@ export class ApiClient {
    * the same key again (a retry, a double click) and nothing moves twice.
    */
   bankDeposit(amount: number, idempotencyKey: string, channel: "counter" | "atm" = "counter") {
-    return this.request("POST", "/api/v1/bank/deposit", BankMove, { amount, idempotencyKey, channel });
+    return this.request("POST", "/api/v1/bank/deposit", BankMove, {
+      amount,
+      idempotencyKey,
+      channel,
+    });
   }
 
   bankWithdraw(amount: number, idempotencyKey: string, channel: "counter" | "atm" = "counter") {
-    return this.request("POST", "/api/v1/bank/withdraw", BankMove, { amount, idempotencyKey, channel });
+    return this.request("POST", "/api/v1/bank/withdraw", BankMove, {
+      amount,
+      idempotencyKey,
+      channel,
+    });
   }
 
   // ── The generated transfer beat (ADR-006 §7.3) ──────────────────────────────

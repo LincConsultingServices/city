@@ -706,7 +706,9 @@ export const OwnedItem = z.object({
 });
 export type OwnedItem = z.infer<typeof OwnedItem>;
 export const OwnedItems = z.object({ items: z.array(OwnedItem) });
-export const AvatarEquipped = z.object({ equipped: z.record(z.string(), z.string()).nullable().optional() });
+export const AvatarEquipped = z.object({
+  equipped: z.record(z.string(), z.string()).nullable().optional(),
+});
 
 export const ShopPurchase = z.object({
   newBalance: z.number().int(),
@@ -718,7 +720,11 @@ export type ShopPurchase = z.infer<typeof ShopPurchase>;
 
 export const BankLoanQuote = z.object({ quote: LoanQuote });
 export const BankLoanOpened = z.object({ loan: Loan });
-export const BankLoanRepaid = z.object({ loan: Loan, paid: z.number().int(), balance: z.number().int() });
+export const BankLoanRepaid = z.object({
+  loan: Loan,
+  paid: z.number().int(),
+  balance: z.number().int(),
+});
 
 // ── Save games ───────────────────────────────────────────────────────────────
 

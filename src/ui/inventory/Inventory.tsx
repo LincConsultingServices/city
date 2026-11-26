@@ -83,8 +83,14 @@ export function Inventory({
 
   useEffect(() => {
     void loadBank().catch(() => undefined);
-    void api.getInventory().then((r) => setOwned(r.items)).catch(() => undefined);
-    void api.getAvatar().then((r) => setEquipped(r.equipped ?? {})).catch(() => undefined);
+    void api
+      .getInventory()
+      .then((r) => setOwned(r.items))
+      .catch(() => undefined);
+    void api
+      .getAvatar()
+      .then((r) => setEquipped(r.equipped ?? {}))
+      .catch(() => undefined);
   }, []);
 
   const items = useMemo<Item[]>(() => {
@@ -99,7 +105,8 @@ export function Inventory({
       category: "wallet",
       name: "Wallet",
       kind: "Wallet",
-      description: "Your cash. It's safe enough in your pocket, but it doesn't earn interest and it can't be paid by card.",
+      description:
+        "Your cash. It's safe enough in your pocket, but it doesn't earn interest and it can't be paid by card.",
       stats: [
         ["Cash", cash === null ? "—" : `$${cash}`],
         ["In the bank", account ? `$${account.balance}` : "No account"],
@@ -116,7 +123,8 @@ export function Inventory({
         category: "wallet",
         name: "Meridian debit card",
         kind: "Bank card",
-        description: "Takes money straight from your bank account, at the ATM or at the Shop's till. Protected by your PIN, which nobody from the bank will ever ask for.",
+        description:
+          "Takes money straight from your bank account, at the ATM or at the Shop's till. Protected by your PIN, which nobody from the bank will ever ask for.",
         stats: [
           ["Card", `•••• ${account.cardLast4}`],
           ["Expires", account.cardExpiry ?? ""],
@@ -124,7 +132,13 @@ export function Inventory({
           ["ATM limit", "$500 a time"],
         ],
         shape: "card",
-        front: <CardFront holder={account.holder} last4={account.cardLast4} expiry={account.cardExpiry ?? ""} />,
+        front: (
+          <CardFront
+            holder={account.holder}
+            last4={account.cardLast4}
+            expiry={account.cardExpiry ?? ""}
+          />
+        ),
         back: <CardBack signature={account.signature} />,
         sides: ["Front", "Back"],
         hint: "Use it at the ATMs in Meridian Bank, or pay by card at The Shop.",
@@ -139,14 +153,23 @@ export function Inventory({
           kind: c.valid ? "Proof of identity" : "Card",
           description: c.valid
             ? "Your City ID: the card the bank accepts as proof of who you are."
-            : c.refusal ?? "",
+            : (c.refusal ?? ""),
           stats: [
             ["Name", c.name],
             ["Address", c.address],
             ["Status", c.status],
           ],
           shape: "card",
-          front: <IdFront title={c.title} colour={c.colour} name={c.name} address={c.address} status={c.status} look={look} />,
+          front: (
+            <IdFront
+              title={c.title}
+              colour={c.colour}
+              name={c.name}
+              address={c.address}
+              status={c.status}
+              look={look}
+            />
+          ),
           back: <IdBack title={c.title} colour={c.colour} valid={c.valid} />,
           sides: ["Front", "Back"],
         });
@@ -157,8 +180,14 @@ export function Inventory({
       category: "wallet",
       name: "Phone",
       kind: "Phone",
-      description: "The bank uses this number to warn you about anything unusual. A real bank never asks for your PIN or password by phone or text.",
-      stats: [["Number", `${pocket.phone.slice(0, 3)} ${pocket.phone.slice(3, 6)} ${pocket.phone.slice(6)}`]],
+      description:
+        "The bank uses this number to warn you about anything unusual. A real bank never asks for your PIN or password by phone or text.",
+      stats: [
+        [
+          "Number",
+          `${pocket.phone.slice(0, 3)} ${pocket.phone.slice(3, 6)} ${pocket.phone.slice(6)}`,
+        ],
+      ],
       shape: "phone",
       front: <PhoneFront number={pocket.phone} />,
       back: <PhoneBack />,
@@ -172,7 +201,8 @@ export function Inventory({
         category: "documents",
         name: "Passbook",
         kind: "Bank document",
-        description: "Every dollar in and out of your account, with the balance after each. Print new entries at the passbook printer.",
+        description:
+          "Every dollar in and out of your account, with the balance after each. Print new entries at the passbook printer.",
         stats: [
           ["Account no.", account.accountNumber],
           ["Type", account.type],
@@ -180,7 +210,14 @@ export function Inventory({
         ],
         shape: "book",
         front: <PassbookCover />,
-        back: <PassbookPage holder={account.holder} number={account.accountNumber} type={account.type} balance={account.balance} />,
+        back: (
+          <PassbookPage
+            holder={account.holder}
+            number={account.accountNumber}
+            type={account.type}
+            balance={account.balance}
+          />
+        ),
         sides: ["Cover", "First page"],
         use: { label: "Read it", run: onOpenPassbook },
       });
@@ -192,20 +229,33 @@ export function Inventory({
           name: "Cheque book",
           kind: "Bank document",
           count: account.chequeLeaves,
-          description: "Numbered cheques, with your account number printed on every one. Never sign one until you've filled it in.",
+          description:
+            "Numbered cheques, with your account number printed on every one. Never sign one until you've filled it in.",
           stats: [
             ["Cheques left", String(account.chequeLeaves)],
             ["Next number", next],
           ],
           shape: "cheque",
           front: <ChequeBookCover leaves={account.chequeLeaves} />,
-          back: <ChequeFace bank="MERIDIAN BANK" from={account.signature} to="" amount={0} words="" date="" number={next} />,
+          back: (
+            <ChequeFace
+              bank="MERIDIAN BANK"
+              from={account.signature}
+              to=""
+              amount={0}
+              words=""
+              date=""
+              number={next}
+            />
+          ),
           sides: ["Cover", "A blank cheque"],
           hint: "Write one at window 2 in Meridian Bank.",
         });
       }
     }
-    for (const c of cheques.filter((x) => x.direction === "in" && (x.status === "held" || x.status === "clearing"))) {
+    for (const c of cheques.filter(
+      (x) => x.direction === "in" && (x.status === "held" || x.status === "clearing"),
+    )) {
       out.push({
         id: `cheque-${c.id}`,
         category: "documents",
@@ -236,7 +286,10 @@ export function Inventory({
         ),
         back: <ChequeBack paidIn={c.status !== "held"} />,
         sides: ["Front", "Back"],
-        hint: c.status === "held" ? "Pay it in at window 2 (B ticket) or the cheque drop box." : undefined,
+        hint:
+          c.status === "held"
+            ? "Pay it in at window 2 (B ticket) or the cheque drop box."
+            : undefined,
       });
     }
 
@@ -289,7 +342,10 @@ export function Inventory({
     <Modal onClose={onClose} width="lg" className="!max-w-5xl !p-0">
       <div className="grid min-h-[520px] grid-cols-[64px_1fr] md:grid-cols-[64px_1fr_340px]">
         {/* Categories */}
-        <nav aria-label="Inventory categories" className="flex flex-col items-center gap-2 border-r border-gold/30 bg-[#11151f] py-4">
+        <nav
+          aria-label="Inventory categories"
+          className="flex flex-col items-center gap-2 border-r border-gold/30 bg-[#11151f] py-4"
+        >
           {CATEGORIES.map((c) => (
             <button
               key={c.id}
@@ -300,7 +356,9 @@ export function Inventory({
               aria-pressed={category === c.id}
               title={c.label}
               className={`grid h-11 w-11 place-items-center rounded-full text-lg transition ${
-                category === c.id ? "bg-gold text-ink" : "text-gold/70 hover:bg-gold/15 hover:text-gold"
+                category === c.id
+                  ? "bg-gold text-ink"
+                  : "text-gold/70 hover:bg-gold/15 hover:text-gold"
               }`}
             >
               {c.glyph}
@@ -313,7 +371,9 @@ export function Inventory({
           <div className="flex items-baseline justify-between">
             <div>
               <h2 className="font-display text-3xl font-semibold text-gold">Inventory</h2>
-              <p className="text-sm text-gold/70">{CATEGORIES.find((c) => c.id === category)?.label}</p>
+              <p className="text-sm text-gold/70">
+                {CATEGORIES.find((c) => c.id === category)?.label}
+              </p>
             </div>
             <p className="text-sm text-gold/80">
               {items.length} item{items.length === 1 ? "" : "s"}
@@ -327,7 +387,9 @@ export function Inventory({
                   aria-pressed={current?.id === it.id}
                   aria-label={it.name}
                   className={`relative grid aspect-square w-full place-items-center overflow-hidden rounded-lg border p-2 transition ${
-                    current?.id === it.id ? "border-gold bg-gold/15 shadow-[0_0_0_2px_rgba(201,162,74,0.35)]" : "border-gold/30 bg-[#0e1220] hover:border-gold/60"
+                    current?.id === it.id
+                      ? "border-gold bg-gold/15 shadow-[0_0_0_2px_rgba(201,162,74,0.35)]"
+                      : "border-gold/30 bg-[#0e1220] hover:border-gold/60"
                   }`}
                 >
                   <div
@@ -340,7 +402,9 @@ export function Inventory({
                     {it.front}
                   </div>
                   {it.count !== undefined && (
-                    <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white drop-shadow">x{it.count}</span>
+                    <span className="absolute bottom-1 right-1.5 text-sm font-bold text-white drop-shadow">
+                      x{it.count}
+                    </span>
                   )}
                 </button>
                 <p className="mt-1 truncate text-center text-[11px] text-muted">{it.name}</p>
@@ -354,20 +418,33 @@ export function Inventory({
         {current && (
           <aside className="col-span-2 flex flex-col border-t border-gold/30 bg-[#0e1220] p-5 md:col-span-1 md:border-l md:border-t-0">
             <div className="flex justify-end">
-              <button onClick={onClose} aria-label="Close inventory" className="grid h-9 w-9 place-items-center rounded-full border border-gold/60 text-gold hover:bg-gold/15">
+              <button
+                onClick={onClose}
+                aria-label="Close inventory"
+                className="grid h-9 w-9 place-items-center rounded-full border border-gold/60 text-gold hover:bg-gold/15"
+              >
                 ↩
               </button>
             </div>
-            <div className="mt-2 grid min-h-[210px] place-items-center" style={{ perspective: "1000px" }}>
+            <div
+              className="mt-2 grid min-h-[210px] place-items-center"
+              style={{ perspective: "1000px" }}
+            >
               <div
                 className={`relative ${SHAPE_CLASS[current.shape]} transition-transform duration-500`}
-                style={{ transformStyle: "preserve-3d", transform: flipped ? "rotateY(180deg)" : "none" }}
+                style={{
+                  transformStyle: "preserve-3d",
+                  transform: flipped ? "rotateY(180deg)" : "none",
+                }}
               >
                 <div className="absolute inset-0" style={{ backfaceVisibility: "hidden" }}>
                   {current.front}
                 </div>
                 {current.back && (
-                  <div className="absolute inset-0" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
+                  <div
+                    className="absolute inset-0"
+                    style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+                  >
                     {current.back}
                   </div>
                 )}
@@ -378,7 +455,9 @@ export function Inventory({
                 {flipped ? current.sides[1] : current.sides[0]}
               </p>
             )}
-            <p className="mt-3 text-[11px] uppercase tracking-widest text-gold/70">{current.kind}</p>
+            <p className="mt-3 text-[11px] uppercase tracking-widest text-gold/70">
+              {current.kind}
+            </p>
             <h3 className="font-display text-2xl text-gold">{current.name}</h3>
             <p className="mt-2 text-sm leading-relaxed text-text/90">{current.description}</p>
             <dl className="mt-3 divide-y divide-line/40 border-y border-line/40 text-sm">
@@ -389,7 +468,9 @@ export function Inventory({
                 </div>
               ))}
             </dl>
-            {(current.hint || note) && <p className="mt-3 text-xs leading-relaxed text-gold">{note ?? current.hint}</p>}
+            {(current.hint || note) && (
+              <p className="mt-3 text-xs leading-relaxed text-gold">{note ?? current.hint}</p>
+            )}
             <div className="mt-auto flex gap-2 pt-4">
               {current.back && (
                 <button
@@ -403,7 +484,10 @@ export function Inventory({
                 </button>
               )}
               {current.use && (
-                <button onClick={current.use.run} className="flex-1 rounded-lg bg-gold px-4 py-2 text-sm font-semibold text-ink hover:brightness-110">
+                <button
+                  onClick={current.use.run}
+                  className="flex-1 rounded-lg bg-gold px-4 py-2 text-sm font-semibold text-ink hover:brightness-110"
+                >
                   {current.use.label}
                 </button>
               )}

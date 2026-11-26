@@ -177,7 +177,10 @@ export function pinRefusal(e: unknown): { locked: boolean; attemptsLeft: number 
 }
 
 /** Lines that have happened but are not printed in the passbook yet. */
-export function unprinted(account: BankAccount | null, statement: readonly StatementLine[]): StatementLine[] {
+export function unprinted(
+  account: BankAccount | null,
+  statement: readonly StatementLine[],
+): StatementLine[] {
   if (!account) return [];
   const through = account.printedThrough ? Date.parse(account.printedThrough) : -Infinity;
   return statement.filter((l) => Date.parse(l.at) > through);
@@ -216,7 +219,12 @@ export function quote(kind: "fd" | "rd", amount: number, term: number): Promise<
 }
 
 /** Open a fixed or recurring deposit. */
-export function openDeposit(kind: "fd" | "rd", amount: number, term: number, key: string): Promise<TermDeposit> {
+export function openDeposit(
+  kind: "fd" | "rd",
+  amount: number,
+  term: number,
+  key: string,
+): Promise<TermDeposit> {
   return busy(async () => {
     const res = await api.openDeposit(kind, amount, term, key);
     await loadBank();
@@ -239,7 +247,10 @@ export function inDeposits(deposits: readonly TermDeposit[]): number {
 }
 
 /** When the next deposit month ends (interest, an instalment or a maturity). */
-export function nextDepositMonth(deposits: readonly TermDeposit[], monthHours: number | undefined): Date | null {
+export function nextDepositMonth(
+  deposits: readonly TermDeposit[],
+  monthHours: number | undefined,
+): Date | null {
   if (!monthHours) return null;
   let best: number | null = null;
   for (const d of deposits) {

@@ -33,15 +33,7 @@ import {
   towards,
   type Figure,
 } from "./scene";
-import {
-  ROOM_H,
-  ROOM_W,
-  SPAWN,
-  exitNear,
-  makeRoomGrid,
-  stationById,
-  stationNear,
-} from "./room";
+import { ROOM_H, ROOM_W, SPAWN, exitNear, makeRoomGrid, stationById, stationNear } from "./room";
 import { actHere, ticketLabel, useRoomStore } from "./roomStore";
 import { STAFF, STILL_CUSTOMERS, WALKING_CUSTOMERS, type StaffMember } from "./cast";
 
@@ -173,7 +165,12 @@ export function BankCanvas({ onReady }: { onReady?: () => void }) {
       // The staff — each at their post, each clickable.
       const staffFigs: Array<{ member: StaffMember; fig: Figure }> = [];
       for (const member of STAFF) {
-        const fig = placePerson(personTex(member.id, member.palette), shadowTex, member.anchor, member.facing);
+        const fig = placePerson(
+          personTex(member.id, member.palette),
+          shadowTex,
+          member.anchor,
+          member.facing,
+        );
         fig.body.eventMode = "static";
         fig.body.cursor = "pointer";
         hotspots.push({ sprite: fig.body, stationId: member.stationId });
@@ -389,7 +386,9 @@ export function BankCanvas({ onReady }: { onReady?: () => void }) {
             });
           }
           charBody.texture = playerTex.walk[facing][stepFrame];
-          charBody.position.y = reduced ? 0 : -Math.abs(Math.sin((stepClock * Math.PI) / STEP_S)) * 2.5;
+          charBody.position.y = reduced
+            ? 0
+            : -Math.abs(Math.sin((stepClock * Math.PI) / STEP_S)) * 2.5;
           charBody.scale.y = 1;
         } else {
           stepClock = 0;
@@ -412,7 +411,8 @@ export function BankCanvas({ onReady }: { onReady?: () => void }) {
           // Staff look up when you come close, and go back to work when you leave.
           for (const { member, fig } of staffFigs) {
             const near =
-              Math.abs(cell.x - member.anchor.x) + Math.abs(cell.y - member.anchor.y) <= NOTICE_RANGE;
+              Math.abs(cell.x - member.anchor.x) + Math.abs(cell.y - member.anchor.y) <=
+              NOTICE_RANGE;
             face(fig, near ? towards(member.anchor, cell) : member.facing);
           }
         }
@@ -440,7 +440,12 @@ export function BankCanvas({ onReady }: { onReady?: () => void }) {
         const clampAxis = (v: number, lo: number, hi: number, half: number) =>
           hi - lo <= half * 2 ? (lo + hi) / 2 : Math.max(lo + half, Math.min(hi - half, v));
         const goalX = clampAxis(charPixel.x, ROOM_BOUNDS.left, ROOM_BOUNDS.right, halfW);
-        const goalY = clampAxis(charPixel.y + CAMERA_LEAD_Y, ROOM_BOUNDS.top, ROOM_BOUNDS.bottom, halfH);
+        const goalY = clampAxis(
+          charPixel.y + CAMERA_LEAD_Y,
+          ROOM_BOUNDS.top,
+          ROOM_BOUNDS.bottom,
+          halfH,
+        );
         if (!cameraSet || reduced) {
           cam.x = goalX;
           cam.y = goalY;

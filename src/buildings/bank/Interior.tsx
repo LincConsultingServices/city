@@ -12,7 +12,14 @@ import { BankCanvas } from "./BankCanvas";
 import { stationById, zoneAt } from "./room";
 import { BankMapPanel, BankMinimap } from "./BankMap";
 import { staffById, type StaffId } from "./cast";
-import { actHere, resetRoomState, tickQueue, ticketLabel, useRoomStore, type Panel } from "./roomStore";
+import {
+  actHere,
+  resetRoomState,
+  tickQueue,
+  ticketLabel,
+  useRoomStore,
+  type Panel,
+} from "./roomStore";
 import { LEAFLETS, RATES } from "./content";
 import { AccountOpening } from "./AccountOpening";
 import { CloseAccount, Passbook } from "./Passbook";
@@ -22,9 +29,15 @@ import { CashACheque, ChequeBookRequest, PayInCheque, SpotTheCheque } from "./Ch
 import { MyDeposits, OpenDeposit, SavingsCalculator } from "./FarahDesk";
 import { SalarySetting, TransferMoney } from "./Payments";
 import { BorrowMoney, CreditReport, MyLoan } from "./SofiaDesk";
-import { hasDeposited, loadBank, nextClearing, nextDepositMonth, nextLoanMonth, useBankStore } from "@/framework/bank/bankStore";
+import {
+  hasDeposited,
+  loadBank,
+  nextClearing,
+  nextDepositMonth,
+  nextLoanMonth,
+  useBankStore,
+} from "@/framework/bank/bankStore";
 import { firstVisitStep } from "@/framework/bank/firstVisit";
-
 
 /** How often the queue moves while you hold a ticket. */
 const QUEUE_STEP_MS = 3000;
@@ -46,7 +59,9 @@ export default function BankInterior({ manifest, onExit }: InteriorProps) {
     // Read the account on the way in. That also pays any interest that came due
     // while the player was away, so the passbook is up to date before they ask.
     loadBank().catch(() =>
-      useRoomStore.getState().say("The bank's systems are slow today. Your account will show up in a moment."),
+      useRoomStore
+        .getState()
+        .say("The bank's systems are slow today. Your account will show up in a moment."),
     );
   }, []);
 
@@ -55,7 +70,9 @@ export default function BankInterior({ manifest, onExit }: InteriorProps) {
   const bankLoaded = useBankStore((s) => s.loaded);
   const guide = bankLoaded ? firstVisitStep(account !== null, hasDeposited(statement)) : null;
   const cheques = useBankStore((s) => s.cheques);
-  const heldCheque = account ? cheques.find((c) => c.direction === "in" && c.status === "held") : undefined;
+  const heldCheque = account
+    ? cheques.find((c) => c.direction === "in" && c.status === "held")
+    : undefined;
   const clearsAt = nextClearing(cheques);
   const deposits = useBankStore((s) => s.deposits);
   const monthHours = useBankStore((s) => s.rules?.monthHours);
@@ -63,7 +80,8 @@ export default function BankInterior({ manifest, onExit }: InteriorProps) {
   const loanAt = nextLoanMonth(loans, monthHours);
   const depositAt0 = nextDepositMonth(deposits, monthHours);
   // The sooner of a deposit month and a loan instalment.
-  const depositAt = depositAt0 && loanAt ? (depositAt0 < loanAt ? depositAt0 : loanAt) : (depositAt0 ?? loanAt);
+  const depositAt =
+    depositAt0 && loanAt ? (depositAt0 < loanAt ? depositAt0 : loanAt) : (depositAt0 ?? loanAt);
   // The next thing that will change the account on its own: a cheque clearing,
   // or a deposit month (an instalment, interest, a maturity).
   const nextEvent =
@@ -79,7 +97,8 @@ export default function BankInterior({ manifest, onExit }: InteriorProps) {
       void loadBank()
         .then(() => {
           const latest = useBankStore.getState().statement[0];
-          if (latest && latest.id !== before) useRoomStore.getState().say(`Your account: ${latest.note || latest.kind}.`);
+          if (latest && latest.id !== before)
+            useRoomStore.getState().say(`Your account: ${latest.note || latest.kind}.`);
         })
         .catch(() => undefined);
     }, wait);
@@ -163,7 +182,9 @@ export default function BankInterior({ manifest, onExit }: InteriorProps) {
         <p className="text-xs uppercase tracking-widest text-muted">{zoneAt(charCell).label}</p>
         {guide && (
           <div className="mt-2 max-w-[18rem] rounded-xl border border-gold/40 bg-surface/85 px-3 py-2 backdrop-blur">
-            <p className="text-[10px] uppercase tracking-widest text-muted">{account ? "Next" : "First visit"}</p>
+            <p className="text-[10px] uppercase tracking-widest text-muted">
+              {account ? "Next" : "First visit"}
+            </p>
             <p className="mt-0.5 text-xs leading-relaxed text-text">{guide.line}</p>
           </div>
         )}
@@ -171,13 +192,15 @@ export default function BankInterior({ manifest, onExit }: InteriorProps) {
           <div className="mt-2 max-w-[18rem] rounded-xl border border-gold/40 bg-surface/85 px-3 py-2 backdrop-blur">
             <p className="text-[10px] uppercase tracking-widest text-muted">In your pocket</p>
             <p className="mt-0.5 text-xs leading-relaxed text-text">
-              A cheque for ${heldCheque.amount} from {heldCheque.from}. Pay it in at window 2 (B ticket) or the drop box.
+              A cheque for ${heldCheque.amount} from {heldCheque.from}. Pay it in at window 2 (B
+              ticket) or the drop box.
             </p>
           </div>
         )}
         {clearsAt && (
           <p className="mt-2 text-xs text-muted">
-            Cheque clearing · ready about {clearsAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+            Cheque clearing · ready about{" "}
+            {clearsAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
           </p>
         )}
         {account && (
@@ -275,7 +298,9 @@ export default function BankInterior({ manifest, onExit }: InteriorProps) {
           {panel.kind === "calculator" && (
             <SavingsCalculator
               onClose={close}
-              onOpen={(kind) => useRoomStore.getState().setPanel({ kind: "open_deposit", deposit: kind })}
+              onOpen={(kind) =>
+                useRoomStore.getState().setPanel({ kind: "open_deposit", deposit: kind })
+              }
             />
           )}
           {panel.kind === "open_deposit" && <OpenDeposit kind={panel.deposit} onClose={close} />}
@@ -433,14 +458,19 @@ function Leaflets({ onClose }: { onClose: () => void }) {
             onClick={() => setOpen(i)}
             aria-pressed={i === open}
             className={`rounded-full border px-3 py-1 text-xs ${
-              i === open ? "border-gold bg-gold/15 text-text" : "border-line/70 text-muted hover:text-text"
+              i === open
+                ? "border-gold bg-gold/15 text-text"
+                : "border-line/70 text-muted hover:text-text"
             }`}
           >
             {l.title}
           </button>
         ))}
       </div>
-      <article key={open} className="mt-4 animate-fade-in rounded-xl border border-line/60 bg-surface-2/50 p-4">
+      <article
+        key={open}
+        className="mt-4 animate-fade-in rounded-xl border border-line/60 bg-surface-2/50 p-4"
+      >
         <h3 className="font-semibold text-text">{leaflet.title}</h3>
         {leaflet.body.map((p, i) => (
           <p key={i} className="mt-2 text-sm leading-relaxed text-muted">
@@ -485,9 +515,13 @@ interface Service {
 function deskServices(staff: StaffId, st: DeskState): { services: Service[]; notice?: string } {
   switch (staff) {
     case "daniel": {
-      if (!st.hasAccount) return { services: [{ label: "Open an account", open: { kind: "open_account" }, primary: true }] };
+      if (!st.hasAccount)
+        return {
+          services: [{ label: "Open an account", open: { kind: "open_account" }, primary: true }],
+        };
       const out: Service[] = [];
-      if (!st.hasCard) out.push({ label: "Collect my card", open: { kind: "open_account" }, primary: true });
+      if (!st.hasCard)
+        out.push({ label: "Collect my card", open: { kind: "open_account" }, primary: true });
       out.push({ label: "Send money", open: { kind: "transfer" } });
       out.push({ label: "My salary", open: { kind: "salary" } });
       out.push({ label: "See my passbook", open: { kind: "passbook" } });
@@ -496,12 +530,17 @@ function deskServices(staff: StaffId, st: DeskState): { services: Service[]; not
     }
     case "mei":
       if (!st.hasAccount) {
-        return { services: [], notice: "You'll need an account before I can pay anything in. Daniel at New Accounts will open one for you." };
+        return {
+          services: [],
+          notice:
+            "You'll need an account before I can pay anything in. Daniel at New Accounts will open one for you.",
+        };
       }
       if (st.calledTo !== 1) {
         return {
           services: [],
-          notice: "Take an A ticket (cash) from the machine by the door. When the screen calls your number to window 1, I'll serve you.",
+          notice:
+            "Take an A ticket (cash) from the machine by the door. When the screen calls your number to window 1, I'll serve you.",
         };
       }
       return {
@@ -515,27 +554,36 @@ function deskServices(staff: StaffId, st: DeskState): { services: Service[]; not
       if (!st.hasAccount) {
         return {
           services: [],
-          notice: "Loans are for customers with an account, once the bank has seen how they handle money. Daniel can open one for you.",
+          notice:
+            "Loans are for customers with an account, once the bank has seen how they handle money. Daniel can open one for you.",
         };
       }
       return {
         services: [
           { label: "My credit score", open: { kind: "credit" }, primary: true },
-          st.hasLoan ? { label: "My loan", open: { kind: "my_loan" } } : { label: "Borrow money", open: { kind: "borrow" } },
+          st.hasLoan
+            ? { label: "My loan", open: { kind: "my_loan" } }
+            : { label: "Borrow money", open: { kind: "borrow" } },
         ],
       };
     }
     case "farah": {
       // Farah's desk needs no ticket: you sit down and talk.
-      const out: Service[] = [{ label: "Compare my options", open: { kind: "calculator" }, primary: true }];
+      const out: Service[] = [
+        { label: "Compare my options", open: { kind: "calculator" }, primary: true },
+      ];
       if (!st.hasAccount) {
         return {
           services: out,
-          notice: "You'll need an account to open a deposit. The calculator works for anyone, though.",
+          notice:
+            "You'll need an account to open a deposit. The calculator works for anyone, though.",
         };
       }
       out.push({ label: "Open a fixed deposit", open: { kind: "open_deposit", deposit: "fd" } });
-      out.push({ label: "Start a recurring deposit", open: { kind: "open_deposit", deposit: "rd" } });
+      out.push({
+        label: "Start a recurring deposit",
+        open: { kind: "open_deposit", deposit: "rd" },
+      });
       out.push({ label: "My deposits", open: { kind: "my_deposits" } });
       return { services: out };
     }
@@ -545,17 +593,24 @@ function deskServices(staff: StaffId, st: DeskState): { services: Service[]; not
       if (!st.hasAccount) {
         return {
           services: [practise],
-          notice: "Once you have an account, I'll do your cheques and keep your passbook up to date.",
+          notice:
+            "Once you have an account, I'll do your cheques and keep your passbook up to date.",
         };
       }
       if (st.calledTo !== 2) {
         return {
           services: [practise],
-          notice: "Take a B ticket (cheques & passbooks) and I'll call you to window 2. Or use the printer or the cheque drop box by the wall: no queue.",
+          notice:
+            "Take a B ticket (cheques & passbooks) and I'll call you to window 2. Or use the printer or the cheque drop box by the wall: no queue.",
         };
       }
       const out: Service[] = [];
-      if (st.heldCheques > 0) out.push({ label: "Pay in a cheque", open: { kind: "payin", dropBox: false }, primary: true });
+      if (st.heldCheques > 0)
+        out.push({
+          label: "Pay in a cheque",
+          open: { kind: "payin", dropBox: false },
+          primary: true,
+        });
       out.push(
         st.chequeLeaves > 0
           ? { label: "Write a cheque", open: { kind: "cash_cheque" } }

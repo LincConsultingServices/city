@@ -11,7 +11,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/ui/Modal";
 import { audio } from "@/framework/audio/audioManager";
-import { atmCheckPin, atmWithdraw, newKey, pinRefusal, useBankStore } from "@/framework/bank/bankStore";
+import {
+  atmCheckPin,
+  atmWithdraw,
+  newKey,
+  pinRefusal,
+  useBankStore,
+} from "@/framework/bank/bankStore";
 import type { StatementLine } from "@/framework/api";
 
 type Screen =
@@ -87,7 +93,9 @@ export function Atm({ onClose }: { onClose: () => void }) {
       if (r?.locked) {
         setScreen("locked");
       } else if (r) {
-        setMessage(`INCORRECT PIN · ${r.attemptsLeft} ${r.attemptsLeft === 1 ? "TRY" : "TRIES"} LEFT`);
+        setMessage(
+          `INCORRECT PIN · ${r.attemptsLeft} ${r.attemptsLeft === 1 ? "TRY" : "TRIES"} LEFT`,
+        );
       } else {
         setMessage("SERVICE UNAVAILABLE · TRY AGAIN");
       }
@@ -205,7 +213,13 @@ export function Atm({ onClose }: { onClose: () => void }) {
             null,
           ],
           right: [
-            { label: "WITHDRAW CASH", run: () => { setMessage(null); setScreen("withdraw"); } },
+            {
+              label: "WITHDRAW CASH",
+              run: () => {
+                setMessage(null);
+                setScreen("withdraw");
+              },
+            },
             { label: "FAST CASH $100", run: () => void withdraw(100) },
             null,
             { label: "EXIT", run: () => ejectCard("take_card") },
@@ -213,7 +227,12 @@ export function Atm({ onClose }: { onClose: () => void }) {
         };
       case "balance":
         return {
-          left: [null, null, null, { label: "PRINT RECEIPT", run: () => printReceipt(["BALANCE ENQUIRY"]) }],
+          left: [
+            null,
+            null,
+            null,
+            { label: "PRINT RECEIPT", run: () => printReceipt(["BALANCE ENQUIRY"]) },
+          ],
           right: [null, null, null, { label: "BACK", run: () => setScreen("menu") }],
         };
       case "mini":
@@ -226,7 +245,12 @@ export function Atm({ onClose }: { onClose: () => void }) {
               label: "PRINT RECEIPT",
               run: () =>
                 printReceipt(
-                  statement.slice(0, 5).map((l) => `${l.kind.toUpperCase().slice(0, 11).padEnd(12)} ${l.amount >= 0 ? "+" : ""}${l.amount}`),
+                  statement
+                    .slice(0, 5)
+                    .map(
+                      (l) =>
+                        `${l.kind.toUpperCase().slice(0, 11).padEnd(12)} ${l.amount >= 0 ? "+" : ""}${l.amount}`,
+                    ),
                 ),
             },
           ],
@@ -237,13 +261,26 @@ export function Atm({ onClose }: { onClose: () => void }) {
           left: [20, 50, 100, 200].map((a) => ({ label: `$${a}`, run: () => void withdraw(a) })),
           right: [
             { label: "$500", run: () => void withdraw(500) },
-            { label: "OTHER AMOUNT", run: () => { setEntry(""); setMessage(null); setScreen("other"); } },
-            { label: wantReceipt ? "RECEIPT: YES" : "RECEIPT: NO", run: () => setWantReceipt((w) => !w) },
+            {
+              label: "OTHER AMOUNT",
+              run: () => {
+                setEntry("");
+                setMessage(null);
+                setScreen("other");
+              },
+            },
+            {
+              label: wantReceipt ? "RECEIPT: YES" : "RECEIPT: NO",
+              run: () => setWantReceipt((w) => !w),
+            },
             { label: "BACK", run: () => setScreen("menu") },
           ],
         };
       case "other":
-        return { ...none, right: [null, null, null, { label: "BACK", run: () => setScreen("withdraw") }] };
+        return {
+          ...none,
+          right: [null, null, null, { label: "BACK", run: () => setScreen("withdraw") }],
+        };
       default:
         return none;
     }
@@ -257,7 +294,9 @@ export function Atm({ onClose }: { onClose: () => void }) {
           <Centre>
             <p>WELCOME TO MERIDIAN</p>
             <p className="mt-3 text-[11px] opacity-80">
-              {account ? "COLLECT YOUR DEBIT CARD FROM NEW ACCOUNTS" : "OPEN AN ACCOUNT TO GET A CARD"}
+              {account
+                ? "COLLECT YOUR DEBIT CARD FROM NEW ACCOUNTS"
+                : "OPEN AN ACCOUNT TO GET A CARD"}
             </p>
           </Centre>
         );
@@ -273,8 +312,12 @@ export function Atm({ onClose }: { onClose: () => void }) {
         return (
           <Centre>
             <p>ENTER YOUR PIN</p>
-            <p className="mt-3 font-mono text-3xl tracking-[0.5em]">{"•".repeat(pin.length).padEnd(4, "_")}</p>
-            <p className="mt-3 text-[10px] opacity-80">PRESS ENTER · CLEAR TO CORRECT · CANCEL FOR CARD</p>
+            <p className="mt-3 font-mono text-3xl tracking-[0.5em]">
+              {"•".repeat(pin.length).padEnd(4, "_")}
+            </p>
+            <p className="mt-3 text-[10px] opacity-80">
+              PRESS ENTER · CLEAR TO CORRECT · CANCEL FOR CARD
+            </p>
             {message && <p className="mt-2 text-[#ffc65c]">{message}</p>}
           </Centre>
         );
@@ -317,23 +360,39 @@ export function Atm({ onClose }: { onClose: () => void }) {
           </Centre>
         );
       case "working":
-        return <Centre><p className="animate-pulse">PLEASE WAIT…</p></Centre>;
+        return (
+          <Centre>
+            <p className="animate-pulse">PLEASE WAIT…</p>
+          </Centre>
+        );
       case "take_card":
-        return <Centre><p className="animate-pulse">PLEASE TAKE YOUR CARD</p></Centre>;
+        return (
+          <Centre>
+            <p className="animate-pulse">PLEASE TAKE YOUR CARD</p>
+          </Centre>
+        );
       case "take_cash":
-        return <Centre><p className="animate-pulse">PLEASE TAKE YOUR CASH</p></Centre>;
+        return (
+          <Centre>
+            <p className="animate-pulse">PLEASE TAKE YOUR CASH</p>
+          </Centre>
+        );
       case "thanks":
         return (
           <Centre>
             <p>THANK YOU FOR BANKING WITH MERIDIAN</p>
-            {paid && <p className="mt-2 text-[11px] opacity-80">BALANCE NOW ${paid.balanceAfter}</p>}
+            {paid && (
+              <p className="mt-2 text-[11px] opacity-80">BALANCE NOW ${paid.balanceAfter}</p>
+            )}
           </Centre>
         );
       case "locked":
         return (
           <Centre>
             <p className="text-[#ffc65c]">TOO MANY INCORRECT PINS</p>
-            <p className="mt-2 text-[11px]">FOR YOUR SAFETY YOUR CARD IS LOCKED FOR A FEW MINUTES. NOTHING IS CHARGED.</p>
+            <p className="mt-2 text-[11px]">
+              FOR YOUR SAFETY YOUR CARD IS LOCKED FOR A FEW MINUTES. NOTHING IS CHARGED.
+            </p>
           </Centre>
         );
     }
@@ -351,20 +410,29 @@ export function Atm({ onClose }: { onClose: () => void }) {
       >
         <div className="grid grid-cols-[1fr_118px] gap-3">
           {/* Left: the screen with its side keys, and the cash dispenser */}
-          <div className="rounded-xl p-3" style={{ background: "linear-gradient(180deg,#c9ced6,#aeb5bf)" }}>
+          <div
+            className="rounded-xl p-3"
+            style={{ background: "linear-gradient(180deg,#c9ced6,#aeb5bf)" }}
+          >
             <div className="grid grid-cols-[34px_1fr_34px] gap-1.5">
               <SideKeys keys={keys.left} side="left" />
               <div className="relative h-[230px] overflow-hidden rounded-md border-4 border-[#5d6470] bg-[#0e2a3a] text-[#bfeaf5] shadow-inner">
-                <div className={`absolute inset-0 flex flex-col justify-center ${LINE}`}>{body}</div>
+                <div className={`absolute inset-0 flex flex-col justify-center ${LINE}`}>
+                  {body}
+                </div>
                 {/* Side-key labels, on the row of the key they belong to */}
                 <div className="pointer-events-none absolute inset-y-0 left-1 flex flex-col justify-around py-3">
                   {keys.left.map((k, i) => (
-                    <span key={i} className="text-[10px] font-semibold">{k ? `◂ ${k.label}` : ""}</span>
+                    <span key={i} className="text-[10px] font-semibold">
+                      {k ? `◂ ${k.label}` : ""}
+                    </span>
                   ))}
                 </div>
                 <div className="pointer-events-none absolute inset-y-0 right-1 flex flex-col items-end justify-around py-3">
                   {keys.right.map((k, i) => (
-                    <span key={i} className="text-[10px] font-semibold">{k ? `${k.label} ▸` : ""}</span>
+                    <span key={i} className="text-[10px] font-semibold">
+                      {k ? `${k.label} ▸` : ""}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -372,7 +440,9 @@ export function Atm({ onClose }: { onClose: () => void }) {
             </div>
             {/* CASH */}
             <div className="mx-auto mt-3 w-2/3">
-              <p className="rounded-sm bg-[#1f3a6b] py-0.5 text-center text-[11px] font-semibold tracking-widest text-white">CASH</p>
+              <p className="rounded-sm bg-[#1f3a6b] py-0.5 text-center text-[11px] font-semibold tracking-widest text-white">
+                CASH
+              </p>
               <button
                 aria-label={cashOut ? `Take your cash, $${cashOut}` : "Cash dispenser"}
                 onClick={takeCash}
@@ -390,7 +460,9 @@ export function Atm({ onClose }: { onClose: () => void }) {
           {/* Right: receipt, card, the light */}
           <div className="flex flex-col gap-3">
             <div className="rounded-lg bg-[#c2c8d0] p-2 shadow-inner">
-              <p className="rounded-sm bg-[#1f3a6b] py-0.5 text-center text-[10px] font-semibold tracking-widest text-white">RECEIPT</p>
+              <p className="rounded-sm bg-[#1f3a6b] py-0.5 text-center text-[10px] font-semibold tracking-widest text-white">
+                RECEIPT
+              </p>
               <div className="relative mt-1.5 h-2 rounded-sm bg-[#2a2f38]">
                 {receipt && (
                   <button
@@ -399,15 +471,21 @@ export function Atm({ onClose }: { onClose: () => void }) {
                     className="absolute left-1/2 top-1 z-10 w-[150px] -translate-x-1/2 animate-slide-up rounded-sm bg-[#fbfaf6] p-2 text-left font-mono text-[9px] leading-tight text-[#22252c] shadow-lg"
                   >
                     {receipt.map((r, i) => (
-                      <span key={i} className="block whitespace-pre">{r}</span>
+                      <span key={i} className="block whitespace-pre">
+                        {r}
+                      </span>
                     ))}
-                    <span className="mt-1 block text-center text-[8px] text-[#8d96a6]">(click to take)</span>
+                    <span className="mt-1 block text-center text-[8px] text-[#8d96a6]">
+                      (click to take)
+                    </span>
                   </button>
                 )}
               </div>
             </div>
             <div className="rounded-lg bg-[#c2c8d0] p-2 shadow-inner">
-              <p className="rounded-sm bg-[#1f3a6b] py-0.5 text-center text-[10px] font-semibold tracking-widest text-white">CARD</p>
+              <p className="rounded-sm bg-[#1f3a6b] py-0.5 text-center text-[10px] font-semibold tracking-widest text-white">
+                CARD
+              </p>
               <button
                 onClick={screen === "take_card" ? takeCard : insertCard}
                 aria-label={screen === "take_card" ? "Take your card" : "Insert your card"}
@@ -425,7 +503,9 @@ export function Atm({ onClose }: { onClose: () => void }) {
               </button>
             </div>
             <div className="flex flex-1 items-center justify-center rounded-lg bg-[#c2c8d0] p-3 shadow-inner">
-              <div className={`grid h-14 w-12 place-items-center rounded-md border border-[#8d96a6] bg-[#e6e9ee] ${screen === "welcome" || screen === "take_card" ? "animate-pulse" : ""}`}>
+              <div
+                className={`grid h-14 w-12 place-items-center rounded-md border border-[#8d96a6] bg-[#e6e9ee] ${screen === "welcome" || screen === "take_card" ? "animate-pulse" : ""}`}
+              >
                 <span className="block h-0 w-0 border-x-[9px] border-b-[14px] border-x-transparent border-b-[#3f9a5a]" />
               </div>
             </div>
@@ -435,7 +515,24 @@ export function Atm({ onClose }: { onClose: () => void }) {
         {/* The keypad */}
         <div className="mx-auto mt-4 w-[300px] rounded-lg bg-[#9aa1ab] p-3 shadow-inner">
           <div className="grid grid-cols-4 gap-2">
-            {["1", "2", "3", "cancel", "4", "5", "6", "clear", "7", "8", "9", "enter", "", "0", "", ""].map((k, i) =>
+            {[
+              "1",
+              "2",
+              "3",
+              "cancel",
+              "4",
+              "5",
+              "6",
+              "clear",
+              "7",
+              "8",
+              "9",
+              "enter",
+              "",
+              "0",
+              "",
+              "",
+            ].map((k, i) =>
               k ? (
                 <button
                   key={i}
@@ -451,7 +548,13 @@ export function Atm({ onClose }: { onClose: () => void }) {
                           : "border-[#6d737c] bg-gradient-to-b from-[#f1f3f6] to-[#cfd4db] text-[#2a2f38]"
                   }`}
                 >
-                  {k === "cancel" ? "CANCEL" : k === "clear" ? "CLEAR" : k === "enter" ? "ENTER" : k}
+                  {k === "cancel"
+                    ? "CANCEL"
+                    : k === "clear"
+                      ? "CLEAR"
+                      : k === "enter"
+                        ? "ENTER"
+                        : k}
                 </button>
               ) : (
                 <span key={i} />
@@ -461,8 +564,15 @@ export function Atm({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="mt-3 flex items-center justify-between text-[11px] text-[#3a404b]">
-          <span>{cardIn ? `Card •••• ${account?.cardLast4} inserted` : "Click the CARD slot to insert your card"}</span>
-          <button onClick={onClose} className="rounded border border-[#6d737c] px-2 py-0.5 hover:bg-white/40">
+          <span>
+            {cardIn
+              ? `Card •••• ${account?.cardLast4} inserted`
+              : "Click the CARD slot to insert your card"}
+          </span>
+          <button
+            onClick={onClose}
+            className="rounded border border-[#6d737c] px-2 py-0.5 hover:bg-white/40"
+          >
             Walk away
           </button>
         </div>

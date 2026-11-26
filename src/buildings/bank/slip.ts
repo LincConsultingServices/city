@@ -23,7 +23,8 @@ export interface SlipValues {
   signature: string;
 }
 
-export type SlipField = "date" | "accountNumber" | "name" | "notes" | "amount" | "words" | "signature";
+export type SlipField =
+  "date" | "accountNumber" | "name" | "notes" | "amount" | "words" | "signature";
 
 export interface SlipIssue {
   field: SlipField;
@@ -73,27 +74,41 @@ export function checkSlip(v: SlipValues, ctx: SlipContext): SlipIssue[] {
   const amount = slipAmount(v, ctx);
 
   if (v.date !== ctx.today) {
-    issues.push({ field: "date", message: "Write today's date. Every slip is dated, so your passbook shows when the money moved." });
+    issues.push({
+      field: "date",
+      message:
+        "Write today's date. Every slip is dated, so your passbook shows when the money moved.",
+    });
   }
 
   const acct = v.accountNumber.replace(/\s/g, "");
   if (!acct) {
-    issues.push({ field: "accountNumber", message: "Write your account number. It's on the first page of your passbook." });
+    issues.push({
+      field: "accountNumber",
+      message: "Write your account number. It's on the first page of your passbook.",
+    });
   } else if (acct !== ctx.accountNumber) {
     issues.push({
       field: "accountNumber",
-      message: "That isn't your account number. One wrong digit and the money goes to someone else's account. Copy it from your passbook.",
+      message:
+        "That isn't your account number. One wrong digit and the money goes to someone else's account. Copy it from your passbook.",
     });
   }
 
   if (!same(v.name, ctx.holder)) {
-    issues.push({ field: "name", message: "Write the name the account is in, exactly as it is on your passbook." });
+    issues.push({
+      field: "name",
+      message: "Write the name the account is in, exactly as it is on your passbook.",
+    });
   }
 
   if (ctx.kind === "deposit") {
     const counted = notesTotal(v.notes);
     if (counted === 0) {
-      issues.push({ field: "notes", message: "Count your notes into the table: how many hundreds, fifties, twenties and so on." });
+      issues.push({
+        field: "notes",
+        message: "Count your notes into the table: how many hundreds, fifties, twenties and so on.",
+      });
     } else if (!ctx.autoTotal && counted !== amount) {
       issues.push({
         field: "amount",
@@ -104,7 +119,10 @@ export function checkSlip(v: SlipValues, ctx: SlipContext): SlipIssue[] {
 
   if (Number.isNaN(amount) || amount <= 0) {
     if (!(ctx.kind === "deposit" && notesTotal(v.notes) === 0)) {
-      issues.push({ field: "amount", message: "Write the amount in figures: whole dollars, like 250." });
+      issues.push({
+        field: "amount",
+        message: "Write the amount in figures: whole dollars, like 250.",
+      });
     }
   } else if (amount > ctx.available) {
     issues.push({
@@ -121,12 +139,15 @@ export function checkSlip(v: SlipValues, ctx: SlipContext): SlipIssue[] {
       field: "words",
       message: v.words.trim()
         ? "The words don't say the same amount as the figures. Words are harder to change than numbers, which is why the slip asks for both, and why they must match."
-        : "Write the amount in words too, like \"Two hundred and fifty dollars only\".",
+        : 'Write the amount in words too, like "Two hundred and fifty dollars only".',
     });
   }
 
   if (!v.signature.trim()) {
-    issues.push({ field: "signature", message: "Sign the slip. Without a signature, I can't accept it." });
+    issues.push({
+      field: "signature",
+      message: "Sign the slip. Without a signature, I can't accept it.",
+    });
   } else if (ctx.signature && !same(v.signature, ctx.signature)) {
     issues.push({
       field: "signature",

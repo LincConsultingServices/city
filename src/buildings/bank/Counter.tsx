@@ -23,12 +23,25 @@ import {
 import type { StatementLine } from "@/framework/api";
 import { BANK_CAST } from "@/ui/characters";
 import { finishTicket, takeTicket, type TicketService } from "./roomStore";
-import { NOTES, checkSlip, emptySlip, notesTotal, slipAmount, type Note, type SlipField, type SlipIssue, type SlipKind, type SlipValues } from "./slip";
+import {
+  NOTES,
+  checkSlip,
+  emptySlip,
+  notesTotal,
+  slipAmount,
+  type Note,
+  type SlipField,
+  type SlipIssue,
+  type SlipKind,
+  type SlipValues,
+} from "./slip";
 import { amountInWords } from "./words";
 
 const SIGNATURE_FONT = '"Segoe Script", "Brush Script MT", "Snell Roundhand", cursive';
-const primary = "rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-60";
-const secondary = "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
+const primary =
+  "rounded-full bg-gold px-5 py-2 text-sm font-semibold text-ink hover:brightness-110 disabled:opacity-60";
+const secondary =
+  "rounded-full border border-line/70 px-4 py-2 text-sm text-muted hover:border-gold/60 hover:text-text";
 
 /** Today, as a date input writes it. */
 function today(): string {
@@ -51,15 +64,25 @@ export function TicketMachine({ onClose }: { onClose: () => void }) {
   return (
     <Modal onClose={onClose} width="sm">
       <h2 className="font-display text-xl font-semibold text-gold">Take a ticket</h2>
-      <p className="mt-1 text-sm text-muted">What have you come in for? Your number will be called to the right window.</p>
+      <p className="mt-1 text-sm text-muted">
+        What have you come in for? Your number will be called to the right window.
+      </p>
       <div className="mt-4 grid gap-2">
-        <button onClick={() => pick("cash")} className="rounded-xl border border-line/70 p-4 text-left hover:border-gold/60">
+        <button
+          onClick={() => pick("cash")}
+          className="rounded-xl border border-line/70 p-4 text-left hover:border-gold/60"
+        >
           <p className="font-semibold text-text">A · Cash</p>
           <p className="text-xs text-muted">Deposits and withdrawals, at window 1</p>
         </button>
-        <button onClick={() => pick("desk")} className="rounded-xl border border-line/70 p-4 text-left hover:border-gold/60">
+        <button
+          onClick={() => pick("desk")}
+          className="rounded-xl border border-line/70 p-4 text-left hover:border-gold/60"
+        >
           <p className="font-semibold text-text">B · Cheques &amp; passbooks</p>
-          <p className="text-xs text-muted">Cheques, and bringing your passbook up to date, at window 2</p>
+          <p className="text-xs text-muted">
+            Cheques, and bringing your passbook up to date, at window 2
+          </p>
         </button>
       </div>
     </Modal>
@@ -93,7 +116,8 @@ export function Slip({ kind, onClose }: { kind: SlipKind; onClose: () => void })
     autoTotal,
   };
   const issueFor = (f: SlipField) => issues?.find((i) => i.field === f)?.message;
-  const set = <K extends keyof SlipValues>(k: K, val: SlipValues[K]) => setV((x) => ({ ...x, [k]: val }));
+  const set = <K extends keyof SlipValues>(k: K, val: SlipValues[K]) =>
+    setV((x) => ({ ...x, [k]: val }));
   const counted = notesTotal(v.notes);
 
   if (done) {
@@ -153,7 +177,12 @@ export function Slip({ kind, onClose }: { kind: SlipKind; onClose: () => void })
           </p>
           <label className="text-xs">
             Date{" "}
-            <input type="date" value={v.date} onChange={(e) => set("date", e.target.value)} className={paper} />
+            <input
+              type="date"
+              value={v.date}
+              onChange={(e) => set("date", e.target.value)}
+              className={paper}
+            />
           </label>
         </div>
         {issueFor("date") && <Note text={issueFor("date")!} />}
@@ -168,7 +197,11 @@ export function Slip({ kind, onClose }: { kind: SlipKind; onClose: () => void })
             />
           </PaperField>
           <PaperField label="Name" issue={issueFor("name")}>
-            <input value={v.name} onChange={(e) => set("name", e.target.value)} className={`${paper} w-full`} />
+            <input
+              value={v.name}
+              onChange={(e) => set("name", e.target.value)}
+              className={`${paper} w-full`}
+            />
           </PaperField>
         </div>
 
@@ -186,7 +219,10 @@ export function Slip({ kind, onClose }: { kind: SlipKind; onClose: () => void })
                         min={0}
                         value={v.notes[n] || ""}
                         onChange={(e) =>
-                          set("notes", { ...v.notes, [n]: Math.max(0, Math.floor(Number(e.target.value) || 0)) } as Record<Note, number>)
+                          set("notes", {
+                            ...v.notes,
+                            [n]: Math.max(0, Math.floor(Number(e.target.value) || 0)),
+                          } as Record<Note, number>)
                         }
                         className={`${paper} w-20 text-right`}
                         aria-label={`Number of $${n} notes`}
@@ -203,7 +239,10 @@ export function Slip({ kind, onClose }: { kind: SlipKind; onClose: () => void })
         )}
 
         <div className="mt-3 grid gap-3 sm:grid-cols-[10rem_1fr]">
-          <PaperField label={kind === "deposit" ? "Total ($)" : "Amount ($)"} issue={issueFor("amount")}>
+          <PaperField
+            label={kind === "deposit" ? "Total ($)" : "Amount ($)"}
+            issue={issueFor("amount")}
+          >
             {kind === "deposit" && autoTotal ? (
               <p className="mt-1 rounded border border-[#22252c]/20 bg-white/60 px-2 py-1.5 font-mono text-lg tabular-nums">
                 {counted}
@@ -238,12 +277,16 @@ export function Slip({ kind, onClose }: { kind: SlipKind; onClose: () => void })
       </div>
 
       <p className="mt-2 text-xs text-muted">
-        Your account number is on your passbook: <span className="font-mono text-text">{account.accountNumber}</span>.
-        {kind === "deposit" && counted > 0 && ` In words, $${counted} is "${amountInWords(counted)}".`}
+        Your account number is on your passbook:{" "}
+        <span className="font-mono text-text">{account.accountNumber}</span>.
+        {kind === "deposit" &&
+          counted > 0 &&
+          ` In words, $${counted} is "${amountInWords(counted)}".`}
       </p>
       {issues && issues.length > 0 && (
         <p className="mt-2 rounded-xl border border-gold/40 bg-gold/10 p-3 text-sm text-text">
-          Mei slides the slip back: "Nearly. I've marked {issues.length === 1 ? "one thing" : `${issues.length} things`}."
+          Mei slides the slip back: "Nearly. I've marked{" "}
+          {issues.length === 1 ? "one thing" : `${issues.length} things`}."
         </p>
       )}
       {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
@@ -262,11 +305,25 @@ export function Slip({ kind, onClose }: { kind: SlipKind; onClose: () => void })
 const paper =
   "rounded border border-[#22252c]/25 bg-white/70 px-2 py-1 text-sm text-[#22252c] outline-none focus:border-[#c9a24a]";
 
-function PaperField({ label, issue, children }: { label: string; issue?: string; children: React.ReactNode }) {
+function PaperField({
+  label,
+  issue,
+  children,
+}: {
+  label: string;
+  issue?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="mt-2 block">
       <span className="text-[11px] uppercase tracking-widest text-[#22252c]/70">{label}</span>
-      <div className={issue ? "mt-1 rounded ring-2 ring-[#c9a24a] ring-offset-2 ring-offset-[#f3efe6]" : "mt-1"}>{children}</div>
+      <div
+        className={
+          issue ? "mt-1 rounded ring-2 ring-[#c9a24a] ring-offset-2 ring-offset-[#f3efe6]" : "mt-1"
+        }
+      >
+        {children}
+      </div>
       {issue && <Note text={issue} />}
     </div>
   );
@@ -287,7 +344,13 @@ function MeiSays({ children }: { children: React.ReactNode }) {
 
 // ── The passbook printer (and window 2) ──────────────────────────────────────
 
-export function PassbookPrinter({ onClose, atWindow = false }: { onClose: () => void; atWindow?: boolean }) {
+export function PassbookPrinter({
+  onClose,
+  atWindow = false,
+}: {
+  onClose: () => void;
+  atWindow?: boolean;
+}) {
   const account = useBankStore((s) => s.account);
   const statement = useBankStore((s) => s.statement);
   const busy = useBankStore((s) => s.busy);
@@ -299,8 +362,8 @@ export function PassbookPrinter({ onClose, atWindow = false }: { onClose: () => 
       <Modal onClose={onClose} width="sm">
         <h2 className="font-display text-xl font-semibold text-gold">Passbook printer</h2>
         <p className="mt-3 text-sm text-text">
-          "Insert your passbook, open at the last printed page." You don't have a passbook yet. You'll get one when you
-          open an account with Daniel.
+          "Insert your passbook, open at the last printed page." You don't have a passbook yet.
+          You'll get one when you open an account with Daniel.
         </p>
         <div className="mt-5 flex justify-end">
           <button autoFocus className={primary} onClick={onClose}>
@@ -354,7 +417,9 @@ export function PassbookPrinter({ onClose, atWindow = false }: { onClose: () => 
       ) : (
         <>
           {printed.length === 0 ? (
-            <p className="mt-3 text-sm text-text">Nothing new to print. Your passbook was already up to date.</p>
+            <p className="mt-3 text-sm text-text">
+              Nothing new to print. Your passbook was already up to date.
+            </p>
           ) : (
             <div className="mt-3 rounded-xl border border-[#c9a24a]/50 bg-[#f3efe6] p-3 font-mono text-xs text-[#22252c]">
               {printed.map((l, i) => (
@@ -363,7 +428,9 @@ export function PassbookPrinter({ onClose, atWindow = false }: { onClose: () => 
                   className="grid animate-fade-in grid-cols-[1fr_auto_auto] gap-3 border-b border-[#22252c]/10 py-1"
                   style={{ animationDelay: `${i * 350}ms`, animationFillMode: "backwards" }}
                 >
-                  <span className="truncate">{l.kind === "interest" ? l.note : l.note || l.kind}</span>
+                  <span className="truncate">
+                    {l.kind === "interest" ? l.note : l.note || l.kind}
+                  </span>
                   <span className={l.amount >= 0 ? "" : "text-[#8a1c2b]"}>
                     {l.amount === 0 ? "" : l.amount > 0 ? `+${l.amount}` : l.amount}
                   </span>
@@ -373,8 +440,8 @@ export function PassbookPrinter({ onClose, atWindow = false }: { onClose: () => 
             </div>
           )}
           <p className="mt-3 text-xs text-muted">
-            Each line shows what came in or went out, and the balance after it. Check every line: if you see something
-            you don't recognise, tell the bank straight away.
+            Each line shows what came in or went out, and the balance after it. Check every line: if
+            you see something you don't recognise, tell the bank straight away.
           </p>
           <div className="mt-5 flex justify-end">
             <button autoFocus className={primary} onClick={onClose}>

@@ -227,13 +227,7 @@ export function makeRoomGrid(): Grid {
 // ── Zones ─────────────────────────────────────────────────────────────────────
 
 export type ZoneId =
-  | "z_office"
-  | "z_counter"
-  | "z_self_service"
-  | "z_desks"
-  | "z_waiting"
-  | "z_entrance"
-  | "z_hall";
+  "z_office" | "z_counter" | "z_self_service" | "z_desks" | "z_waiting" | "z_entrance" | "z_hall";
 
 export interface Zone {
   id: ZoneId;
@@ -245,7 +239,11 @@ export interface Zone {
 export const ZONES: readonly Zone[] = [
   { id: "z_office", label: "the manager's office", contains: (c) => c.x <= 4 && c.y <= 4 },
   { id: "z_counter", label: "the counter", contains: (c) => c.x >= 6 && c.y === 5 },
-  { id: "z_self_service", label: "self-service", contains: (c) => c.x <= 2 && c.y >= 6 && c.y <= 10 },
+  {
+    id: "z_self_service",
+    label: "self-service",
+    contains: (c) => c.x <= 2 && c.y >= 6 && c.y <= 10,
+  },
   { id: "z_desks", label: "the customer desks", contains: (c) => c.x >= 12 && c.y >= 6 },
   {
     id: "z_waiting",
@@ -284,22 +282,118 @@ export interface Station {
 }
 
 export const STATIONS: readonly Station[] = [
-  { id: "st_welcome", label: "the welcome desk", cell: { x: 3, y: 12 }, prompt: "talk to Rosa", prop: "welcome_desk" },
-  { id: "st_token", label: "the ticket machine", cell: { x: 6, y: 11 }, prompt: "take a ticket", prop: "token_machine" },
-  { id: "st_window1", label: "window 1", cell: { x: 8, y: 5 }, prompt: "talk to Mei", prop: "counter_window", propCell: { x: 8, y: 4 } },
-  { id: "st_window2", label: "window 2", cell: { x: 10, y: 5 }, prompt: "talk to Omar", prop: "counter_window", propCell: { x: 10, y: 4 } },
-  { id: "st_window3", label: "window 3", cell: { x: 12, y: 5 }, prompt: "read the sign", prop: "counter_window", propCell: { x: 12, y: 4 } },
-  { id: "st_accounts", label: "New Accounts", cell: { x: 12, y: 7 }, prompt: "talk to Daniel", prop: "desk", propCell: { x: 13, y: 7 } },
-  { id: "st_savings", label: "Savings & Deposits", cell: { x: 12, y: 9 }, prompt: "talk to Farah", prop: "desk", propCell: { x: 13, y: 9 } },
-  { id: "st_loans", label: "Loans", cell: { x: 12, y: 11 }, prompt: "talk to Sofia", prop: "desk", propCell: { x: 13, y: 11 } },
-  { id: "st_manager", label: "the manager's office", cell: { x: 3, y: 3 }, prompt: "talk to Mr Hale", prop: "manager_desk" },
-  { id: "st_rates", label: "the rates board", cell: { x: 1, y: 6 }, prompt: "read the rates", prop: "rates_board" },
-  { id: "st_printer", label: "the passbook printer", cell: { x: 1, y: 7 }, prompt: "use the printer", prop: "passbook_printer" },
+  {
+    id: "st_welcome",
+    label: "the welcome desk",
+    cell: { x: 3, y: 12 },
+    prompt: "talk to Rosa",
+    prop: "welcome_desk",
+  },
+  {
+    id: "st_token",
+    label: "the ticket machine",
+    cell: { x: 6, y: 11 },
+    prompt: "take a ticket",
+    prop: "token_machine",
+  },
+  {
+    id: "st_window1",
+    label: "window 1",
+    cell: { x: 8, y: 5 },
+    prompt: "talk to Mei",
+    prop: "counter_window",
+    propCell: { x: 8, y: 4 },
+  },
+  {
+    id: "st_window2",
+    label: "window 2",
+    cell: { x: 10, y: 5 },
+    prompt: "talk to Omar",
+    prop: "counter_window",
+    propCell: { x: 10, y: 4 },
+  },
+  {
+    id: "st_window3",
+    label: "window 3",
+    cell: { x: 12, y: 5 },
+    prompt: "read the sign",
+    prop: "counter_window",
+    propCell: { x: 12, y: 4 },
+  },
+  {
+    id: "st_accounts",
+    label: "New Accounts",
+    cell: { x: 12, y: 7 },
+    prompt: "talk to Daniel",
+    prop: "desk",
+    propCell: { x: 13, y: 7 },
+  },
+  {
+    id: "st_savings",
+    label: "Savings & Deposits",
+    cell: { x: 12, y: 9 },
+    prompt: "talk to Farah",
+    prop: "desk",
+    propCell: { x: 13, y: 9 },
+  },
+  {
+    id: "st_loans",
+    label: "Loans",
+    cell: { x: 12, y: 11 },
+    prompt: "talk to Sofia",
+    prop: "desk",
+    propCell: { x: 13, y: 11 },
+  },
+  {
+    id: "st_manager",
+    label: "the manager's office",
+    cell: { x: 3, y: 3 },
+    prompt: "talk to Mr Hale",
+    prop: "manager_desk",
+  },
+  {
+    id: "st_rates",
+    label: "the rates board",
+    cell: { x: 1, y: 6 },
+    prompt: "read the rates",
+    prop: "rates_board",
+  },
+  {
+    id: "st_printer",
+    label: "the passbook printer",
+    cell: { x: 1, y: 7 },
+    prompt: "use the printer",
+    prop: "passbook_printer",
+  },
   { id: "st_atm", label: "the ATMs", cell: { x: 1, y: 8 }, prompt: "use the ATM", prop: "atm" },
-  { id: "st_dropbox", label: "the cheque drop box", cell: { x: 1, y: 10 }, prompt: "read the drop box", prop: "drop_box" },
-  { id: "st_forms", label: "the form table", cell: { x: 4, y: 9 }, prompt: "look at the forms", prop: "form_table" },
-  { id: "st_leaflets", label: "the leaflet rack", cell: { x: 6, y: 8 }, prompt: "read a leaflet", prop: "leaflet_rack" },
-  { id: "st_waiting", label: "the waiting area", cell: { x: 9, y: 9 }, prompt: "sit and wait", prop: "bench" },
+  {
+    id: "st_dropbox",
+    label: "the cheque drop box",
+    cell: { x: 1, y: 10 },
+    prompt: "read the drop box",
+    prop: "drop_box",
+  },
+  {
+    id: "st_forms",
+    label: "the form table",
+    cell: { x: 4, y: 9 },
+    prompt: "look at the forms",
+    prop: "form_table",
+  },
+  {
+    id: "st_leaflets",
+    label: "the leaflet rack",
+    cell: { x: 6, y: 8 },
+    prompt: "read a leaflet",
+    prop: "leaflet_rack",
+  },
+  {
+    id: "st_waiting",
+    label: "the waiting area",
+    cell: { x: 9, y: 9 },
+    prompt: "sit and wait",
+    prop: "bench",
+  },
   { id: "st_guard", label: "the security guard", cell: { x: 10, y: 11 }, prompt: "talk to Ben" },
 ];
 

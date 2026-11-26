@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { checkCheque, dateProblem, isoDay, judged, practiceCheques, type ChequeValues } from "./cheques";
+import {
+  checkCheque,
+  dateProblem,
+  isoDay,
+  judged,
+  practiceCheques,
+  type ChequeValues,
+} from "./cheques";
 import { wordsMatch } from "./words";
 
 const today = "2026-11-18";

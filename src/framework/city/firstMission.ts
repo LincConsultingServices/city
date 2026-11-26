@@ -35,7 +35,12 @@ const BANK: CityObjective = {
 };
 
 /** The Café's saved career, as far as this file needs it. */
-function cafeBlob(): { questionIndex?: unknown; stageId?: unknown; index?: unknown; role?: unknown } | null {
+function cafeBlob(): {
+  questionIndex?: unknown;
+  stageId?: unknown;
+  index?: unknown;
+  role?: unknown;
+} | null {
   return readSession("cafe") as {
     questionIndex?: unknown;
     stageId?: unknown;
